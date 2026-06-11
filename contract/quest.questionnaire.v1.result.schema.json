@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "quest.questionnaire.v1.result",
+  "title": "Quest Questionnaire Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "schema",
+    "request_id",
+    "nonce",
+    "status",
+    "questionnaire",
+    "stage",
+    "answers"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "quest.questionnaire.v1"
+    },
+    "schema": {
+      "const": "quest.questionnaire.v1.result"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 16
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "cancelled", "error"]
+    },
+    "questionnaire": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "stage": {
+      "type": "string"
+    },
+    "condition_number": {
+      "type": ["integer", "null"]
+    },
+    "screen_sequence": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "answers": {
+      "type": "object"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

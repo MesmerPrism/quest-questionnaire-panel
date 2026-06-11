@@ -1,0 +1,33 @@
+# Android and Gradle
+.gradle/
+build/
+*/build/
+local.properties
+*.apk
+*.aab
+*.apks
+
+# Generated evidence
+artifacts/
+captures/
+logs/
+tmp/
+*.log
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.webm
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local/private config
+.mcp.local.json
+codex.local.toml
+keystore.properties
+*.jks
+*.keystore

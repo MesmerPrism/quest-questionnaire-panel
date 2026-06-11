@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "quest.questionnaire.v1.request",
+  "title": "Quest Questionnaire Request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "session_id",
+    "request_id",
+    "nonce",
+    "study_id",
+    "schema_id",
+    "open_stage",
+    "screen_sequence"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "quest.questionnaire.v1"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 16
+    },
+    "study_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "open_stage": {
+      "type": "string",
+      "enum": [
+        "demographics",
+        "post_condition:pictographic",
+        "post_condition:presence_questionnaire",
+        "post_condition:lost_opportunity",
+        "complete:export_summary"
+      ]
+    },
+    "condition_number": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "screen_sequence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "participant_ref": {
+      "type": ["string", "null"],
+      "description": "Optional caller-owned participant reference. Do not put raw identifying data here."
+    },
+    "caller": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "package": { "type": "string" },
+        "app_version": { "type": "string" },
+        "engine": { "type": "string", "enum": ["native", "unity", "unknown"] }
+      }
+    }
+  }
+}
