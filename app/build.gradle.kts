@@ -9,6 +9,13 @@ fun String.toBuildConfigString(): String =
 val updateManifestUrl = providers.gradleProperty("questQuestionnaireUpdateManifestUrl")
     .orElse("")
     .get()
+val appVersionCode = providers.gradleProperty("questQuestionnaireVersionCode")
+    .map(String::toInt)
+    .orElse(1)
+    .get()
+val appVersionName = providers.gradleProperty("questQuestionnaireVersionName")
+    .orElse("0.1.0")
+    .get()
 
 android {
     namespace = "io.github.mesmerprism.questquestionnaire.panel"
@@ -19,8 +26,8 @@ android {
         applicationId = "io.github.mesmerprism.questquestionnaire.panel"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",

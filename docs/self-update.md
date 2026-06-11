@@ -23,6 +23,42 @@ contract.
 - Do not use public shared storage, `file://`, MediaStore, overlays,
   package-killing, or ADB as the product update path.
 
+## Termux Fleet-Update Boundary
+
+A separate lab/fleet operations path can update this APK through Termux when a
+Quest already has developer mode, an operator-authorized WiFi ADB endpoint, and
+a running Termux process or operator-launched Termux restart helper. In that
+setup, Termux runs an `adb` client back to `127.0.0.1:5555`; if `adb shell id`
+reports `uid=2000(shell)`, a bounded operations agent can run `adb install -r`
+for a verified APK without the normal Android installer confirmation screen.
+
+Keep that path separate from this app's product behavior:
+
+- the panel app does not create or recover ADB authorization;
+- Termux is not Android shell authority unless it is using the active,
+  user-approved ADB lease;
+- WiFi ADB can disappear after reboot, adbd restart, timeout, or user
+  revocation;
+- a normal helper APK may restart a stopped Termux agent only after it has been
+  installed, launched, granted Termux `RUN_COMMAND`, and Termux allows external
+  commands;
+- Termux ADB subprocesses need a writable temp directory such as `$PREFIX/tmp`;
+- APKs should be downloaded or staged where Termux can read them, preferably
+  Termux-private storage rather than public shared storage;
+- `/data/local/tmp` can be used as an external ADB lab staging fallback, but it
+  is not the panel app's update store.
+
+For public-safe fleet-agent notes, use the Quest Termux Lab documentation. This
+repository should keep only the panel-specific contract and updater boundary.
+
+When headsets have internet but are not on the same WiFi as an operator
+machine, the trigger should be outbound: a central HTTPS controller queues a
+verified-update command, and the Termux agent on each headset polls for it. Do
+not design the trigger around inbound ADB from an operator laptop unless this
+is a local recovery session. If the agent is stopped, the controller cannot
+self-wake it; use a visible/pre-granted helper or external/user recovery, then
+confirm fresh heartbeats and `uid=2000(shell)` before update install.
+
 ## Build Configuration
 
 The panel app declares:
@@ -40,6 +76,14 @@ Build an APK with an HTTPS update manifest URL:
 ```
 
 On non-Windows shells, use `./gradlew`.
+
+For lab update workflow tests, build a newer APK without editing source:
+
+```powershell
+.\gradlew.bat :app:assembleDebug `
+  -PquestQuestionnaireVersionCode=2 `
+  -PquestQuestionnaireVersionName=0.1.1-lab
+```
 
 ## Manifest Format
 

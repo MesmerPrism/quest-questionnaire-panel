@@ -68,3 +68,9 @@ or Meta menu navigation should be part of the product path.
 The native panel app and minimal native caller tester build as debug APKs. The
 first smoke path proves the caller-owned `content://` result URI plus one-shot
 immutable broadcast `PendingIntent` completion contract.
+
+For off-store update behavior and fleet-operation caveats, see
+[`docs/self-update.md`](docs/self-update.md). The app-side updater uses
+Android's installer UI; Termux plus loopback WiFi ADB, including any
+operator-launched helper that restarts a stopped Termux agent, is an external
+lab/fleet operations path, not part of the questionnaire result contract.
