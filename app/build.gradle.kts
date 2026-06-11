@@ -3,6 +3,13 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
 }
 
+fun String.toBuildConfigString(): String =
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+val updateManifestUrl = providers.gradleProperty("questQuestionnaireUpdateManifestUrl")
+    .orElse("")
+    .get()
+
 android {
     namespace = "io.github.mesmerprism.questquestionnaire.panel"
     compileSdk = 34
@@ -14,6 +21,11 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField(
+            "String",
+            "UPDATE_MANIFEST_URL",
+            updateManifestUrl.toBuildConfigString()
+        )
     }
 
     buildTypes {
