@@ -15,9 +15,11 @@ contract.
   distribution.
 - Do not treat this as the managed Quest fleet-update path without written
   confirmation from Meta or the MDM vendor. The current managed-device research
-  direction is that Quest fleets should use Meta-managed enrollment, Meta Device
-  Manager, or a Quest-capable MDM for APK deployment, while app-side APK
-  download/install behavior on managed Quest devices needs policy confirmation.
+  direction is that Quest fleets should use only a vendor-confirmed Quest
+  management path. Meta's 2026 update stops selling Horizon managed services
+  and commercial Quest SKUs while continuing support through 2030, and app-side
+  APK download/install behavior on managed Quest devices still needs policy
+  confirmation.
 - Do not use public shared storage, `file://`, MediaStore, overlays,
   package-killing, or ADB as the product update path.
 
@@ -84,6 +86,6 @@ Build the app:
 Headset validation still needs a real signed newer APK and an HTTPS endpoint
 serving both the manifest and APK.
 
-For 100+ device fleets, validate Meta-managed Quest or XR-MDM deployment first.
-Use the app-side updater only for unmanaged/internal lab devices where operator
-confirmation is acceptable.
+For 100+ device fleets, validate an HMS-backed XR MDM or another
+vendor-confirmed Quest deployment path first. Use the app-side updater only for
+unmanaged/internal lab devices where operator confirmation is acceptable.
