@@ -40,6 +40,26 @@ a {
   color: inherit;
 }
 
+.inline-link,
+.summary-list a,
+.link-list a {
+  color: var(--green);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.inline-link:focus-visible,
+.inline-link:hover,
+.summary-list a:focus-visible,
+.summary-list a:hover,
+.link-list a:focus-visible,
+.link-list a:hover {
+  color: var(--red);
+  outline: none;
+}
+
 .site-header {
   position: sticky;
   top: 0;
@@ -180,7 +200,8 @@ h3 {
 .recipe-grid,
 .example-pair,
 .demo-grid,
-.reuse-layout {
+.reuse-layout,
+.source-map {
   display: grid;
   gap: 18px;
 }
@@ -200,12 +221,17 @@ h3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.source-map {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .guide-grid > *,
 .ownership-grid > *,
 .recipe-grid > *,
 .example-pair > *,
 .demo-grid > *,
-.reuse-layout > * {
+.reuse-layout > *,
+.source-map > * {
   min-width: 0;
 }
 
@@ -213,7 +239,9 @@ h3 {
 .recipe-grid article,
 .example-pair article,
 .note-block,
-.demo-card {
+.demo-card,
+.link-panel,
+.source-map article {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -222,20 +250,24 @@ h3 {
 .guide-grid article,
 .recipe-grid article,
 .example-pair article,
-.note-block {
+.note-block,
+.link-panel,
+.source-map article {
   padding: 20px;
 }
 
 .guide-grid p,
 .recipe-grid p,
 .note-block p,
-.demo-card p {
+.demo-card p,
+.source-map p {
   color: var(--muted);
 }
 
 .guide-grid p:last-child,
 .recipe-grid p:last-child,
-.note-block p:last-child {
+.note-block p:last-child,
+.source-map p:last-child {
   margin-bottom: 0;
 }
 
@@ -281,6 +313,19 @@ li + li {
 
 .stage-table {
   margin-top: 26px;
+}
+
+.link-panel {
+  margin-top: 18px;
+}
+
+.link-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.compact-links {
+  margin-top: 18px;
 }
 
 table {
@@ -417,7 +462,8 @@ code {
 @media (max-width: 1040px) {
   .guide-grid,
   .recipe-grid,
-  .flow-diagram {
+  .flow-diagram,
+  .source-map {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -468,7 +514,8 @@ code {
 
   .guide-grid,
   .recipe-grid,
-  .flow-diagram {
+  .flow-diagram,
+  .source-map {
     grid-template-columns: 1fr;
   }
 
@@ -476,6 +523,8 @@ code {
   .recipe-grid article,
   .example-pair article,
   .note-block,
+  .link-panel,
+  .source-map article,
   .flow-diagram li {
     padding: 16px;
   }

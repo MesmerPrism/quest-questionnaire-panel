@@ -17,6 +17,7 @@
         <a href="#brb">BRB integration</a>
         <a href="#reuse">Use it elsewhere</a>
         <a href="#contract">Contract</a>
+        <a href="#implementation">Deep dive</a>
         <a href="#commands">Commands</a>
         <a href="#demos">Demos</a>
       </nav>
@@ -28,25 +29,28 @@
           <p class="project-name">Quest Questionnaire Panel</p>
           <h1 id="page-title">A reusable Quest panel for questionnaire screens in XR studies.</h1>
           <p class="lede">
-            This project is a native Android panel app for Quest. It shows 2D
-            questionnaire screens, collects answers, writes a JSON result back
-            to the app that launched it, and then closes itself. The Big Red
-            Button Unity project is the first caller, but the contract is meant
-            to work for other native, Unity, or OpenXR apps too.
+            This project is a
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">native Android panel app for Quest</a>.
+            It shows 2D questionnaire screens, collects answers, writes a JSON
+            result back to the app that launched it, and then closes itself.
+            The
+            <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">Big Red Button Unity project</a>
+            is the first caller, but the contract is meant to work for other
+            native, Unity, or OpenXR apps too.
           </p>
         </div>
         <div class="summary-list" aria-label="Project summary">
           <div>
             <span>Panel project</span>
-            <strong>Native Quest 2D questionnaire app</strong>
+            <strong><a href="https://github.com/MesmerPrism/quest-questionnaire-panel">Native Quest 2D questionnaire app</a></strong>
           </div>
           <div>
             <span>First caller</span>
-            <strong>Big Red Button Unity study app</strong>
+            <strong><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">Big Red Button Unity study app</a></strong>
           </div>
           <div>
             <span>Result path</span>
-            <strong>caller-owned content URI plus callback</strong>
+            <strong><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">caller-owned content URI plus callback</a></strong>
           </div>
         </div>
       </section>
@@ -67,7 +71,8 @@
               The caller keeps the 3D scene, condition timing, participant
               session, and any app-specific logic. In the BRB case, that means
               Unity owns the room, the button, condition audio, press counting,
-              and final physical interaction.
+              and final physical interaction through the
+              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity launcher</a>.
             </p>
           </article>
 
@@ -77,7 +82,8 @@
               When the caller needs form-like input, it launches this native 2D
               panel with a request. The panel renders only the requested stage
               or sequence, plays panel-owned questionnaire prompts, validates
-              required answers, and submits a result.
+              required answers, and submits a result from
+              <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireActivity.kt">QuestionnaireActivity</a>.
             </p>
           </article>
 
@@ -88,7 +94,8 @@
               file as a writable <code>content://</code> URI, and gives the
               panel a one-shot broadcast <code>PendingIntent</code>. The panel
               writes JSON to the URI, sends the callback as a signal, and
-              finishes only its own activity.
+              finishes only its own activity. The full rule set is in the
+              <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a>.
             </p>
           </article>
         </div>
@@ -100,7 +107,9 @@
           <p>
             The Big Red Button Unity app is the current integration target. It
             drives the panel by choosing the questionnaire stage, creating the
-            request, and validating the returned JSON.
+            request, and validating the returned JSON. The current reference is
+            the pushed BRB branch
+            <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge"><code>codex/brb-questionnaire-panel-bridge</code></a>.
           </p>
         </div>
 
@@ -108,21 +117,21 @@
           <div>
             <h3>BRB Unity app owns</h3>
             <ul>
-              <li>The 3D Big Red Button and press animation.</li>
-              <li>Condition sessions, condition instruction audio, and timing.</li>
-              <li>Button press counting and final physical interaction.</li>
+              <li>The <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scenes/SampleScene.unity">3D Big Red Button scene</a> and press animation.</li>
+              <li>Condition sessions, condition instruction audio, and timing through <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/VR/QuestVrInputManager.cs">QuestVrInputManager</a>.</li>
+              <li>Button press counting and final physical interaction through <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/BigRedButtonWorldPressCounter.cs">BigRedButtonWorldPressCounter</a>.</li>
               <li>The session map that links a panel request to the study run.</li>
-              <li>The result URI, callback receiver, and result validation.</li>
+              <li>The result URI, callback receiver, and <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultValidator.java">result validation</a>.</li>
             </ul>
           </div>
           <div>
             <h3>Questionnaire panel owns</h3>
             <ul>
-              <li>Foreground 2D Quest questionnaire screens.</li>
+              <li>Foreground 2D Quest questionnaire screens in <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireActivity.kt">QuestionnaireActivity</a>.</li>
               <li>Language, demographics, prior experience, and post-condition forms.</li>
               <li>Panel-owned questionnaire narration and UI feedback audio.</li>
               <li>Final confirmation and return prompts.</li>
-              <li>Result JSON writing to the caller-granted URI.</li>
+              <li>Result JSON writing to the caller-granted URI using the shared <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireResult.kt">result model</a>.</li>
             </ul>
           </div>
         </div>
@@ -160,6 +169,16 @@
             </tbody>
           </table>
         </div>
+
+        <div class="link-panel">
+          <h3>BRB integration source</h3>
+          <ul class="link-list">
+            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Documentation/New-Agent-Integration-Brief.md">New-agent integration brief</a></li>
+            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireContract.java">BRB Android questionnaire constants and stage names</a></li>
+            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnairePanelBridge.java">BRB Android bridge that launches the panel</a></li>
+            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity C# launcher that chooses questionnaire routes</a></li>
+          </ul>
+        </div>
       </section>
 
       <section id="reuse" class="section" aria-labelledby="reuse-title">
@@ -167,7 +186,11 @@
           <h2 id="reuse-title">Use It From Another XR App</h2>
           <p>
             BRB is the first integration, not a special transport. Any
-            cooperating XR app can use the same launch and result pattern.
+            cooperating XR app can use the same launch and result pattern. The
+            reusable rules are documented in the
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">handoff contract</a>
+            and the
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a>.
           </p>
         </div>
 
@@ -186,6 +209,11 @@
               <li>Launch the panel with an explicit component and write permission for the result URI.</li>
               <li>Receive the callback, read the JSON from your own file, and validate request id, nonce, schema, status, and answer shape.</li>
             </ol>
+            <ul class="link-list compact-links">
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/README.md">Android caller SDK notes</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin notes</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/NativeCallerActivity.kt">Native Android caller example</a></li>
+            </ul>
           </div>
 
           <div class="note-block">
@@ -195,6 +223,13 @@
               storage, MediaStore answer exchange, Termux file drops, package
               killing, force-stop cleanup, or overlay tricks. Those can be lab
               tools, but they are not the app-to-app contract.
+            </p>
+            <p>
+              For a concrete Unity caller, read BRB's
+              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultProvider.java">result provider</a>,
+              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultStore.java">result store</a>,
+              and
+              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireReturnReceiver.java">return receiver</a>.
             </p>
           </div>
         </div>
@@ -206,7 +241,11 @@
           <p>
             The launch Intent carries identity, request JSON, a writable result
             URI, and a callback. The callback is only a signal; answers stay in
-            the result JSON.
+            the result JSON. The canonical definitions live in the panel repo's
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireContract.kt">Kotlin contract</a>,
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.request.schema.json">request schema</a>,
+            and
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.result.schema.json">result schema</a>.
           </p>
         </div>
 
@@ -322,6 +361,70 @@
         </div>
       </section>
 
+      <section id="implementation" class="section" aria-labelledby="implementation-title">
+        <div class="section-heading">
+          <h2 id="implementation-title">Implementation Map</h2>
+          <p>
+            Start with the plain-language flow above, then use these source
+            links when you need the exact implementation. Panel links point to
+            <code>main</code>; BRB links point to the pushed
+            <code>codex/brb-questionnaire-panel-bridge</code> branch.
+          </p>
+        </div>
+
+        <div class="source-map">
+          <article>
+            <h3>Panel app: Android contract and UI</h3>
+            <p>
+              This is the reusable app other XR experiences launch. Read these
+              files to understand the public contract, validation, screen flow,
+              and answer shape.
+            </p>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">Panel README and setup</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">Handoff contract</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent extras and callback contract</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireLaunchValidator.kt">Launch validation</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireRequest.kt">Request model</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireResult.kt">Result model</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireActivity.kt">Panel activity and screen flow</a></li>
+            </ul>
+          </article>
+
+          <article>
+            <h3>BRB app: Unity caller reference</h3>
+            <p>
+              BRB shows how a Unity study app can own the 3D world while
+              delegating questionnaire screens to the panel.
+            </p>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Documentation/New-Agent-Integration-Brief.md">BRB integration brief</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity questionnaire launcher</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireContract.java">BRB Java contract constants</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnairePanelBridge.java">Android bridge from Unity to panel</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultValidator.java">BRB result validator</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/AndroidManifest.xml">BRB Android manifest declarations</a></li>
+            </ul>
+          </article>
+
+          <article>
+            <h3>Examples, validation, and audio</h3>
+            <p>
+              These files are useful when adapting the pattern to another app
+              or checking headset behavior.
+            </p>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/NativeCallerActivity.kt">Native caller example activity</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/QuestionnaireResultValidator.kt">Native caller result validation</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/validation-matrix.md">Validation matrix</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/audio/README.md">Panel audio guide</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/audio/speech-asset-protocol.md">Speech asset protocol</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/self-update.md">Self-update notes</a></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
       <section id="commands" class="section" aria-labelledby="commands-title">
         <div class="section-heading">
           <h2 id="commands-title">Commands For Developers</h2>
@@ -346,16 +449,27 @@
             <p>Unity prepares the request and launches the panel route.</p>
             <pre><code>adb shell am start -W \
   -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
+  --ez brb.questionnaireOpen true \
   --es brb.questionnaireTrigger initial</code></pre>
           </article>
 
           <article>
-            <h3>Drive panel input at human pace</h3>
+            <h3>Open a post-condition sequence</h3>
+            <p>Use the numbered trigger after condition 1 or condition 2.</p>
+            <pre><code>adb shell am start -W \
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
+  --ez brb.questionnaireOpen true \
+  --es brb.questionnaireTrigger post_condition_1</code></pre>
+          </article>
+
+          <article>
+            <h3>Drive final panel input at human pace</h3>
             <p>Debug scripts are for validation clips and regression checks.</p>
             <pre><code>adb shell am start -W \
   -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
-  --es brb.questionnaireTrigger initial \
-  --es brb.questionnaireCommandScript "language:en-US,next,participant_code:QA001,age:30,next,prior:no,next" \
+  --ez brb.questionnaireOpen true \
+  --es brb.questionnaireTrigger final \
+  --es brb.questionnaireCommandScript "final:1,next,submit" \
   --ei brb.questionnaireCommandIntervalMs 1400</code></pre>
           </article>
         </div>
@@ -466,14 +580,16 @@
 
     <footer class="site-footer">
       <p>
-        Source docs for the full Android contract, schema, and validation plan.
+        Source docs for the panel contract, schemas, validation plan, and BRB
+        Unity reference integration.
       </p>
       <nav aria-label="Repository documents">
+        <a href="https://github.com/MesmerPrism/quest-questionnaire-panel">Panel repository</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">Handoff contract</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.request.schema.json">Request schema</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.result.schema.json">Result schema</a>
-        <a href="https://github.com/MesmerPrism/the-big-red-button-institute">Big Red Button Unity project</a>
+        <a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">BRB Unity reference branch</a>
       </nav>
     </footer>
   </body>
