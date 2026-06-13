@@ -33,6 +33,19 @@ Required extras:
 | `result_uri` | parcelable Uri | Caller-owned result URI. |
 | `return_to_caller` | parcelable PendingIntent | Completion callback. |
 
+Debug-only optional extras:
+
+| Extra | Type | Meaning |
+| --- | --- | --- |
+| `io.github.mesmerprism.questquestionnaire.extra.DEBUG_AUTO_SUBMIT` | boolean | Immediately writes a synthetic completed result in debug builds. |
+| `io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_SCRIPT` | string | Comma-, semicolon-, or newline-separated UI-equivalent debug commands in debug builds. |
+| `io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_INTERVAL_MS` | int | Delay between debug commands, clamped to 0-10000 ms. |
+
+Debug command scripts are for repeatable Quest validation only. They are ignored
+in release builds and must not replace real user interaction evidence. Prefer
+comma separators when passing scripts through `adb shell am start`; semicolons
+are treated as shell separators unless escaped.
+
 Grant shape:
 
 - Put the caller-owned result URI in Intent data.
@@ -54,12 +67,42 @@ JSON, not in callback extras.
 
 ## BRB Stage Names
 
-Initial BRB-first stage names:
+BRB split-app stage names:
 
 ```text
+language_select
 demographics
+prior_experience
 post_condition:pictographic
 post_condition:presence_questionnaire
 post_condition:lost_opportunity
+final:end_confirmation
+final:extra_presses_prompt
 complete:export_summary
 ```
+
+Recommended caller sequences:
+
+```text
+Initial panel sequence:
+language_select -> demographics -> prior_experience
+
+Post-condition 1 panel sequence:
+post_condition:pictographic -> post_condition:presence_questionnaire -> post_condition:lost_opportunity
+
+Post-condition 2 panel sequence:
+post_condition:pictographic -> post_condition:presence_questionnaire
+
+Final panel sequence:
+final:end_confirmation -> final:extra_presses_prompt -> complete:export_summary
+```
+
+The Unity app remains the owner of the 3D Big Red Button, condition sessions,
+button press counting, and final physical button interaction. The panel owns
+only the foreground 2D questionnaire screens and writes answers to the
+caller-owned result URI.
+
+`final:end_confirmation` is a 1-to-10 end-confirmation scale. A selected `10`
+is the immediate end path. Any non-10 value continues through
+`final:extra_presses_prompt`, after which Unity records the physical button
+interaction.

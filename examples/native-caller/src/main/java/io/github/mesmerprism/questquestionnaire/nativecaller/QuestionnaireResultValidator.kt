@@ -21,6 +21,12 @@ data class QuestionnaireResultValidation(
 object QuestionnaireResultValidator {
     private val KnownStatuses = setOf("completed", "cancelled", "error")
     private val PlaceholderAnswers = setOf("yes", "no", "not_answered")
+    private val RequiredStructuredAnswerObjects = setOf(
+        "demographics",
+        "prior_button_experience",
+        "post_condition",
+        "final"
+    )
 
     fun validate(resultJson: String, expected: ExpectedQuestionnaireResult): QuestionnaireResultValidation {
         val json = try {
@@ -68,9 +74,19 @@ object QuestionnaireResultValidator {
             return invalid("answer_stage_mismatch")
         }
 
-        val placeholderAnswer = answers.optString("placeholder_answer")
-        if (placeholderAnswer !in PlaceholderAnswers) {
-            return invalid("invalid_placeholder_answer")
+        val placeholderAnswer = answers.optString("placeholder_answer", "")
+        if (placeholderAnswer.isNotBlank()) {
+            if (placeholderAnswer !in PlaceholderAnswers) {
+                return invalid("invalid_placeholder_answer")
+            }
+            return QuestionnaireResultValidation(valid = true, status = status)
+        }
+
+        val missingObject = RequiredStructuredAnswerObjects.firstOrNull {
+            answers.optJSONObject(it) == null
+        }
+        if (missingObject != null) {
+            return invalid("missing_$missingObject")
         }
 
         return QuestionnaireResultValidation(valid = true, status = status)

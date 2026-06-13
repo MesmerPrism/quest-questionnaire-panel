@@ -16,6 +16,8 @@
 | Android 12+ | Exported components and PendingIntent mutability are explicit. | Manifest review/build. |
 | Android 14/15+ | Broadcast path works without UI-start permission. | Logcat has no BAL block for default path. |
 | Quest panel | Panel opens as 2D Quest surface and accepts controller/hand input. | Headset observation/screenshot. |
+| BRB screens | Initial, post-condition, and final screen sequences submit structured answers. | Debug smoke result JSON and caller validation. |
+| Audio | Panel-owned localized prompts play from APK assets without logging answer payloads. | Headset/logcat smoke with cue markers. |
 | Privacy | Answers absent from logs, filenames, notifications, and public storage. | Logcat/file review. |
 | Product path | No ADB, Termux, public storage, force-stop, package killing, or Meta menu needed after install. | Run notes. |
 

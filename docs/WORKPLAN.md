@@ -6,7 +6,7 @@ proves the communication contract before Unity integration.
 
 ## Phase 0: Repo Baseline
 
-Status: scaffolded.
+Status: scaffolded; BRB split-app questionnaire port is in progress.
 
 Deliverables:
 
@@ -63,7 +63,7 @@ Deliverables:
 - Install both APKs on a Quest.
 - Launch native caller tester as a 2D panel.
 - Open questionnaire panel from caller.
-- Submit placeholder answer.
+- Submit structured BRB questionnaire answers.
 - Verify caller reads valid result JSON from its own private result file.
 
 Acceptance:
@@ -79,17 +79,22 @@ Acceptance:
 Deliverables:
 
 - BRB demographics screen.
+- BRB language and prior-experience screens.
 - Post-condition pictographic screen.
 - Post-condition presence questionnaire screen.
 - Post-condition lost opportunity screen.
+- Final confirmation and final-return prompt screens.
 - Complete/export summary screen.
 - Screen sequence runner driven by `open_stage` and `screen_sequence`.
+- Localized generated audio assets for panel-owned questionnaire prompts.
 
 Acceptance:
 
 - Each BRB-first stage can be opened directly by request JSON.
 - Results conform to `quest.questionnaire.v1.result`.
 - Missing/invalid required answers produce validation errors before submit.
+- Unity remains the owner of condition sessions and physical button press
+  counting.
 
 ## Phase 5: Caller SDK Extraction
 

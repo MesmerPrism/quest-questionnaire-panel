@@ -21,5 +21,14 @@ object QuestionnaireContract {
     const val ExtraDebugAutoSubmit = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_AUTO_SUBMIT"
 
     const val QuestionnaireId = "brb-questionnaire-v1"
-    const val DefaultStage = "demographics"
+    const val StageLanguageSelect = "language_select"
+    const val StageDemographics = "demographics"
+    const val StagePriorExperience = "prior_experience"
+    const val DefaultStage = StageLanguageSelect
+
+    val InitialStudySequence = listOf(
+        StageLanguageSelect,
+        StageDemographics,
+        StagePriorExperience
+    )
 }
