@@ -151,6 +151,12 @@ h3 {
   font-size: 19px;
 }
 
+.why-copy {
+  max-width: 800px;
+  margin: 18px 0 0;
+  color: var(--ink);
+}
+
 .summary-list {
   display: grid;
   border: 1px solid var(--line);
@@ -201,7 +207,10 @@ h3 {
 .example-pair,
 .demo-grid,
 .reuse-layout,
-.source-map {
+.source-map,
+.reader-grid,
+.integrity-grid,
+.architecture-diagram {
   display: grid;
   gap: 18px;
 }
@@ -217,12 +226,25 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.reader-grid,
+.source-map,
+.integrity-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .recipe-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.source-map {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.architecture-diagram {
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(96px, 0.32fr)
+    minmax(0, 1fr)
+    minmax(96px, 0.32fr)
+    minmax(0, 1fr);
+  align-items: stretch;
+  margin: 24px 0 0;
 }
 
 .guide-grid > *,
@@ -231,7 +253,10 @@ h3 {
 .example-pair > *,
 .demo-grid > *,
 .reuse-layout > *,
-.source-map > * {
+.source-map > *,
+.reader-grid > *,
+.integrity-grid > *,
+.architecture-diagram > * {
   min-width: 0;
 }
 
@@ -241,7 +266,11 @@ h3 {
 .note-block,
 .demo-card,
 .link-panel,
-.source-map article {
+.source-map article,
+.reader-grid article,
+.integrity-grid article,
+.code-panel,
+.architecture-diagram > div {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -252,7 +281,11 @@ h3 {
 .example-pair article,
 .note-block,
 .link-panel,
-.source-map article {
+.source-map article,
+.reader-grid article,
+.integrity-grid article,
+.code-panel,
+.architecture-diagram > div {
   padding: 20px;
 }
 
@@ -260,15 +293,28 @@ h3 {
 .recipe-grid p,
 .note-block p,
 .demo-card p,
-.source-map p {
+.source-map p,
+.reader-grid p,
+.integrity-grid p,
+.architecture-diagram p {
   color: var(--muted);
 }
 
 .guide-grid p:last-child,
 .recipe-grid p:last-child,
 .note-block p:last-child,
-.source-map p:last-child {
+.source-map p:last-child,
+.reader-grid p:last-child,
+.integrity-grid p:last-child,
+.architecture-diagram p:last-child {
   margin-bottom: 0;
+}
+
+.architecture-diagram > span {
+  align-self: center;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
 }
 
 .ownership-grid > div {
@@ -300,7 +346,8 @@ li + li {
 }
 
 .contract-table,
-.stage-table {
+.stage-table,
+.status-table {
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -313,6 +360,14 @@ li + li {
 
 .stage-table {
   margin-top: 26px;
+}
+
+.status-table {
+  margin-top: 24px;
+}
+
+.integrity-grid {
+  margin-top: 18px;
 }
 
 .link-panel {
@@ -463,8 +518,14 @@ code {
   .guide-grid,
   .recipe-grid,
   .flow-diagram,
-  .source-map {
+  .source-map,
+  .reader-grid,
+  .integrity-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .architecture-diagram {
+    grid-template-columns: 1fr;
   }
 
   .flow-diagram li {
@@ -478,7 +539,8 @@ code {
   .ownership-grid,
   .example-pair,
   .demo-grid,
-  .reuse-layout {
+  .reuse-layout,
+  .architecture-diagram {
     grid-template-columns: 1fr;
   }
 
@@ -515,7 +577,9 @@ code {
   .guide-grid,
   .recipe-grid,
   .flow-diagram,
-  .source-map {
+  .source-map,
+  .reader-grid,
+  .integrity-grid {
     grid-template-columns: 1fr;
   }
 
@@ -525,6 +589,10 @@ code {
   .note-block,
   .link-panel,
   .source-map article,
+  .reader-grid article,
+  .integrity-grid article,
+  .code-panel,
+  .architecture-diagram > div,
   .flow-diagram li {
     padding: 16px;
   }

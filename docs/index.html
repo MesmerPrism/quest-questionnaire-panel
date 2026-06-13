@@ -14,9 +14,11 @@
     <header class="site-header">
       <nav aria-label="Primary navigation">
         <a href="#overview">Overview</a>
+        <a href="#status">Status</a>
         <a href="#brb">BRB integration</a>
         <a href="#reuse">Use it elsewhere</a>
         <a href="#contract">Contract</a>
+        <a href="#integrity">Recovery</a>
         <a href="#implementation">Deep dive</a>
         <a href="#commands">Commands</a>
         <a href="#demos">Demos</a>
@@ -27,16 +29,24 @@
       <section id="overview" class="intro" aria-labelledby="page-title">
         <div>
           <p class="project-name">Quest Questionnaire Panel</p>
-          <h1 id="page-title">A reusable Quest panel for questionnaire screens in XR studies.</h1>
+          <h1 id="page-title">A reusable 2D questionnaire panel for XR studies on Meta Quest / Horizon OS.</h1>
           <p class="lede">
             This project is a
-            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">native Android panel app for Quest</a>.
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">Quest-compatible native Android panel app</a>.
             It shows 2D questionnaire screens, collects answers, writes a JSON
             result back to the app that launched it, and then closes itself.
             The
             <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">Big Red Button Unity project</a>
             is the first caller, but the contract is meant to work for other
             native, Unity, or OpenXR apps too.
+          </p>
+          <p class="why-copy">
+            XR studies often need questionnaires before, between, or after
+            immersive conditions. Building those forms directly into every
+            Unity scene is slow, fragile, and hard to standardize. This panel
+            keeps the questionnaire moment separate: the XR app launches it,
+            the participant answers in a Quest-friendly 2D UI, and the XR app
+            resumes with structured data.
           </p>
         </div>
         <div class="summary-list" aria-label="Project summary">
@@ -52,6 +62,98 @@
             <span>Result path</span>
             <strong><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">caller-owned content URI plus callback</a></strong>
           </div>
+        </div>
+      </section>
+
+      <section id="status" class="section" aria-labelledby="status-title">
+        <div class="section-heading">
+          <h2 id="status-title">What This Solves</h2>
+          <p>
+            The project is for studies that need reliable form capture without
+            rebuilding questionnaires inside every immersive scene.
+          </p>
+        </div>
+
+        <div class="reader-grid">
+          <article>
+            <h3>For researchers</h3>
+            <p>
+              Use standardized forms inside XR studies while keeping study
+              timing, condition order, and participant session logic in the
+              experiment app.
+            </p>
+          </article>
+          <article>
+            <h3>For Unity developers</h3>
+            <p>
+              Launch the panel through a small Android bridge, pass the study
+              stage as request JSON, and read a validated result summary when
+              the panel closes.
+            </p>
+          </article>
+          <article>
+            <h3>For Android and OpenXR developers</h3>
+            <p>
+              Use the Intent contract directly: request JSON in, result JSON
+              out through a caller-owned <code>content://</code> URI.
+            </p>
+          </article>
+        </div>
+
+        <div class="architecture-diagram" aria-label="Questionnaire handoff architecture">
+          <div>
+            <h3>Unity / XR study app</h3>
+            <p>Owns scene, condition timing, participant session, and physical interaction.</p>
+          </div>
+          <span>explicit Android Intent</span>
+          <div>
+            <h3>Quest Questionnaire Panel</h3>
+            <p>Owns 2D UI, narration, validation, answers, and result writing.</p>
+          </div>
+          <span>JSON result URI plus one-shot callback</span>
+          <div>
+            <h3>Unity / XR study app</h3>
+            <p>Validates request id, nonce, schema, status, stage, and answer shape before resuming.</p>
+          </div>
+        </div>
+
+        <div class="status-table" role="region" aria-label="Integration status matrix" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Frontend / caller</th>
+                <th scope="col">Current status</th>
+                <th scope="col">Integration layer</th>
+                <th scope="col">What it proves</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Native Android caller</td>
+                <td>Working reference</td>
+                <td>Direct Android Intent</td>
+                <td>Minimal request/result contract.</td>
+              </tr>
+              <tr>
+                <td>Unity / BRB</td>
+                <td>Working example branch</td>
+                <td>Unity C# to Android Java bridge</td>
+                <td>Real XR study integration.</td>
+              </tr>
+              <tr>
+                <td>Generic Unity package</td>
+                <td>Planned / next</td>
+                <td>Reusable Unity plugin</td>
+                <td>Plug-and-play path for Unity projects.</td>
+              </tr>
+              <tr>
+                <td>Other OpenXR / native apps</td>
+                <td>Contract-compatible</td>
+                <td>Explicit Android Intent</td>
+                <td>Engine-agnostic launch and return path.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -140,9 +242,9 @@
           <table>
             <thead>
               <tr>
-                <th>BRB moment</th>
-                <th>Panel sequence</th>
-                <th>Plain-language purpose</th>
+                <th scope="col">BRB moment</th>
+                <th scope="col">Panel sequence</th>
+                <th scope="col">Plain-language purpose</th>
               </tr>
             </thead>
             <tbody>
@@ -235,6 +337,52 @@
         </div>
       </section>
 
+      <section class="section" aria-labelledby="copy-title">
+        <div class="section-heading">
+          <h2 id="copy-title">Copy This First</h2>
+          <p>
+            This is the minimum caller-side shape before app-specific wrappers.
+            Real code should use the SDK or local helper classes, but the
+            obligations are the same.
+          </p>
+        </div>
+
+        <article class="code-panel">
+          <h3>Generic Android caller pseudocode</h3>
+          <pre><code>val requestId = uuid()
+val nonce = randomNonce()
+val resultUri = createPrivateWritableResultUri(requestId)
+
+val requestJson = buildQuestionnaireRequest(
+    protocol = "quest.questionnaire.v1",
+    studyId = "my-study",
+    schemaId = "my-questionnaire-v1",
+    openStage = "post_condition",
+    screenSequence = listOf("post_condition")
+)
+
+val callback = PendingIntent.getBroadcast(
+    context,
+    requestId.hashCode(),
+    resultIntent(requestId),
+    FLAG_ONE_SHOT or FLAG_IMMUTABLE
+)
+
+startActivity(
+    Intent("io.github.mesmerprism.questquestionnaire.action.START")
+        .setComponent(panelComponent)
+        .setDataAndType(resultUri, "application/vnd.quest-questionnaire.request+json")
+        .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        .putExtra("session_id", sessionId)
+        .putExtra("request_id", requestId)
+        .putExtra("request_nonce", nonce)
+        .putExtra("request_json", requestJson)
+        .putExtra("result_uri", resultUri)
+        .putExtra("return_to_caller", callback)
+)</code></pre>
+        </article>
+      </section>
+
       <section id="contract" class="section" aria-labelledby="contract-title">
         <div class="section-heading">
           <h2 id="contract-title">Contract In One Pass</h2>
@@ -253,9 +401,9 @@
           <table>
             <thead>
               <tr>
-                <th>Required extra</th>
-                <th>Type</th>
-                <th>Why it exists</th>
+                <th scope="col">Required extra</th>
+                <th scope="col">Type</th>
+                <th scope="col">Why it exists</th>
               </tr>
             </thead>
             <tbody>
@@ -341,6 +489,15 @@
     "open_stage": "post_condition:pictographic",
     "completed_stage": "post_condition:lost_opportunity",
     "language": "en-US",
+    "demographics": {
+      "participant_ref": "P042",
+      "age_range": "30-39",
+      "language": "en-US"
+    },
+    "prior_button_experience": {
+      "has_used_similar_button": false,
+      "notes": null
+    },
     "post_condition": {
       "presence_slider": 64,
       "redness_vas": 71,
@@ -357,6 +514,74 @@
   "submitted_at": "2026-06-13T21:11:14Z",
   "error": null
 }</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="integrity" class="section" aria-labelledby="integrity-title">
+        <div class="section-heading">
+          <h2 id="integrity-title">Recovery, Privacy, And Study Integrity</h2>
+          <p>
+            The handoff is designed so a study can recover from interruption
+            without leaking answers into broad storage, callback extras, logs,
+            or filenames.
+          </p>
+        </div>
+
+        <div class="status-table" role="region" aria-label="Result status meanings" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Status</th>
+                <th scope="col">Meaning</th>
+                <th scope="col">Caller action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>completed</code></td>
+                <td>Participant submitted valid answers.</td>
+                <td>Validate the JSON and continue the study.</td>
+              </tr>
+              <tr>
+                <td><code>cancelled</code></td>
+                <td>Participant, back navigation, or system interruption stopped the panel.</td>
+                <td>Mark missing data and decide whether to retry, skip, or end the block.</td>
+              </tr>
+              <tr>
+                <td><code>error</code></td>
+                <td>The panel could not render, validate, write, or return cleanly.</td>
+                <td>Show a recovery prompt, preserve pending state, or abort the study block.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="integrity-grid">
+          <article>
+            <h3>Recovery rules</h3>
+            <ul>
+              <li>If the callback does not arrive, keep the pending request and check the private result file on resume or cold start.</li>
+              <li>If Unity resumes before reading the file, validate the stored result before advancing the study state.</li>
+              <li>If the request id, nonce, stage, sequence, schema, or answer shape does not match, treat the result as invalid.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>Privacy rules for studies</h3>
+            <ul>
+              <li>Use pseudonymous participant and session references.</li>
+              <li>Do not put names, emails, raw identifiers, or answers into request filenames, callback extras, logs, notifications, or public storage.</li>
+              <li>The panel gets write access only to the caller-created result URI; the callback only signals completion.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>Timing metadata</h3>
+            <p>
+              Result v1 includes <code>started_at</code> and
+              <code>submitted_at</code>. A future research schema can add
+              per-screen timing such as visible time, first interaction time,
+              and interruption windows without changing the launch contract.
+            </p>
           </article>
         </div>
       </section>
