@@ -2,7 +2,7 @@
   color-scheme: light;
   --page: #f5f6f3;
   --surface: #ffffff;
-  --surface-soft: #f0f2ee;
+  --surface-soft: #eef1ea;
   --ink: #1d1b19;
   --muted: #5f625c;
   --line: #d7dad2;
@@ -41,11 +41,11 @@ a {
 }
 
 .site-header {
-  border-bottom: 1px solid var(--line);
-  background: rgba(245, 246, 243, 0.96);
   position: sticky;
   top: 0;
   z-index: 10;
+  border-bottom: 1px solid var(--line);
+  background: rgba(245, 246, 243, 0.96);
 }
 
 .site-header nav,
@@ -104,23 +104,35 @@ p {
 }
 
 h1 {
-  max-width: 780px;
+  max-width: 840px;
   margin-bottom: 20px;
-  font-size: 52px;
-  line-height: 1.03;
+  font-size: 50px;
+  line-height: 1.04;
   letter-spacing: 0;
 }
 
+h2 {
+  margin-bottom: 0;
+  font-size: 31px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+h3 {
+  margin-bottom: 8px;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
 .lede {
-  max-width: 760px;
+  max-width: 800px;
   margin-bottom: 0;
   color: var(--muted);
-  font-size: 20px;
+  font-size: 19px;
 }
 
 .summary-list {
   display: grid;
-  gap: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -158,97 +170,86 @@ h1 {
   margin-bottom: 28px;
 }
 
-h2 {
-  margin-bottom: 0;
-  font-size: 31px;
-  line-height: 1.15;
-  letter-spacing: 0;
-}
-
 .section-heading p {
   margin-bottom: 0;
   color: var(--muted);
 }
 
-.demo-grid {
+.guide-grid,
+.ownership-grid,
+.recipe-grid,
+.example-pair,
+.demo-grid,
+.reuse-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
 
-.demo-card,
-.recipe-grid article {
+.guide-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ownership-grid,
+.example-pair,
+.demo-grid,
+.reuse-layout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.recipe-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.guide-grid > *,
+.ownership-grid > *,
+.recipe-grid > *,
+.example-pair > *,
+.demo-grid > *,
+.reuse-layout > * {
+  min-width: 0;
+}
+
+.guide-grid article,
+.recipe-grid article,
+.example-pair article,
+.note-block,
+.demo-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  overflow: hidden;
 }
 
-.demo-card video {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #111;
-  object-fit: cover;
+.guide-grid article,
+.recipe-grid article,
+.example-pair article,
+.note-block {
+  padding: 20px;
 }
 
-.demo-card h3,
-.demo-card p,
-.demo-card pre {
-  margin-left: 20px;
-  margin-right: 20px;
-}
-
-h3 {
-  margin-bottom: 8px;
-  font-size: 20px;
-  line-height: 1.25;
-}
-
-.demo-card h3 {
-  margin-top: 18px;
-}
-
+.guide-grid p,
+.recipe-grid p,
+.note-block p,
 .demo-card p {
   color: var(--muted);
 }
 
-pre {
-  margin: 16px 0 20px;
-  padding: 16px;
-  overflow-x: auto;
-  border-radius: 6px;
-  background: var(--code);
-  color: var(--code-text);
-  font-size: 13px;
-  line-height: 1.45;
+.guide-grid p:last-child,
+.recipe-grid p:last-child,
+.note-block p:last-child {
+  margin-bottom: 0;
 }
 
-code {
-  font-family:
-    "Cascadia Mono",
-    "SFMono-Regular",
-    Consolas,
-    monospace;
-  font-size: 0.95em;
-}
-
-.columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.columns > div {
+.ownership-grid > div {
   border-left: 4px solid var(--green);
   padding: 4px 0 4px 20px;
 }
 
-.columns > div:first-child {
+.ownership-grid > div:first-child {
   border-color: var(--red);
 }
 
-ul {
+ul,
+.plain-list {
   margin: 0;
   padding-left: 20px;
 }
@@ -257,32 +258,35 @@ li + li {
   margin-top: 8px;
 }
 
-.recipe-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 26px;
+.reuse-layout {
+  align-items: start;
 }
 
-.recipe-grid article {
-  padding: 20px;
+.note-block {
+  border-color: #c7d3ca;
+  background: var(--surface-soft);
 }
 
-.recipe-grid pre {
-  margin-bottom: 0;
-}
-
-.contract-table {
+.contract-table,
+.stage-table {
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
 }
 
+.contract-table {
+  margin-bottom: 26px;
+}
+
+.stage-table {
+  margin-top: 26px;
+}
+
 table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
-  min-width: 680px;
 }
 
 th,
@@ -301,19 +305,65 @@ th {
   background: var(--surface-soft);
 }
 
+pre {
+  margin: 16px 0 0;
+  padding: 16px;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--code);
+  color: var(--code-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+code {
+  font-family:
+    "Cascadia Mono",
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  font-size: 0.95em;
+}
+
+.demo-card {
+  overflow: hidden;
+}
+
+.demo-card video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #111;
+  object-fit: cover;
+}
+
+.demo-card h3,
+.demo-card p {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.demo-card h3 {
+  margin-top: 18px;
+}
+
+.demo-card p {
+  margin-bottom: 20px;
+}
+
 .flow-diagram {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
-  list-style: none;
+  margin: 0;
   padding: 0;
-  margin: 0 0 26px;
+  list-style: none;
   counter-reset: flow;
 }
 
 .flow-diagram li {
   position: relative;
-  min-height: 172px;
+  min-height: 174px;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -349,10 +399,6 @@ th {
   font-size: 14px;
 }
 
-.wide-code {
-  margin: 0;
-}
-
 .site-footer {
   border-top: 1px solid var(--line);
   color: var(--muted);
@@ -368,32 +414,39 @@ th {
   margin-bottom: 10px;
 }
 
+@media (max-width: 1040px) {
+  .guide-grid,
+  .recipe-grid,
+  .flow-diagram {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .flow-diagram li {
+    min-height: 148px;
+  }
+}
+
 @media (max-width: 920px) {
   .intro,
   .section-heading,
-  .columns,
+  .ownership-grid,
+  .example-pair,
   .demo-grid,
-  .recipe-grid {
+  .reuse-layout {
     grid-template-columns: 1fr;
   }
 
   h1 {
     font-size: 40px;
   }
-
-  .flow-diagram {
-    grid-template-columns: 1fr;
-  }
-
-  .flow-diagram li {
-    min-height: auto;
-  }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .site-header nav {
+    flex-wrap: wrap;
+    gap: 8px 16px;
     justify-content: flex-start;
-    overflow-x: auto;
+    overflow-x: visible;
   }
 
   main {
@@ -413,9 +466,22 @@ th {
     font-size: 18px;
   }
 
+  .guide-grid,
+  .recipe-grid,
+  .flow-diagram {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-grid article,
+  .recipe-grid article,
+  .example-pair article,
+  .note-block,
+  .flow-diagram li {
+    padding: 16px;
+  }
+
   .demo-card h3,
-  .demo-card p,
-  .demo-card pre {
+  .demo-card p {
     margin-left: 16px;
     margin-right: 16px;
   }
