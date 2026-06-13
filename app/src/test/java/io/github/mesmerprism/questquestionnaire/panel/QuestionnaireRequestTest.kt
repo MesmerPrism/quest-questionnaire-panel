@@ -43,6 +43,25 @@ class QuestionnaireRequestTest {
     }
 
     @Test
+    fun parsesInitialStudySequence() {
+        val sequence = QuestionnaireContract.InitialStudySequence
+        val json = JSONObject(validRequestJson()).apply {
+            put("open_stage", QuestionnaireContract.StageLanguageSelect)
+            put("screen_sequence", JSONArray(sequence))
+        }
+
+        val request = QuestionnaireRequest.parse(
+            requestJson = json.toString(),
+            sessionIdExtra = SessionId,
+            requestIdExtra = RequestId,
+            nonceExtra = Nonce
+        )
+
+        assertEquals(QuestionnaireContract.StageLanguageSelect, request.openStage)
+        assertEquals(sequence, request.screenSequence)
+    }
+
+    @Test
     fun rejectsMismatchedNonceExtra() {
         val exception = assertThrows(QuestionnaireRequestException::class.java) {
             QuestionnaireRequest.parse(

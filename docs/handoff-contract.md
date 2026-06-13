@@ -19,12 +19,27 @@ The product path is normal Android IPC.
 
 - Treat every extra and JSON field as untrusted.
 - Render only the requested stage or screen sequence.
+- Keep questionnaire UI, questionnaire audio prompts, and questionnaire answer
+  collection inside the panel app.
 - Write result JSON to the granted URI on explicit submit.
 - Close the stream before sending the callback.
 - Send the caller-provided callback.
 - Finish only the panel activity.
 - Never store answers in public storage, logs, callback extras, notifications,
   or filenames.
+
+## Unity Split-App Boundary
+
+- Unity owns the 3D scene, Big Red Button, condition instruction sessions,
+  button press counting, and physical final button interaction.
+- The panel owns `language_select`, `demographics`, `prior_experience`,
+  post-condition questionnaire screens, final confirmation, and the return
+  prompt.
+- Final confirmation is the BRB 1-to-10 end-confirmation scale. Selecting `10`
+  skips the extra prompt; any non-10 value advances to the extra-presses prompt.
+- The panel must not become a substitute for the 3D button. Stages such as
+  `final:extra_presses_prompt` are instructions/return prompts only; Unity
+  records the actual physical presses after the panel returns.
 
 ## Default Request Extras
 

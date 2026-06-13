@@ -86,7 +86,7 @@ class NativeCallerActivity : ComponentActivity() {
         val nonce = UUID.randomUUID().toString()
         val sessionId = "native-caller-${System.currentTimeMillis()}"
         val stage = QuestionnaireContract.DefaultStage
-        val screenSequence = listOf(stage)
+        val screenSequence = QuestionnaireContract.InitialStudySequence
         val resultFile = resultFileFor(requestId)
         resultFile.parentFile?.mkdirs()
         if (resultFile.exists()) {

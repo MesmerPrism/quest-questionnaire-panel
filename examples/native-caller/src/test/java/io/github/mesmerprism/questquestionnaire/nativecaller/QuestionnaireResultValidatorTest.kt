@@ -46,7 +46,30 @@ class QuestionnaireResultValidatorTest {
         )
 
         assertFalse(validation.valid)
-        assertEquals("invalid_placeholder_answer", validation.reason)
+        assertEquals("missing_demographics", validation.reason)
+    }
+
+    @Test
+    fun acceptsStructuredStudyResult() {
+        val json = JSONObject(validResultJson()).apply {
+            put(
+                "answers",
+                JSONObject()
+                    .put("open_stage", QuestionnaireContract.DefaultStage)
+                    .put("demographics", JSONObject().put("participant_code", "P001").put("age", 42))
+                    .put("prior_button_experience", JSONObject().put("answer", "yes"))
+                    .put("post_condition", JSONObject())
+                    .put("final", JSONObject().put("end_confirmation_rating", 10).put("selected_10", true))
+            )
+        }
+
+        val validation = QuestionnaireResultValidator.validate(
+            resultJson = json.toString(),
+            expected = Expected
+        )
+
+        assertTrue(validation.valid)
+        assertEquals("completed", validation.status)
     }
 
     @Test

@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quest Questionnaire Panel</title>
+    <meta
+      name="description"
+      content="Native Quest 2D questionnaire panel app for caller-owned result URI workflows, with Unity Big Red Button integration examples."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav aria-label="Primary navigation">
+        <a href="#demos">Demos</a>
+        <a href="#contract">Contract</a>
+        <a href="#commands">Commands</a>
+        <a href="#flow">Flow</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="project-name">Quest Questionnaire Panel</p>
+          <h1 id="page-title">A native Quest panel for Big Red Button study prompts.</h1>
+          <p class="lede">
+            The panel app owns foreground 2D questionnaire screens. The Big Red
+            Button Unity app keeps ownership of the 3D button, condition
+            runtime, heartbeat-driven visuals, and physical press counting.
+          </p>
+        </div>
+        <div class="summary-list" aria-label="Project summary">
+          <div>
+            <span>Protocol</span>
+            <strong>quest.questionnaire.v1</strong>
+          </div>
+          <div>
+            <span>Result channel</span>
+            <strong>caller-owned content URI</strong>
+          </div>
+          <div>
+            <span>Completion signal</span>
+            <strong>broadcast PendingIntent</strong>
+          </div>
+        </div>
+      </section>
+
+      <section id="demos" class="section" aria-labelledby="demos-title">
+        <div class="section-heading">
+          <h2 id="demos-title">Functional Demos</h2>
+          <p>
+            These clips were captured from a Quest headset with CLI-driven
+            triggers. The debug commands call the same app paths used by visible
+            controls, so they are useful for repeatable validation.
+          </p>
+        </div>
+
+        <div class="demo-grid">
+          <article class="demo-card">
+            <video controls muted loop playsinline preload="metadata">
+              <source src="media/brb-blink.mp4" type="video/mp4" />
+            </video>
+            <h3>Heartbeat blink</h3>
+            <p>
+              Unity can start a timed blink on the Big Red Button cap. This is
+              the visual hook for heartbeat-connected state once live signal
+              data is attached.
+            </p>
+            <pre><code>adb shell am start -W \
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
+  --es brb.runtimeCommand "blink_button:5"</code></pre>
+          </article>
+
+          <article class="demo-card">
+            <video controls muted loop playsinline preload="metadata">
+              <source src="media/brb-press.mp4" type="video/mp4" />
+            </video>
+            <h3>Button press and counter</h3>
+            <p>
+              The runtime press command plays the imported press animation and
+              increments the world-space counter in Unity.
+            </p>
+            <pre><code>adb shell am start -W \
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
+  --es brb.runtimeCommand press_button</code></pre>
+          </article>
+
+          <article class="demo-card">
+            <video controls muted loop playsinline preload="metadata">
+              <source src="media/panel-open.mp4" type="video/mp4" />
+            </video>
+            <h3>Open the panel</h3>
+            <p>
+              Unity launches the native 2D Quest panel through an explicit
+              Android intent while keeping the 3D scene alive behind it.
+            </p>
+            <pre><code>adb shell am start -W \
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
+  --es brb.questionnaireTrigger final</code></pre>
+          </article>
+
+          <article class="demo-card">
+            <video controls muted loop playsinline preload="metadata">
+              <source src="media/panel-navigate.mp4" type="video/mp4" />
+            </video>
+            <h3>Navigate questionnaire screens</h3>
+            <p>
+              Debug command scripts can move through the panel at human
+              reasonable speed for headset captures and regression checks.
+            </p>
+            <pre><code>adb shell am start -W \
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
+  --es brb.questionnaireTrigger initial \
+  --es brb.questionnaireCommandScript "language:en-US,next,participant_code:QA001,age:30,next,prior:no,next" \
+  --ei brb.questionnaireCommandIntervalMs 1400</code></pre>
+          </article>
+
+          <article class="demo-card">
+            <video controls muted loop playsinline preload="metadata">
+              <source src="media/panel-close.mp4" type="video/mp4" />
+            </video>
+            <h3>Submit and close</h3>
+            <p>
+              The panel writes JSON to the granted result URI, sends the caller
+              callback, and finishes only its own activity.
+            </p>
+            <pre><code>adb shell am start -W \
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
+  --es brb.questionnaireTrigger final \
+  --es brb.questionnaireCommandScript "final:1,next,submit" \
+  --ei brb.questionnaireCommandIntervalMs 1300</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="contract" class="section split" aria-labelledby="contract-title">
+        <div class="section-heading">
+          <h2 id="contract-title">Split-App Boundary</h2>
+          <p>
+            The app boundary keeps questionnaire collection out of Unity while
+            preserving Unity as the runtime authority for the 3D study world.
+          </p>
+        </div>
+        <div class="columns">
+          <div>
+            <h3>Unity BRB app owns</h3>
+            <ul>
+              <li>3D Big Red Button object and press animation</li>
+              <li>Button press counting and final physical interaction</li>
+              <li>Condition sessions and heartbeat-linked runtime visuals</li>
+              <li>Caller-owned result URI creation and result validation</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Panel app owns</h3>
+            <ul>
+              <li>Foreground 2D Quest questionnaire screens</li>
+              <li>Localized prompt presentation and answer collection</li>
+              <li>Writing result JSON to the granted URI</li>
+              <li>Sending the caller-provided completion PendingIntent</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="commands" class="section" aria-labelledby="commands-title">
+        <div class="section-heading">
+          <h2 id="commands-title">Command Structure</h2>
+          <p>
+            Runtime commands drive Unity. Questionnaire commands are forwarded
+            by Unity to the panel and are debug-only in the panel app.
+          </p>
+        </div>
+
+        <div class="recipe-grid">
+          <article>
+            <h3>Unity runtime command</h3>
+            <pre><code>--es brb.runtimeCommand press_button
+--ei brb.runtimeCommandRepeat 3
+--ei brb.runtimeCommandIntervalMs 700</code></pre>
+          </article>
+
+          <article>
+            <h3>Unity runtime script</h3>
+            <pre><code>--es brb.runtimeCommandScript "center_button,blink_button:6,press_button,status"
+--ei brb.runtimeCommandIntervalMs 700</code></pre>
+          </article>
+
+          <article>
+            <h3>Panel route</h3>
+            <pre><code>--es brb.questionnaireTrigger initial
+--es brb.questionnaireCommandScript "language:en-US,next,participant_code:QA001,age:30,next,prior:no,next"
+--ei brb.questionnaireCommandIntervalMs 1400</code></pre>
+          </article>
+        </div>
+
+        <div class="contract-table" role="region" aria-label="Required launch extras" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th>Required extra</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>session_id</code></td>
+                <td>Caller session identifier.</td>
+              </tr>
+              <tr>
+                <td><code>request_id</code></td>
+                <td>Opaque per-request identifier validated on return.</td>
+              </tr>
+              <tr>
+                <td><code>request_nonce</code></td>
+                <td>Random nonce binding request and result.</td>
+              </tr>
+              <tr>
+                <td><code>request_json</code></td>
+                <td>JSON matching the versioned request schema.</td>
+              </tr>
+              <tr>
+                <td><code>result_uri</code></td>
+                <td>Caller-owned writable <code>content://</code> URI.</td>
+              </tr>
+              <tr>
+                <td><code>return_to_caller</code></td>
+                <td>Broadcast <code>PendingIntent</code> fired after writing JSON.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="flow" class="section" aria-labelledby="flow-title">
+        <div class="section-heading">
+          <h2 id="flow-title">Communication Flow</h2>
+          <p>
+            The panel never writes answers to public storage and never returns
+            answer payloads in callback extras. The callback is only a signal.
+          </p>
+        </div>
+
+        <ol class="flow-diagram">
+          <li>
+            <strong>Caller prepares request</strong>
+            <span>Persist pending state, create nonce and private result file.</span>
+          </li>
+          <li>
+            <strong>Caller launches panel</strong>
+            <span>Explicit component, request JSON, write-granted result URI.</span>
+          </li>
+          <li>
+            <strong>Panel collects answers</strong>
+            <span>Render the requested BRB stage sequence in native 2D UI.</span>
+          </li>
+          <li>
+            <strong>Panel writes result JSON</strong>
+            <span>Close the stream before signaling completion.</span>
+          </li>
+          <li>
+            <strong>Caller validates result</strong>
+            <span>Check protocol, request id, nonce, schema, status, and stage.</span>
+          </li>
+        </ol>
+
+        <pre class="wide-code"><code>{
+  "protocol_version": "quest.questionnaire.v1",
+  "request_id": "7c3f4d2c...",
+  "nonce": "caller-generated-random-value",
+  "questionnaire_id": "brb.study",
+  "stage": "final:end_confirmation",
+  "status": "completed",
+  "answers": {
+    "final_rating": 1,
+    "extra_presses_prompt_acknowledged": true
+  }
+}</code></pre>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        See the repository docs for the full contract, schema, and validation
+        matrix.
+      </p>
+      <nav aria-label="Repository documents">
+        <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">Handoff contract</a>
+        <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a>
+        <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/validation-matrix.md">Validation matrix</a>
+        <a href="https://github.com/MesmerPrism/the-big-red-button-institute">Big Red Button Unity project</a>
+      </nav>
+    </footer>
+  </body>
+</html>

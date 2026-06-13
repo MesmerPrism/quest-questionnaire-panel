@@ -1,0 +1,504 @@
+﻿{
+    "schema":  "bigredbutton.localized_audio.v1",
+    "description":  "Participant-facing bilingual speech inventory for the first Big Red Button study. English and Japanese assets share stable audioId values so clips can be inspected side by side.",
+    "defaultLocale":  "en-US",
+    "locales":  [
+                    "en-US",
+                    "ja-JP"
+                ],
+    "ttsPolicy":  {
+                      "provider":  "elevenlabs",
+                      "voiceName":  "calm voice",
+                      "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                      "modelId":  "eleven_v3",
+                      "languageCode":  "ja",
+                      "outputFormat":  "mp3_44100_128",
+                      "apiKeyFile":  "Provide with -KeyPath or ELEVENLABS_API_KEY_FILE; do not commit local machine paths.",
+                      "rules":  [
+                                    "Use expressive eleven_v3 speech for all Japanese spoken clips.",
+                                    "Preserve absurdist humor for spoken dialogue transcripts.",
+                                    "Prefer validated Japanese questionnaire wording where available; do not apply humor-localization rules to psychometric items.",
+                                    "Do not commit or print API keys."
+                                ]
+                  },
+    "stems":  {
+                  "backgroundMusic":  {
+                                          "path":  "stems/background-music.mp3",
+                                          "sourcePath":  "../reusable/audio/source/background-music.mp3",
+                                          "sha256":  "226A6A1ABBB6AA6C117E687DD0C83ED1C34FFBE89E9B68FAB8B979F669E3CDA5",
+                                          "durationMs":  490080,
+                                          "role":  "background_music_bed"
+                                      }
+              },
+    "shared":  [
+                   {
+                       "audioId":  "sfx_9000",
+                       "role":  "questionnaire_choice_blip",
+                       "path":  "shared/sfx_9000_questionnaire_choice_blip.wav",
+                       "sha256":  "5005D0A634AAC456D3D495824C057ED14CF58D21EFC16C06772B48520436F8A4",
+                       "durationMs":  90,
+                       "translationPolicy":  "do_not_translate_non_speech"
+                   },
+                   {
+                       "audioId":  "sfx_9010",
+                       "role":  "questionnaire_navigation_blip",
+                       "path":  "shared/sfx_9010_questionnaire_navigation_blip.wav",
+                       "sha256":  "DEF7603B0786070F01F0EFEACEA74F321F946EF217F0E11EA45B34990BF46F51",
+                       "durationMs":  70,
+                       "translationPolicy":  "do_not_translate_non_speech"
+                   }
+               ],
+    "assets":  [
+                   {
+                       "audioId":  "aud_0100",
+                       "stage":  "condition_1",
+                       "role":  "condition_1_instruction_mix",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize_instruction_preserve",
+                       "durationMatchRequired":  true,
+                       "backgroundStemId":  "backgroundMusic",
+                       "targetDurationMs":  300774,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0100_condition_1_instructions__en_us.mp3",
+                                                     "sourcePath":  "../final/first-big-red-button-vr-study-instructions-final.mp3",
+                                                     "sha256":  "A3767727AE935BE2455282F52C4765833DA9C04F95EDA81BA0354C7E1CE4F0C6",
+                                                     "durationMs":  300774,
+                                                     "transcriptPath":  "transcripts/en_us/aud_0100_condition_1_instructions__en_us.json"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0100_condition_1_instructions__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0100_condition_1_instructions__ja_jp.script.txt",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0100_condition_1_instructions__ja_jp.transcript.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0100_condition_1_instructions__ja_jp.backtranslation.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  300774,
+                                                     "status":  "mixed",
+                                                     "sha256":  "F88791E5805D317C8455F77E1E6FCC6094CDE3F24D0B6111F3239E9CE4EF8F95",
+                                                     "observedDurationMs":  300774,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00",
+                                                     "mixTimingPolicy":  "pause_removal_then_subsecond_pad_trim",
+                                                     "backgroundStemId":  "backgroundMusic"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0110",
+                       "stage":  "condition_2",
+                       "role":  "condition_2_instruction_mix",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize_instruction_preserve",
+                       "durationMatchRequired":  true,
+                       "backgroundStemId":  "backgroundMusic",
+                       "targetDurationMs":  325590,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0110_condition_2_instructions__en_us.mp3",
+                                                     "sourcePath":  "../final/first-big-red-button-vr-study-instructions-second-instructions-5-final.mp3",
+                                                     "sha256":  "E52E53640DF5398FEC3DFE328877CBE429EDD3F5D3AB60E5A19FB1C6EBAD48A7",
+                                                     "durationMs":  325590,
+                                                     "transcriptPath":  "transcripts/en_us/aud_0110_condition_2_instructions__en_us.json"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0110_condition_2_instructions__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0110_condition_2_instructions__ja_jp.script.txt",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0110_condition_2_instructions__ja_jp.transcript.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0110_condition_2_instructions__ja_jp.backtranslation.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  325590,
+                                                     "status":  "mixed",
+                                                     "sha256":  "2F882ACA39BB6355C0A37E172B15F56F21ECF4A758C47117C5EA4A80E27B2C6C",
+                                                     "observedDurationMs":  325590,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00",
+                                                     "mixTimingPolicy":  "pause_removal_then_subsecond_pad_trim",
+                                                     "backgroundStemId":  "backgroundMusic"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0200",
+                       "stage":  "prior_big_red_button_experience",
+                       "role":  "question_prompt",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize",
+                       "targetDurationMs":  10527,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0200_prior_experience_question__en_us.mp3",
+                                                     "sha256":  "735ACE7698E8D085A693B29FB231A21718E364FE61F09B643EA03C37F80FDCFB",
+                                                     "durationMs":  10527,
+                                                     "sourceText":  "Oh wait, we have just one more question: Do you have any experience with pressing big red buttons?"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0200_prior_experience_question__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0200_prior_experience_question__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  10449,
+                                                     "status":  "generated",
+                                                     "sha256":  "38331A0A49953FAD513F801547EE2A1336E57B57B73892AD6DFA08320B941F6D",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0200_prior_experience_question__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0200_prior_experience_question__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  10449,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0210",
+                       "stage":  "prior_big_red_button_experience",
+                       "role":  "yes_feedback",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize",
+                       "targetDurationMs":  5251,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0210_prior_experience_yes_feedback__en_us.mp3",
+                                                     "sha256":  "3867345F273BE83B7AB769961286A90F4E22EAA48730CA0B31C13BEEAA21DFEE",
+                                                     "durationMs":  5251,
+                                                     "sourceText":  "An experienced user, just the type of participant we need."
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0210_prior_experience_yes_feedback__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0210_prior_experience_yes_feedback__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  8281,
+                                                     "status":  "generated",
+                                                     "sha256":  "C310E9600C57488089CF4F66DF621CC01527A17AB6BD09D3D1D56AAFAD29540A",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0210_prior_experience_yes_feedback__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0210_prior_experience_yes_feedback__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  8281,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0220",
+                       "stage":  "prior_big_red_button_experience",
+                       "role":  "no_feedback",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize",
+                       "targetDurationMs":  4284,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0220_prior_experience_no_feedback__en_us.mp3",
+                                                     "sha256":  "30BE2B59158189DF8EFC7F2DFD1B4BD9CABDFC13400EE6F79227CFE0D2F508E9",
+                                                     "durationMs":  4284,
+                                                     "sourceText":  "No? Well than you are in for a treat!"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0220_prior_experience_no_feedback__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0220_prior_experience_no_feedback__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  5146,
+                                                     "status":  "generated",
+                                                     "sha256":  "7CE67F9A646230E79E54F1CB8C199ECA0B068D05963E7452FD8FC053F2F7DEC7",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0220_prior_experience_no_feedback__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0220_prior_experience_no_feedback__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  5146,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0230",
+                       "stage":  "prior_big_red_button_experience",
+                       "role":  "pre_start_instructions",
+                       "participantFacing":  true,
+                       "translationPolicy":  "instruction_literal",
+                       "targetDurationMs":  34273,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0230_pre_start_instructions__en_us.mp3",
+                                                     "sha256":  "82E4F551785BF893D3686258F8072E3F46B8B4BF675CD21898BD790C70C13C27",
+                                                     "durationMs":  34273,
+                                                     "transcriptPath":  "transcripts/en_us/aud_0230_pre_start_instructions__en_us.json"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0230_pre_start_instructions__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0230_pre_start_instructions__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  47804,
+                                                     "status":  "generated",
+                                                     "sha256":  "E7C1F1DAB3F0129A907B1EC92CD02590A3536CC38C1858E47B9A81BD52E86FE2",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0230_pre_start_instructions__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0230_pre_start_instructions__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  47804,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0300",
+                       "stage":  "redness_changeover",
+                       "role":  "vas_to_likert_changeover",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize_psychometric_context",
+                       "targetDurationMs":  22988,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0300_redness_vas_to_likert_changeover__en_us.mp3",
+                                                     "sha256":  "F49538CB8B41959C95B760F6A7CF5B63D2BDC9D979C40739A10DA2AAED50570D",
+                                                     "durationMs":  22988,
+                                                     "transcriptPath":  "transcripts/en_us/aud_0300_redness_vas_to_likert_changeover__en_us.json"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0300_redness_vas_to_likert_changeover__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0300_redness_vas_to_likert_changeover__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  23327,
+                                                     "status":  "generated",
+                                                     "sha256":  "303A5FFD3ACD8171B1CEA34E552C108FAB3872BCF828C25A8E4154D8E83190D7",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0300_redness_vas_to_likert_changeover__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0300_redness_vas_to_likert_changeover__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  23327,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0310",
+                       "stage":  "redness_changeover",
+                       "role":  "likert_to_vas_changeover",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize_psychometric_context",
+                       "targetDurationMs":  16771,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0310_redness_likert_to_vas_changeover__en_us.mp3",
+                                                     "sha256":  "E008B68E8C158A4CD86D89E695A38AB8FC71573F1507051EEBDCFB1C7C796CDC",
+                                                     "durationMs":  16771,
+                                                     "transcriptPath":  "transcripts/en_us/aud_0310_redness_likert_to_vas_changeover__en_us.json"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0310_redness_likert_to_vas_changeover__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0310_redness_likert_to_vas_changeover__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  27559,
+                                                     "status":  "generated",
+                                                     "sha256":  "E3354D39EC4323DD90916DACF23B668ED3F2D0BC3CBAB77941F26376D07FDD90",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0310_redness_likert_to_vas_changeover__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0310_redness_likert_to_vas_changeover__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  27559,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0320",
+                       "stage":  "presence_questionnaire",
+                       "role":  "ipq_history_condition_1_intro",
+                       "participantFacing":  true,
+                       "translationPolicy":  "science_nerd_sarcasm_no_psychometric_spoilers",
+                       "durationMatchRequired":  false,
+                       "targetDurationMs":  48718,
+                       "runtimeCue":  "playIpqHistoryNarration(condition=1)",
+                       "tailSilenceMs":  1000,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0320_ipq_history_part1__en_us.mp3",
+                                                     "scriptPath":  "transcripts/en_us/aud_0320_ipq_history_part1__en_us.script.txt",
+                                                     "transcriptPath":  "transcripts/en_us/aud_0320_ipq_history_part1__en_us.json",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "en",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  48718,
+                                                     "status":  "generated",
+                                                     "sha256":  "AAD3BDB00F1928D7688790567197C934629300CF038337D6BC66CA364F01C137",
+                                                     "observedDurationMs":  48718,
+                                                     "generatedAt":  "2026-06-13T19:44:07.5006992+02:00"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0320_ipq_history_part1__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0320_ipq_history_part1__ja_jp.script.txt",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0320_ipq_history_part1__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0320_ipq_history_part1__ja_jp.backtranslation.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  57835,
+                                                     "status":  "generated",
+                                                     "sha256":  "AAB46B0E6D8FF2E2CE00444E11F4963B309E152B007EBC185D9FCFB69869A0DC",
+                                                     "observedDurationMs":  57835,
+                                                     "generatedAt":  "2026-06-13T19:44:07.5006992+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0330",
+                       "stage":  "presence_questionnaire",
+                       "role":  "ipq_history_condition_2_intro",
+                       "participantFacing":  true,
+                       "translationPolicy":  "science_nerd_sarcasm_no_psychometric_spoilers",
+                       "durationMatchRequired":  false,
+                       "targetDurationMs":  54491,
+                       "runtimeCue":  "playIpqHistoryNarration(condition=2)",
+                       "tailSilenceMs":  1000,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0330_ipq_history_part2__en_us.mp3",
+                                                     "scriptPath":  "transcripts/en_us/aud_0330_ipq_history_part2__en_us.script.txt",
+                                                     "transcriptPath":  "transcripts/en_us/aud_0330_ipq_history_part2__en_us.json",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "en",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  54491,
+                                                     "status":  "generated",
+                                                     "sha256":  "05F81ADFAD49EECEB9245DCBBF0656EE90C0B8ADE0D3856E9DBE40FB65087772",
+                                                     "observedDurationMs":  54491,
+                                                     "generatedAt":  "2026-06-13T19:44:07.5006992+02:00"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0330_ipq_history_part2__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0330_ipq_history_part2__ja_jp.script.txt",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0330_ipq_history_part2__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0330_ipq_history_part2__ja_jp.backtranslation.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  58723,
+                                                     "status":  "generated",
+                                                     "sha256":  "6C05D79DC79F5FDAA2C776A0AFEBA00B1889D0027F2B4EB42A9EC82FAE255B63",
+                                                     "observedDurationMs":  58723,
+                                                     "generatedAt":  "2026-06-13T19:44:07.5006992+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0500",
+                       "stage":  "final_end_confirmation",
+                       "role":  "question_prompt",
+                       "participantFacing":  true,
+                       "translationPolicy":  "instruction_literal",
+                       "targetDurationMs":  5146,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0500_final_end_confirmation_question__en_us.mp3",
+                                                     "sha256":  "52CFEF284158C760771C20F8126816C0DFD451EE34639998CEFF4143CDB85F6A",
+                                                     "durationMs":  5146,
+                                                     "sourceText":  "How sure are you that you want to end the experiment, on a scale of 1 to 10?"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0500_final_end_confirmation_question__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0500_final_end_confirmation_question__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  8359,
+                                                     "status":  "generated",
+                                                     "sha256":  "0A70B4353251FA38958B4EC8AA13C25DE3B910D3E8E07387240C4AB824C96975",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0500_final_end_confirmation_question__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0500_final_end_confirmation_question__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  8359,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0510",
+                       "stage":  "final_end_confirmation",
+                       "role":  "ten_feedback",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize",
+                       "targetDurationMs":  16274,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0510_final_end_confirmation_10_feedback__en_us.mp3",
+                                                     "sha256":  "C119CD2DA25693DA58ECDF90B7A50F13597DE979A469D5AD2D154F8911B8A29F",
+                                                     "durationMs":  16274,
+                                                     "sourceText":  "All right then, I guess you can give the VR headset back then if you don\u0027t feel like doing any more button presses."
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0510_final_end_confirmation_10_feedback__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0510_final_end_confirmation_10_feedback__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  10371,
+                                                     "status":  "generated",
+                                                     "sha256":  "359EB732A530C567C9FF01E92F7A9FA430803E5523630E3B11910802C343C368",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0510_final_end_confirmation_10_feedback__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0510_final_end_confirmation_10_feedback__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  10371,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   },
+                   {
+                       "audioId":  "aud_0600",
+                       "stage":  "final_extra_presses",
+                       "role":  "extra_presses_prompt",
+                       "participantFacing":  true,
+                       "translationPolicy":  "humor_localize",
+                       "targetDurationMs":  45636,
+                       "locales":  {
+                                       "en-US":  {
+                                                     "path":  "en_us/aud_0600_final_extra_presses_prompt__en_us.mp3",
+                                                     "sha256":  "2D8BA3229E920770A8C31C946787A1CCA06D5D6063FD7FC7881ACE8D6988DF35",
+                                                     "durationMs":  45636,
+                                                     "sourceText":  "That is fantastic! I will take your non-decimal response as a big red YES! Yes I want to continue pressing the big red button! Yes the button is big! Yes the button is red! Yes I want to continue pressing it! FOR SCIENCE, for data collection, for the pursuit of knowledge! Only for science! Forever Science. Well then, you may end the experiment, once you pressed the button 1000 more times. Enjoy!"
+                                                 },
+                                       "ja-JP":  {
+                                                     "path":  "ja_jp/aud_0600_final_extra_presses_prompt__ja_jp.mp3",
+                                                     "scriptPath":  "transcripts/ja_jp/aud_0600_final_extra_presses_prompt__ja_jp.script.txt",
+                                                     "ttsProvider":  "elevenlabs",
+                                                     "voiceId":  "IVxgxz5EgbHtWNcgBjOV",
+                                                     "modelId":  "eleven_v3",
+                                                     "languageCode":  "ja",
+                                                     "outputFormat":  "mp3_44100_128",
+                                                     "durationMs":  49084,
+                                                     "status":  "generated",
+                                                     "sha256":  "D9500E03736F1C3F6A561764DB034A8FAC21C7843829B787CBCE32EF1F550C80",
+                                                     "transcriptPath":  "transcripts/ja_jp/aud_0600_final_extra_presses_prompt__ja_jp.json",
+                                                     "backTranslationPath":  "transcripts/ja_jp/aud_0600_final_extra_presses_prompt__ja_jp.backtranslation.txt",
+                                                     "observedDurationMs":  49084,
+                                                     "generatedAt":  "2026-06-12T16:43:09.5168470+02:00"
+                                                 }
+                                   }
+                   }
+               ],
+    "updatedAt":  "2026-06-13T19:50:00.9506561+02:00"
+}

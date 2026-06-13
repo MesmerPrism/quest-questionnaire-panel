@@ -2,7 +2,9 @@ package io.github.mesmerprism.questquestionnaire.panel
 
 import android.app.Activity
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -12,19 +14,33 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import java.time.Instant
+import kotlinx.coroutines.delay
+import org.json.JSONArray
 import org.json.JSONObject
 
 class QuestionnaireActivity : ComponentActivity() {
@@ -45,13 +61,28 @@ class QuestionnaireActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    QuestionnairePanel(
+                    BrbStudyQuestionnairePanel(
                         request = launch.request,
                         autoSubmit = BuildConfig.DEBUG &&
                             intent.getBooleanExtra(
                                 QuestionnaireContract.ExtraDebugAutoSubmit,
                                 false
                             ),
+                        debugCommandScript = if (BuildConfig.DEBUG) {
+                            intent.getStringExtra(
+                                QuestionnaireContract.ExtraDebugCommandScript
+                            )
+                        } else {
+                            null
+                        },
+                        debugCommandIntervalMs = if (BuildConfig.DEBUG) {
+                            intent.getIntExtra(
+                                QuestionnaireContract.ExtraDebugCommandIntervalMs,
+                                350
+                            )
+                        } else {
+                            350
+                        },
                         onSubmit = { answers -> submitResult("completed", answers) },
                         onCancel = { submitResult("cancelled", JSONObject()) }
                     )
@@ -168,60 +199,396 @@ class QuestionnaireActivity : ComponentActivity() {
 }
 
 @Composable
-private fun QuestionnairePanel(
+private fun BrbStudyQuestionnairePanel(
     request: QuestionnaireRequest,
     autoSubmit: Boolean,
+    debugCommandScript: String?,
+    debugCommandIntervalMs: Int,
     onSubmit: (JSONObject) -> Unit,
     onCancel: () -> Unit
 ) {
-    val selected = remember { mutableStateOf("not_answered") }
+    val sequence = remember(request) { request.screenSequence }
+    val currentIndex = remember(request) { mutableIntStateOf(0) }
+    val answers = remember(request) { mutableStateOf(QuestionnaireAnswerState()) }
+    val context = LocalContext.current
+    val audioPlayer = remember(context) { QuestionnaireAudioPlayer(context.applicationContext) }
+    val currentStage = sequence[currentIndex.intValue]
+
+    DisposableEffect(audioPlayer) {
+        onDispose { audioPlayer.release() }
+    }
 
     LaunchedEffect(autoSubmit) {
         if (autoSubmit) {
-            onSubmit(request.placeholderAnswers("yes"))
+            onSubmit(answers.value.toJson(request, completedStage = sequence.last()))
         }
     }
 
+    LaunchedEffect(currentStage, answers.value.language, request.conditionNumber) {
+        audioPathFor(currentStage, answers.value.language, request.conditionNumber)?.let {
+            audioPlayer.play(it)
+        }
+    }
+
+    val isFirst = currentIndex.intValue == 0
+    val isLast = currentIndex.intValue == sequence.lastIndex
+    fun activeStage(): String = sequence[currentIndex.intValue]
+
+    fun replayAudio() {
+        audioPathFor(activeStage(), answers.value.language, request.conditionNumber)
+            ?.let { audioPlayer.play(it) }
+    }
+
+    fun goBack() {
+        if (currentIndex.intValue > 0) {
+            currentIndex.intValue -= 1
+        }
+    }
+
+    fun goNext() {
+        val stage = activeStage()
+        var handled = false
+        if (stage == QuestionnaireContract.StagePriorExperience) {
+            priorExperienceFeedbackAudio(answers.value.language, answers.value.priorExperience)
+                ?.let { audioPlayer.play(it) }
+        }
+        if (
+            stage == QuestionnaireContract.StageFinalEndConfirmation &&
+            answers.value.finalEndConfirmationRating == 10
+        ) {
+            audioPlayer.play(finalTenFeedbackAudio(answers.value.language))
+            val exportIndex = sequence.indexOf(QuestionnaireContract.StageCompleteExportSummary)
+            if (exportIndex > currentIndex.intValue) {
+                currentIndex.intValue = exportIndex
+                handled = true
+            }
+        }
+
+        if (!handled) {
+            if (currentIndex.intValue == sequence.lastIndex) {
+                onSubmit(answers.value.toJson(request, completedStage = stage))
+            } else {
+                currentIndex.intValue += 1
+            }
+        }
+    }
+
+    LaunchedEffect(debugCommandScript, request) {
+        val commands = debugCommandScript.toDebugCommands()
+        if (commands.isEmpty()) {
+            return@LaunchedEffect
+        }
+
+        val delayMs = debugCommandIntervalMs.coerceIn(0, 10_000).toLong()
+        commands.forEach { command ->
+            when (val action = parsePanelDebugCommand(command)) {
+                PanelDebugAction.Back -> goBack()
+                PanelDebugAction.Cancel -> onCancel()
+                PanelDebugAction.Next -> if (canProceed(activeStage(), answers.value)) goNext()
+                PanelDebugAction.ReplayAudio -> replayAudio()
+                PanelDebugAction.Submit ->
+                    onSubmit(answers.value.toJson(request, completedStage = activeStage()))
+                is PanelDebugAction.UpdateAnswers -> answers.value = action.transform(answers.value)
+                null -> Unit
+            }
+            if (delayMs > 0L) {
+                delay(delayMs)
+            }
+        }
+    }
+
+    StudyPanelScaffold(
+        request = request,
+        currentStage = currentStage,
+        currentIndex = currentIndex.intValue,
+        totalScreens = sequence.size,
+        canGoBack = !isFirst,
+        canProceed = canProceed(currentStage, answers.value),
+        nextLabel = if (isLast) "Submit" else "Next",
+        onBack = ::goBack,
+        onNext = ::goNext,
+        onCancel = onCancel,
+        onReplayAudio = ::replayAudio
+    ) {
+        when (currentStage) {
+            QuestionnaireContract.StageLanguageSelect ->
+                LanguageScreen(answers.value) { answers.value = it }
+            QuestionnaireContract.StageDemographics ->
+                DemographicsScreen(answers.value) { answers.value = it }
+            QuestionnaireContract.StagePriorExperience ->
+                PriorExperienceScreen(answers.value) { answers.value = it }
+            QuestionnaireContract.StagePostConditionPictographic ->
+                PictographicScreen(request, answers.value) { answers.value = it }
+            QuestionnaireContract.StagePostConditionPresence ->
+                PresenceScreen(request, answers.value) { answers.value = it }
+            QuestionnaireContract.StagePostConditionLostOpportunity ->
+                LostOpportunityScreen(answers.value) { answers.value = it }
+            QuestionnaireContract.StageFinalEndConfirmation ->
+                FinalConfirmationScreen(answers.value) { answers.value = it }
+            QuestionnaireContract.StageFinalExtraPressesPrompt ->
+                FinalExtraPressesPromptScreen()
+            QuestionnaireContract.StageCompleteExportSummary ->
+                ExportSummaryScreen(request, answers.value)
+            else ->
+                UnknownStageScreen(currentStage)
+        }
+    }
+}
+
+@Composable
+private fun StudyPanelScaffold(
+    request: QuestionnaireRequest,
+    currentStage: String,
+    currentIndex: Int,
+    totalScreens: Int,
+    canGoBack: Boolean,
+    canProceed: Boolean,
+    nextLabel: String,
+    onBack: () -> Unit,
+    onNext: () -> Unit,
+    onCancel: () -> Unit,
+    onReplayAudio: () -> Unit,
+    content: @Composable () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Text("Quest Questionnaire", style = MaterialTheme.typography.headlineMedium)
-        Text("Study: ${request.studyId}")
-        Text("Stage: ${request.openStage}")
-        Text("Condition: ${request.conditionNumber ?: "none"}")
-        Text("Request: ${request.requestId}")
+        Text(
+            "Study ${request.studyId} | Stage ${currentIndex + 1} of $totalScreens | $currentStage",
+            style = MaterialTheme.typography.labelLarge
+        )
+        request.conditionNumber?.let {
+            Text("Condition $it", style = MaterialTheme.typography.labelMedium)
+        }
 
-        Text("MVP placeholder screen. Replace with BRB questionnaire components.")
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = { selected.value = "yes" }) {
-                Text("Yes")
-            }
-            Button(onClick = { selected.value = "no" }) {
-                Text("No")
-            }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            content()
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = {
-                onSubmit(request.placeholderAnswers(selected.value))
-            }) {
-                Text("Submit")
+            OutlinedButton(onClick = onBack, enabled = canGoBack) {
+                Text("Back")
             }
-            Button(onClick = onCancel) {
+            OutlinedButton(onClick = onReplayAudio) {
+                Text("Replay Audio")
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            OutlinedButton(onClick = onCancel) {
                 Text("Cancel")
+            }
+            Button(onClick = onNext, enabled = canProceed) {
+                Text(nextLabel)
             }
         }
     }
 }
 
-private fun QuestionnaireRequest.placeholderAnswers(placeholderAnswer: String): JSONObject =
-    JSONObject()
-        .put("placeholder_answer", placeholderAnswer)
-        .put("open_stage", openStage)
+@Composable
+private fun LanguageScreen(
+    answers: QuestionnaireAnswerState,
+    onChange: (QuestionnaireAnswerState) -> Unit
+) {
+    Text("Choose language", style = MaterialTheme.typography.headlineSmall)
+    Text("This controls panel text and participant-facing voice prompts.")
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        ChoiceChip(
+            label = "English",
+            selected = answers.language == LocaleEnglish,
+            onClick = { onChange(answers.copy(language = LocaleEnglish)) }
+        )
+        ChoiceChip(
+            label = "Japanese",
+            selected = answers.language == LocaleJapanese,
+            onClick = { onChange(answers.copy(language = LocaleJapanese)) }
+        )
+    }
+}
+
+@Composable
+private fun DemographicsScreen(
+    answers: QuestionnaireAnswerState,
+    onChange: (QuestionnaireAnswerState) -> Unit
+) {
+    Text("Participant setup", style = MaterialTheme.typography.headlineSmall)
+    OutlinedTextField(
+        value = answers.participantCode,
+        onValueChange = { onChange(answers.copy(participantCode = it.take(32))) },
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Participant code") },
+        singleLine = true
+    )
+    Text("Age: ${answers.age.toInt()}")
+    Slider(
+        value = answers.age,
+        onValueChange = { onChange(answers.copy(age = it)) },
+        valueRange = 0f..100f,
+        steps = 99
+    )
+}
+
+@Composable
+private fun PriorExperienceScreen(
+    answers: QuestionnaireAnswerState,
+    onChange: (QuestionnaireAnswerState) -> Unit
+) {
+    Text("One more question", style = MaterialTheme.typography.headlineSmall)
+    Text("Do you have any experience with pressing big red buttons?")
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        ChoiceChip(
+            label = "Yes",
+            selected = answers.priorExperience == AnswerYes,
+            onClick = { onChange(answers.copy(priorExperience = AnswerYes)) }
+        )
+        ChoiceChip(
+            label = "No",
+            selected = answers.priorExperience == AnswerNo,
+            onClick = { onChange(answers.copy(priorExperience = AnswerNo)) }
+        )
+    }
+}
+
+@Composable
+private fun PictographicScreen(
+    request: QuestionnaireRequest,
+    answers: QuestionnaireAnswerState,
+    onChange: (QuestionnaireAnswerState) -> Unit
+) {
+    Text("After Button Session ${request.conditionNumber ?: ""}", style = MaterialTheme.typography.headlineSmall)
+    Text("Presence slider: ${answers.presenceSlider.toInt()} / 100")
+    Slider(
+        value = answers.presenceSlider,
+        onValueChange = { onChange(answers.copy(presenceSlider = it)) },
+        valueRange = 0f..100f
+    )
+    Text("Redness VAS: ${answers.rednessVas.toInt()} / 100")
+    Slider(
+        value = answers.rednessVas,
+        onValueChange = { onChange(answers.copy(rednessVas = it)) },
+        valueRange = 0f..100f
+    )
+    Text("Redness Likert: ${answers.rednessLikert} / 7")
+    Slider(
+        value = answers.rednessLikert.toFloat(),
+        onValueChange = { onChange(answers.copy(rednessLikert = it.toInt().coerceIn(1, 7))) },
+        valueRange = 1f..7f,
+        steps = 5
+    )
+}
+
+@Composable
+private fun PresenceScreen(
+    request: QuestionnaireRequest,
+    answers: QuestionnaireAnswerState,
+    onChange: (QuestionnaireAnswerState) -> Unit
+) {
+    Text("Presence questionnaire ${request.conditionNumber ?: ""}", style = MaterialTheme.typography.headlineSmall)
+    Text("Select one value for each statement.")
+    PresenceItems.forEach { item ->
+        Text(item.prompt)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            (0..6).forEach { value ->
+                ChoiceChip(
+                    label = value.toString(),
+                    selected = answers.ipqAnswers[item.id] == value,
+                    onClick = {
+                        onChange(
+                            answers.copy(
+                                ipqAnswers = answers.ipqAnswers + (item.id to value)
+                            )
+                        )
+                    }
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun LostOpportunityScreen(
+    answers: QuestionnaireAnswerState,
+    onChange: (QuestionnaireAnswerState) -> Unit
+) {
+    Text("Between sessions", style = MaterialTheme.typography.headlineSmall)
+    Text("The next button session will start when you return to the Unity app.")
+    ChoiceChip(
+        label = "I understand",
+        selected = answers.lostOpportunityAcknowledged,
+        onClick = {
+            onChange(
+                answers.copy(lostOpportunityAcknowledged = !answers.lostOpportunityAcknowledged)
+            )
+        }
+    )
+}
+
+@Composable
+private fun FinalConfirmationScreen(
+    answers: QuestionnaireAnswerState,
+    onChange: (QuestionnaireAnswerState) -> Unit
+) {
+    Text("Final question", style = MaterialTheme.typography.headlineSmall)
+    Text("How sure are you that you want to end the experiment, on a scale of 1 to 10?")
+    Text("Selected: ${answers.finalEndConfirmationRating ?: "-"}")
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        (1..10).forEach { value ->
+            ChoiceChip(
+                label = value.toString(),
+                selected = answers.finalEndConfirmationRating == value,
+                onClick = { onChange(answers.copy(finalEndConfirmationRating = value)) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun FinalExtraPressesPromptScreen() {
+    Text("Final button interaction", style = MaterialTheme.typography.headlineSmall)
+    Text(
+        "Return to the Unity app for the extra physical interaction with the 3D Big Red Button. " +
+            "The panel records this prompt only; Unity owns the extra button press count."
+    )
+}
+
+@Composable
+private fun ExportSummaryScreen(
+    request: QuestionnaireRequest,
+    answers: QuestionnaireAnswerState
+) {
+    Text("Ready to return", style = MaterialTheme.typography.headlineSmall)
+    Text("The panel will write results to the caller-owned result URI.")
+    Text("Request: ${request.requestId}")
+    Text("Language: ${answers.language}")
+}
+
+@Composable
+private fun UnknownStageScreen(stage: String) {
+    Text("Unsupported stage", style = MaterialTheme.typography.headlineSmall)
+    Text(stage)
+}
+
+@Composable
+private fun ChoiceChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) }
+    )
+}
 
 @Composable
 private fun ErrorPanel(
@@ -242,6 +609,305 @@ private fun ErrorPanel(
         }
     }
 }
+
+private data class PresenceItem(
+    val id: String,
+    val prompt: String
+)
+
+private val PresenceItems = listOf(
+    PresenceItem("spatial_presence_1", "I had a sense of being inside the button room."),
+    PresenceItem("spatial_presence_2", "The button felt located in the same space as me."),
+    PresenceItem("involvement_1", "I was focused on the experience rather than the outside room."),
+    PresenceItem("experienced_realism_1", "The situation felt coherent while I was in it."),
+    PresenceItem("interaction_memory_1", "I can clearly remember what I chose to do with the button.")
+)
+
+private data class QuestionnaireAnswerState(
+    val language: String = LocaleEnglish,
+    val participantCode: String = "",
+    val age: Float = 25f,
+    val priorExperience: String = AnswerNotAnswered,
+    val presenceSlider: Float = 50f,
+    val rednessVas: Float = 50f,
+    val rednessLikert: Int = 4,
+    val ipqAnswers: Map<String, Int> = PresenceItems.associate { it.id to 3 },
+    val lostOpportunityAcknowledged: Boolean = false,
+    val finalEndConfirmationRating: Int? = null
+) {
+    fun toJson(request: QuestionnaireRequest, completedStage: String): JSONObject =
+        JSONObject()
+            .put("open_stage", request.openStage)
+            .put("completed_stage", completedStage)
+            .put("screen_sequence", JSONArray(request.screenSequence))
+            .put("condition_number", request.conditionNumber ?: JSONObject.NULL)
+            .put("language", language)
+            .put(
+                "demographics",
+                JSONObject()
+                    .put("participant_code", participantCode)
+                    .put("age", age.toInt())
+            )
+            .put(
+                "prior_button_experience",
+                JSONObject().put("answer", priorExperience)
+            )
+            .put(
+                "post_condition",
+                JSONObject()
+                    .put("presence_slider", presenceSlider.toInt())
+                    .put("redness_vas", rednessVas.toInt())
+                    .put("redness_likert", rednessLikert)
+                    .put("presence_questionnaire", JSONObject(ipqAnswers))
+                    .put("lost_opportunity_acknowledged", lostOpportunityAcknowledged)
+            )
+            .put(
+                "final",
+                JSONObject()
+                    .put("end_confirmation_rating", finalEndConfirmationRating ?: JSONObject.NULL)
+                    .put("selected_10", finalEndConfirmationRating == 10)
+                    .put("unity_owns_final_physical_presses", true)
+            )
+}
+
+private fun canProceed(stage: String, answers: QuestionnaireAnswerState): Boolean =
+    when (stage) {
+        QuestionnaireContract.StagePriorExperience ->
+            answers.priorExperience != AnswerNotAnswered
+        QuestionnaireContract.StagePostConditionLostOpportunity ->
+            answers.lostOpportunityAcknowledged
+        QuestionnaireContract.StageFinalEndConfirmation ->
+            answers.finalEndConfirmationRating != null
+        else -> true
+    }
+
+private sealed class PanelDebugAction {
+    object Back : PanelDebugAction()
+    object Cancel : PanelDebugAction()
+    object Next : PanelDebugAction()
+    object ReplayAudio : PanelDebugAction()
+    object Submit : PanelDebugAction()
+    data class UpdateAnswers(
+        val transform: (QuestionnaireAnswerState) -> QuestionnaireAnswerState
+    ) : PanelDebugAction()
+}
+
+private fun String?.toDebugCommands(): List<String> =
+    if (isNullOrBlank()) {
+        emptyList()
+    } else {
+        split(';', ',', '\n', '\r')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+    }
+
+private fun parsePanelDebugCommand(rawCommand: String): PanelDebugAction? {
+    val (command, argument) = splitPanelDebugCommand(rawCommand)
+    return when (command) {
+        "back" -> PanelDebugAction.Back
+        "cancel" -> PanelDebugAction.Cancel
+        "next", "click_next", "tap_next" -> PanelDebugAction.Next
+        "replay", "replay_audio" -> PanelDebugAction.ReplayAudio
+        "submit", "click_submit", "tap_submit" -> PanelDebugAction.Submit
+        "english", "language_en", "select_language_en" ->
+            updateAnswers { it.copy(language = LocaleEnglish) }
+        "japanese", "language_ja", "select_language_ja" ->
+            updateAnswers { it.copy(language = LocaleJapanese) }
+        "language", "select_language" ->
+            updateAnswers { it.copy(language = normalizeDebugLanguage(argument)) }
+        "participant", "participant_code", "code" ->
+            updateAnswers { it.copy(participantCode = argument.take(32)) }
+        "age" ->
+            updateAnswers { it.copy(age = argument.toFloatOrNull()?.coerceIn(0f, 100f) ?: it.age) }
+        "prior_yes", "prior_experience_yes" ->
+            updateAnswers { it.copy(priorExperience = AnswerYes) }
+        "prior_no", "prior_experience_no" ->
+            updateAnswers { it.copy(priorExperience = AnswerNo) }
+        "prior", "prior_experience" ->
+            updateAnswers { it.copy(priorExperience = normalizeYesNo(argument, it.priorExperience)) }
+        "presence", "presence_slider" ->
+            updateAnswers { it.copy(presenceSlider = debugPercent(argument, it.presenceSlider)) }
+        "redness", "redness_vas" ->
+            updateAnswers { it.copy(rednessVas = debugPercent(argument, it.rednessVas)) }
+        "redness_likert" ->
+            updateAnswers { it.copy(rednessLikert = debugInt(argument, it.rednessLikert, 1, 7)) }
+        "ipq_all", "presence_all" ->
+            updateAnswers {
+                val value = debugInt(argument, 3, 0, 6)
+                it.copy(ipqAnswers = PresenceItems.associate { item -> item.id to value })
+            }
+        "ipq", "presence_item" ->
+            updateAnswers { applyIpqDebugCommand(it, argument) }
+        "ack", "ack_lost", "lost_opportunity_ack", "lost_opportunity_acknowledged" ->
+            updateAnswers { it.copy(lostOpportunityAcknowledged = true) }
+        "final_1", "final_rating_1" -> updateAnswers { it.copy(finalEndConfirmationRating = 1) }
+        "final_2", "final_rating_2" -> updateAnswers { it.copy(finalEndConfirmationRating = 2) }
+        "final_3", "final_rating_3" -> updateAnswers { it.copy(finalEndConfirmationRating = 3) }
+        "final_4", "final_rating_4" -> updateAnswers { it.copy(finalEndConfirmationRating = 4) }
+        "final_5", "final_rating_5" -> updateAnswers { it.copy(finalEndConfirmationRating = 5) }
+        "final_6", "final_rating_6" -> updateAnswers { it.copy(finalEndConfirmationRating = 6) }
+        "final_7", "final_rating_7" -> updateAnswers { it.copy(finalEndConfirmationRating = 7) }
+        "final_8", "final_rating_8" -> updateAnswers { it.copy(finalEndConfirmationRating = 8) }
+        "final_9", "final_rating_9" -> updateAnswers { it.copy(finalEndConfirmationRating = 9) }
+        "final_10", "final_rating_10" -> updateAnswers { it.copy(finalEndConfirmationRating = 10) }
+        "final", "final_rating", "rating" ->
+            updateAnswers {
+                it.copy(
+                    finalEndConfirmationRating =
+                        debugInt(argument, it.finalEndConfirmationRating ?: 1, 1, 10)
+                )
+            }
+        else -> null
+    }
+}
+
+private fun updateAnswers(
+    transform: (QuestionnaireAnswerState) -> QuestionnaireAnswerState
+): PanelDebugAction = PanelDebugAction.UpdateAnswers(transform)
+
+private fun splitPanelDebugCommand(rawCommand: String): Pair<String, String> {
+    val trimmed = rawCommand.trim()
+    val separator = listOf(
+        trimmed.indexOf(':'),
+        trimmed.indexOf('=')
+    ).filter { it >= 0 }.minOrNull() ?: -1
+    val command = if (separator >= 0) trimmed.substring(0, separator) else trimmed
+    val argument = if (separator >= 0 && separator < trimmed.lastIndex) {
+        trimmed.substring(separator + 1)
+    } else {
+        ""
+    }
+
+    return normalizeDebugCommand(command) to argument.trim()
+}
+
+private fun normalizeDebugCommand(value: String): String =
+    value.trim().lowercase().replace('-', '_').replace(' ', '_')
+
+private fun normalizeDebugLanguage(value: String): String =
+    when (normalizeDebugCommand(value)) {
+        "ja", "jp", "ja_jp", "ja-jp", "japanese" -> LocaleJapanese
+        else -> LocaleEnglish
+    }
+
+private fun normalizeYesNo(value: String, fallback: String): String =
+    when (normalizeDebugCommand(value)) {
+        "yes", "y", "true", "1" -> AnswerYes
+        "no", "n", "false", "0" -> AnswerNo
+        else -> fallback
+    }
+
+private fun debugPercent(value: String, fallback: Float): Float =
+    value.toFloatOrNull()?.coerceIn(0f, 100f) ?: fallback
+
+private fun debugInt(value: String, fallback: Int, min: Int, max: Int): Int =
+    value.toIntOrNull()?.coerceIn(min, max) ?: fallback
+
+private fun applyIpqDebugCommand(
+    answers: QuestionnaireAnswerState,
+    argument: String
+): QuestionnaireAnswerState {
+    val parts = argument.split(':', '=').map { it.trim() }.filter { it.isNotEmpty() }
+    if (parts.size < 2) {
+        return answers
+    }
+
+    val itemId = parts[0]
+    val value = debugInt(parts[1], answers.ipqAnswers[itemId] ?: 3, 0, 6)
+    if (PresenceItems.none { it.id == itemId }) {
+        return answers
+    }
+
+    return answers.copy(ipqAnswers = answers.ipqAnswers + (itemId to value))
+}
+
+private class QuestionnaireAudioPlayer(private val context: Context) {
+    private var mediaPlayer: MediaPlayer? = null
+
+    fun play(relativePath: String) {
+        stop()
+        try {
+            val descriptor = context.assets.openFd("BRBStudyAudio/localized/$relativePath")
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+                setOnCompletionListener {
+                    it.release()
+                    if (mediaPlayer === it) {
+                        mediaPlayer = null
+                    }
+                }
+                prepare()
+                start()
+            }
+            descriptor.close()
+        } catch (_: Exception) {
+            stop()
+        }
+    }
+
+    fun release() {
+        stop()
+    }
+
+    private fun stop() {
+        mediaPlayer?.run {
+            runCatching {
+                if (isPlaying) {
+                    stop()
+                }
+            }
+            release()
+        }
+        mediaPlayer = null
+    }
+}
+
+private fun audioPathFor(stage: String, language: String, conditionNumber: Int?): String? {
+    val locale = if (language == LocaleJapanese) "ja_jp" else "en_us"
+    val suffix = if (language == LocaleJapanese) "ja_jp" else "en_us"
+    val audioId = when (stage) {
+        QuestionnaireContract.StagePriorExperience -> "aud_0200_prior_experience_question"
+        QuestionnaireContract.StagePostConditionPictographic ->
+            if (conditionNumber == 2) {
+                "aud_0310_redness_likert_to_vas_changeover"
+            } else {
+                "aud_0300_redness_vas_to_likert_changeover"
+            }
+        QuestionnaireContract.StagePostConditionPresence ->
+            if (conditionNumber == 2) {
+                "aud_0330_ipq_history_part2"
+            } else {
+                "aud_0320_ipq_history_part1"
+            }
+        QuestionnaireContract.StageFinalEndConfirmation -> "aud_0500_final_end_confirmation_question"
+        QuestionnaireContract.StageFinalExtraPressesPrompt -> "aud_0600_final_extra_presses_prompt"
+        else -> return null
+    }
+    return "$locale/${audioId}__$suffix.mp3"
+}
+
+private fun priorExperienceFeedbackAudio(language: String, answer: String): String? {
+    val locale = if (language == LocaleJapanese) "ja_jp" else "en_us"
+    val suffix = if (language == LocaleJapanese) "ja_jp" else "en_us"
+    val audioId = when (answer) {
+        AnswerYes -> "aud_0210_prior_experience_yes_feedback"
+        AnswerNo -> "aud_0220_prior_experience_no_feedback"
+        else -> return null
+    }
+    return "$locale/${audioId}__$suffix.mp3"
+}
+
+private fun finalTenFeedbackAudio(language: String): String {
+    val locale = if (language == LocaleJapanese) "ja_jp" else "en_us"
+    val suffix = if (language == LocaleJapanese) "ja_jp" else "en_us"
+    return "$locale/aud_0510_final_end_confirmation_10_feedback__$suffix.mp3"
+}
+
+private const val LocaleEnglish = "en-US"
+private const val LocaleJapanese = "ja-JP"
+private const val AnswerYes = "yes"
+private const val AnswerNo = "no"
+private const val AnswerNotAnswered = "not_answered"
 
 private inline fun <reified T : Parcelable> Intent.parcelableExtra(name: String): T? =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
