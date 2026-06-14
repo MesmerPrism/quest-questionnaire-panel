@@ -33,6 +33,10 @@ panel composition. Treat this workflow as the repeatable capture bracket; the
 final showcase framing may still need app-side camera, panel placement, or a
 different capture route.
 
+For a short apples-to-apples capture comparison across built-in landscape,
+built-in portrait, ADB `screenrecord`, and app-owned MediaProjection, use
+[`recording-comparison-matrix.md`](recording-comparison-matrix.md).
+
 ## Preferred Refresh Flow
 
 1. Build and install the current panel APK, the BRB Unity APK, and the

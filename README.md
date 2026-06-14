@@ -25,6 +25,7 @@ docs/
   contract-versioning.md
   research-data-safety.md
   demo-capture-workflow.md
+  recording-comparison-matrix.md
   source-audit-intake-2026-06-14.md
   quest-uiautomator-runbook.md
   remote-operations-relationship.md
@@ -118,3 +119,7 @@ references, see
 For the current public BRB plus panel demo capture plan, including the
 one-take headset-recorder workflow and clip map, see
 [`docs/demo-capture-workflow.md`](docs/demo-capture-workflow.md).
+
+For the apples-to-apples 15-second capture comparison across built-in
+landscape, built-in portrait, ADB `screenrecord`, and MediaProjection, see
+[`docs/recording-comparison-matrix.md`](docs/recording-comparison-matrix.md).

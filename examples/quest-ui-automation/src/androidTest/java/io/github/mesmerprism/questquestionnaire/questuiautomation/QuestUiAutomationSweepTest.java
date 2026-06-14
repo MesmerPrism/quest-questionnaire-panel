@@ -1993,8 +1993,30 @@ public final class QuestUiAutomationSweepTest {
 
         openMetacamPanel(device, report);
         UiSnapshot beforeStart = dumpAndClassify(device, report, "record_probe_before_start", DEFAULT_CANDIDATE_PATTERN);
-        boolean startTapped = tapScreenRecordingButton(device, report, beforeStart, "record_start_tap");
-        report.event("record_probe_start_result", new JSONObject().put("tapped", startTapped));
+        if (isMetacamRecording(beforeStart)) {
+            report.event("record_probe_initial_cleanup", new JSONObject().put("state", "recording"));
+            UiSnapshot cleaned = tapUntilMetacamRecordingState(
+                    device,
+                    report,
+                    beforeStart,
+                    false,
+                    "record_initial_stop"
+            );
+            beforeStart = cleaned;
+        }
+
+        UiSnapshot afterStart = tapUntilMetacamRecordingState(
+                device,
+                report,
+                beforeStart,
+                true,
+                "record_start"
+        );
+        boolean startConfirmed = isMetacamRecording(afterStart);
+        report.event("record_probe_start_result", new JSONObject().put("recording", startConfirmed));
+        if (!startConfirmed) {
+            throw new IllegalStateException("Metacam recorder did not enter Recording state.");
+        }
 
         Thread.sleep(Math.max(recordMs, 0));
         device.waitForIdle(3000);
@@ -2006,8 +2028,18 @@ public final class QuestUiAutomationSweepTest {
 
         openMetacamPanel(device, report);
         UiSnapshot beforeStop = dumpAndClassify(device, report, "record_probe_before_stop", DEFAULT_CANDIDATE_PATTERN);
-        boolean stopTapped = tapScreenRecordingButton(device, report, beforeStop, "record_stop_tap");
-        report.event("record_probe_stop_result", new JSONObject().put("tapped", stopTapped));
+        UiSnapshot afterStop = tapUntilMetacamRecordingState(
+                device,
+                report,
+                beforeStop,
+                false,
+                "record_stop"
+        );
+        boolean stopConfirmed = !isMetacamRecording(afterStop);
+        report.event("record_probe_stop_result", new JSONObject().put("stopped", stopConfirmed));
+        if (!stopConfirmed) {
+            throw new IllegalStateException("Metacam recorder did not leave Recording state.");
+        }
 
         Thread.sleep(3000);
         device.waitForIdle(3000);
@@ -2023,6 +2055,59 @@ public final class QuestUiAutomationSweepTest {
         report.command("start_metacam_panel", shell(device, "am start -W -n " + METACAM_SHARING_ACTIVITY));
         device.waitForIdle(3000);
         Thread.sleep(1500);
+    }
+
+    private static UiSnapshot tapUntilMetacamRecordingState(
+            UiDevice device,
+            Report report,
+            UiSnapshot initialSnapshot,
+            boolean desiredRecording,
+            String eventPrefix
+    ) throws Exception {
+        UiSnapshot snapshot = initialSnapshot;
+        for (int attempt = 1; attempt <= 3; attempt += 1) {
+            boolean currentRecording = isMetacamRecording(snapshot);
+            if (currentRecording == desiredRecording) {
+                report.event(eventPrefix + "_state", new JSONObject()
+                        .put("attempt", attempt)
+                        .put("recording", currentRecording)
+                        .put("already_desired", true));
+                return snapshot;
+            }
+
+            boolean tapped = tapScreenRecordingButton(device, report, snapshot, eventPrefix + "_tap_" + attempt);
+            report.event(eventPrefix + "_tap_result", new JSONObject()
+                    .put("attempt", attempt)
+                    .put("tapped", tapped));
+            if (!tapped) {
+                return snapshot;
+            }
+            Thread.sleep(1500);
+            device.waitForIdle(3000);
+            snapshot = dumpAndClassify(
+                    device,
+                    report,
+                    eventPrefix + "_after_tap_" + attempt,
+                    DEFAULT_CANDIDATE_PATTERN
+            );
+        }
+        return snapshot;
+    }
+
+    private static boolean isMetacamRecording(UiSnapshot snapshot) {
+        for (UiNode node : snapshot.nodes) {
+            if (!"com.oculus.metacam".equals(node.packageName)) {
+                continue;
+            }
+            if ("com.oculus.metacam:id/octile_active_indicator_view".equals(node.resourceId)) {
+                return true;
+            }
+            if ("com.oculus.metacam:id/octile_title".equals(node.resourceId)
+                    && "Recording".equalsIgnoreCase(node.text.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static UiSnapshot prepareSurface(UiDevice device, Report report, String surface) throws Exception {

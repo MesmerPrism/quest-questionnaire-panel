@@ -101,6 +101,13 @@ Current 2026-06-14 reachability evidence:
 Use this active slot for the public BRB plus questionnaire-panel capture pass,
 not for product validation. The detailed public clip map is
 [`docs/demo-capture-workflow.md`](demo-capture-workflow.md).
+For the short route-by-route comparison pass, use
+[`docs/recording-comparison-matrix.md`](recording-comparison-matrix.md) and
+the runner:
+
+```powershell
+.\tools\Run-BrbRecordingComparison.ps1 -RecordSeconds 15
+```
 
 Preflight:
 

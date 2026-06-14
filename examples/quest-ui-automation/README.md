@@ -124,6 +124,29 @@ adb shell am instrument -w `
   io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
+Run the lab MediaProjection recorder. The Activity obtains the projection
+token, then starts a foreground service with `foregroundServiceType`
+`mediaProjection` so Android 14 target-SDK rules are satisfied. Use a visible
+consent prompt or a temporary lab app-op grant:
+
+```powershell
+adb shell cmd appops set io.github.mesmerprism.questquestionnaire.questuiautomation PROJECT_MEDIA allow
+adb shell am start -W `
+  -a io.github.mesmerprism.questquestionnaire.questuiautomation.RECORD_MEDIA_PROJECTION `
+  -n io.github.mesmerprism.questquestionnaire.questuiautomation/.ProjectionRecordingActivity `
+  --ei durationMs 15000 `
+  --ei width 1920 `
+  --ei height 1080 `
+  --ei frameRate 60 `
+  --ei bitRate 40000000
+adb shell cmd appops set io.github.mesmerprism.questquestionnaire.questuiautomation PROJECT_MEDIA default
+```
+
+Status is written to the automation app's external files as
+`media-projection-record-status.json`; MP4 outputs are written under that app's
+`recordings/` external-files directory. These are raw lab artifacts and should
+not be committed.
+
 Useful scroll-probe extras:
 
 ```text
