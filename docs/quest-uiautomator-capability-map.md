@@ -74,7 +74,9 @@ Meta Quest sources:
 - [Meta Quest scriptable testing services](https://developers.meta.com/horizon/documentation/android-apps/ts-scriptable-testing/):
   exposes ADB-backed developer testing toggles for some blocking dialogs,
   boundary, auto-sleep, reset, Wi-Fi, and test-user setup. Do not use reset or
-  disruptive toggles unless explicitly requested.
+  disruptive toggles unless explicitly requested. The public provider route is
+  `content://com.oculus.rc`; `GET_PROPERTY` is read-only, while
+  `SET_PROPERTY`, `WIPE_DEVICE`, and `SETUP_FOR_TEST` change device state.
 - [MQDH media tools](https://developers.meta.com/horizon/documentation/unity/ts-mqdh-media/):
   records headset video for up to three minutes, without audio, and stores the
   capture on the host machine.
@@ -242,6 +244,14 @@ Observed with the development-only `examples:quest-ui-automation` module:
   reveal a distinct Quest quick-settings or notification surface in the current
   panel state; dumps remained dominated by the existing Metacam/settings/store
   windows. Treat those APIs as not yet proven on Quest.
+- The Meta Quest scriptable testing provider is present as
+  `content://com.oculus.rc`, implemented by
+  `oculus.platform/oculus.internal.rc.RemoteControlProvider` on the tested
+  headset. `GET_PROPERTY` returned a bundle with the supported state keys
+  `disable_guardian`, `set_proximity_close`, `disable_dialogs`, and
+  `disable_autosleep`. An unknown method returned a structured failure bundle
+  rather than changing state. Mutating methods from the official docs were not
+  run in this pass.
 
 ## Capability Taxonomy
 
@@ -323,7 +333,7 @@ Wait/stability:
 | Q-002 | Notification shade | Try `openNotification`, dump nodes | XML, node DB | Low | API did not reveal distinct notification surface |
 | Q-003 | Android settings intents | Start `android.settings.SETTINGS` and Quest-specific settings activities found by package query | XML, node DB | Low | Generic settings intent opens Quest settings |
 | Q-004 | Permission dialogs | Use MediaProjection consent as known prompt and record selector/tap behavior | XML, JSONL | Consent UI | Planned |
-| Q-005 | Scriptable testing services | Query supported Meta testing properties, read only unless explicitly changing | Command output | Passive | Planned |
+| Q-005 | Scriptable testing services | Query supported Meta testing properties, read only unless explicitly changing | Command output | Passive for `GET_PROPERTY`; mutating for `SET_PROPERTY`/reset/setup | Working read-only; mutating methods documented but not run |
 | Q-006 | Settings side-nav map | Open Quest settings and click top-level side-nav entries by resource ID | XML, JSONL | Low, privacy-sensitive labels | Working for 16 sections |
 | Q-007 | Settings section crawler | Open settings sections and scroll main `settings_recycler_view` without toggles | XML, JSONL | Low, privacy-sensitive labels | Working for selected sections |
 | Q-008 | Settings child-page probe | Click allowlisted non-toggle rows and dump child pages/selectors | XML, JSONL | Low to sensitive, allowlist only | Privacy child pages work; camera/help inconclusive |
@@ -376,6 +386,8 @@ known rollback/stop step.
 | `quest.settings.child.help_rows` | Try Help rows | `settingsChildPageProbe` targets `help:Support`, `help:Help & Tips app` | `Help & Tips app` opens Help Center; `Support` can surface Help Center and SystemUX support/report UI. These are active external surfaces with side effects | Working but not passive |
 | `quest.quick_settings.open_api` | Try Android quick-settings helper | `UiDevice.openQuickSettings()`; wait; dump | Did not expose a distinct Quest quick-settings surface in current probes | Not proven |
 | `quest.notifications.open_api` | Try Android notification helper | `UiDevice.openNotification()`; wait; dump | Did not expose a distinct notification shade in current probes | Not proven |
+| `quest.scriptable.get_property` | Read Meta scriptable-testing property state | `content call --uri content://com.oculus.rc --method GET_PROPERTY` | Returns supported state keys for boundary/Guardian, proximity-close, blocking dialogs, and auto-sleep without changing them | Working read-only |
+| `quest.scriptable.mutating_methods` | Track documented scriptable-testing mutators | Official docs describe `SET_PROPERTY`, `WIPE_DEVICE`, and `SETUP_FOR_TEST` on `content://com.oculus.rc` | Can disable blocking dialogs, boundary/Guardian, and auto-sleep, or wipe/setup a test device. Requires scoped approval, PIN/credentials where applicable, and rollback/reset plan. | Documented, not run |
 | `capture.media_projection.state` | Compare built-in recorder to app-visible MediaProjection | `dumpsys media_projection` before/during/after recorder probe | Stayed empty during built-in recording | Working passive check |
 | `dump.shell.host` | Capture compressed shell UI hierarchy | `adb shell uiautomator dump --compressed /data/local/tmp/<name>.xml` | Direct host command writes XML successfully | Working host-side |
 | `dump.shell.instrumentation_nested` | Try shell UI hierarchy from inside instrumentation | `UiDevice.executeShellCommand("uiautomator dump ...")` | Did not create a file reliably during the Quest instrumentation run | Avoid |
