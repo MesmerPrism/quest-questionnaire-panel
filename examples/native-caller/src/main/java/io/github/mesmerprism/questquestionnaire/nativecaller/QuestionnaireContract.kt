@@ -1,24 +1,26 @@
 package io.github.mesmerprism.questquestionnaire.nativecaller
 
+import io.github.mesmerprism.questquestionnaire.contract.QuestQuestionnaireProtocol
+import io.github.mesmerprism.questquestionnaire.sdk.QuestQuestionnaireIntentContract
+
 object QuestionnaireContract {
-    const val ProtocolVersion = "quest.questionnaire.v1"
-    const val ResultSchema = "quest.questionnaire.v1.result"
-    const val StartAction = "io.github.mesmerprism.questquestionnaire.action.START"
-    const val CompleteAction = "io.github.mesmerprism.questquestionnaire.action.COMPLETE"
-    const val RequestMimeType = "application/vnd.quest-questionnaire.request+json"
+    const val ProtocolVersion = QuestQuestionnaireProtocol.Version
+    const val ResultSchema = QuestQuestionnaireProtocol.ResultSchema
+    const val StartAction = QuestQuestionnaireIntentContract.StartAction
+    const val CompleteAction = QuestQuestionnaireIntentContract.CompleteAction
+    const val RequestMimeType = QuestQuestionnaireIntentContract.RequestMimeType
 
-    const val PanelPackage = "io.github.mesmerprism.questquestionnaire.panel"
-    const val PanelActivity =
-        "io.github.mesmerprism.questquestionnaire.panel.QuestionnaireActivity"
+    const val PanelPackage = QuestQuestionnaireIntentContract.PanelPackage
+    const val PanelActivity = QuestQuestionnaireIntentContract.PanelActivity
 
-    const val ExtraSessionId = "session_id"
-    const val ExtraRequestId = "request_id"
-    const val ExtraNonce = "request_nonce"
-    const val ExtraRequestJson = "request_json"
-    const val ExtraResultUri = "result_uri"
-    const val ExtraReturnToCaller = "return_to_caller"
+    const val ExtraSessionId = QuestQuestionnaireIntentContract.ExtraSessionId
+    const val ExtraRequestId = QuestQuestionnaireIntentContract.ExtraRequestId
+    const val ExtraNonce = QuestQuestionnaireIntentContract.ExtraNonce
+    const val ExtraRequestJson = QuestQuestionnaireIntentContract.ExtraRequestJson
+    const val ExtraResultUri = QuestQuestionnaireIntentContract.ExtraResultUri
+    const val ExtraReturnToCaller = QuestQuestionnaireIntentContract.ExtraReturnToCaller
     const val ExtraDebugRunSmoke = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_RUN_SMOKE"
-    const val ExtraDebugAutoSubmit = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_AUTO_SUBMIT"
+    const val ExtraDebugAutoSubmit = QuestQuestionnaireIntentContract.ExtraDebugAutoSubmit
 
     const val QuestionnaireId = "brb-questionnaire-v1"
     const val StageLanguageSelect = "language_select"

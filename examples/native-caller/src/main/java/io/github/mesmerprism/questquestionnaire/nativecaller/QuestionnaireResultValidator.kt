@@ -36,7 +36,7 @@ object QuestionnaireResultValidator {
             val validation = QuestionnaireResultEnvelopeValidator.validate(
                 resultJson = resultJson,
                 expected = coreExpected,
-                answerValidator = BrbAnswerValidator
+                answerValidator = BrbQuestionnaireAnswerValidator
             )
         ) {
             is CoreQuestionnaireResultValidation.Valid ->
@@ -53,7 +53,7 @@ object QuestionnaireResultValidator {
         QuestionnaireResultValidation(valid = false, reason = reason)
 }
 
-private object BrbAnswerValidator : QuestionnaireAnswerValidator {
+internal object BrbQuestionnaireAnswerValidator : QuestionnaireAnswerValidator {
     private val PlaceholderAnswers = setOf("yes", "no", "not_answered")
     private val RequiredStructuredAnswerObjects = setOf(
         "demographics",

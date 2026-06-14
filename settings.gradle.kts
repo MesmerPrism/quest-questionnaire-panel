@@ -16,5 +16,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "quest-questionnaire-panel"
 include(":questionnaire-contract-core")
+include(":android-caller-sdk")
 include(":app")
 include(":examples:native-caller")

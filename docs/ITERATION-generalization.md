@@ -88,7 +88,7 @@ unity-caller-plugin/
 | Priority | Work item | Why it matters | Status |
 | ---: | --- | --- | --- |
 | 1 | Extract `questionnaire-contract-core` | Prevent validator/schema drift before more callers exist. | Initial skeleton complete |
-| 2 | Extract `android-caller-sdk` | Unlock native callers and make the Unity wrapper smaller. | Core adopted by native caller; SDK next |
+| 2 | Extract `android-caller-sdk` | Unlock native callers and make the Unity wrapper smaller. | Initial SDK complete |
 | 3 | Refactor terminal result writing | Make `cancelled` and `error` outcomes scientifically usable. | Planned |
 | 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Planned |
 | 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | Planned |
@@ -145,7 +145,7 @@ Acceptance:
 
 ### Slice 3: Android Caller SDK
 
-Status: Planned
+Status: Initial SDK complete
 
 Deliverables:
 
@@ -406,6 +406,17 @@ Field semantics:
 - Verified Slice 2 with `:examples:native-caller:testDebugUnitTest`,
   `:questionnaire-contract-core:test`, `:app:assembleDebug`, and
   `:examples:native-caller:assembleDebug`.
+- Started Slice 3 by adding the `:android-caller-sdk` module with
+  `QuestQuestionnaireLauncher`, launch request specs, prepared launch objects,
+  caller-owned result file URI creation, one-shot immutable callback creation,
+  pending request storage, and result readback through contract-core.
+- Migrated `examples:native-caller` to use `android-caller-sdk` for preflight,
+  launch preparation, explicit panel launch, callback marking, resume checks,
+  and result readback. The demo keeps only BRB-specific request defaults and
+  answer validation.
+- Verified the initial SDK slice with `:android-caller-sdk:assembleDebug`,
+  `:examples:native-caller:testDebugUnitTest`, `:questionnaire-contract-core:test`,
+  `:app:assembleDebug`, and `:examples:native-caller:assembleDebug`.
 
 ## Decision Log
 
