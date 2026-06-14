@@ -199,6 +199,12 @@ Observed with the development-only `examples:quest-ui-automation` module:
   reached a true no-move endpoint after five successful main-content scrolls.
   Do not commit per-app notification names from raw local reports; summarize
   that surface as categories plus per-app notification rows.
+- `examples/quest-ui-automation/tools/summarize_report.py` converts pulled
+  `report.jsonl` files into public-safe Markdown or JSON. It emits event
+  counts, settings page counts, scroll endpoint status, allowlisted settings
+  labels, dropdown option rows, and redaction counts while omitting raw XML
+  paths, local paths, package/resource IDs, and unknown labels such as installed
+  app names.
 - Help rows have side effects beyond an in-panel child page. `Help & Tips app`
   opened `com.oculus.helpcenter` in the tested action-mode sweep. `Support`
   also brought Help Center content into the UI dump and exposed SystemUX
@@ -302,6 +308,7 @@ Wait/stability:
 | Q-010 | Settings dropdown targets | Target `dropdown_button`/`Spinner` controls with `childTargetRole=dropdown` | XML, JSONL option texts | Low, do not select options | Working for camera bit rate, frame rate, stabilization, eye perspective |
 | Q-011 | Dropdown option inspector | Record `context_menu_item` option text, bounds, selected, checked, and default-marker state | JSONL summary rows | Low, passive after open | Working for camera dropdowns |
 | Q-012 | Dropdown option dry-run guard | Target a named dropdown option and refuse selection unless `allowOptionSelect=true` | JSONL option row, bounds, selected/checked, guard reason | Low by default; mutation only when explicitly enabled | Working for camera capture dropdowns |
+| Q-013 | Redacted report summary exporter | Convert raw JSONL sweep reports into public-safe Markdown/JSON summaries | Summary table, redaction counts, event counts | Passive host-side | Working for section crawler and dropdown reports |
 
 ## Command Sequence Database
 
@@ -335,6 +342,7 @@ known rollback/stop step.
 | `quest.settings.child.dropdown_targets` | Open selector option popovers | Run `settingsChildPageProbe` with `childTargetRole=dropdown` and `clickModes=coordinate,uiObject2,accessibilityClick` for camera bit rate, frame rate, image stabilization, and eye perspective | Exposes `context_menu_list` options without selecting a value | Working |
 | `quest.settings.child.dropdown_option_summary` | Summarize opened selector options | Inspect `settings_child_surface.summary.settingsDropdownOptions` after a dropdown opens | Records clean option labels, row bounds, selected flags, checked flags, and default markers | Working |
 | `quest.settings.child.dropdown_option_dry_run` | Target a selector option without selecting it | Run `settingsChildPageProbe` with `childTargetRole=dropdown`, `optionTarget` or `optionTargets`, and default `allowOptionSelect=false` | Records the matched option row and returns `allowOptionSelect=false dry run`; verified for non-default camera capture options without changing settings | Working |
+| `quest.uiautomator.report_summary` | Summarize raw sweep reports for public notes | `python examples/quest-ui-automation/tools/summarize_report.py <report.jsonl> --format markdown` | Emits page counts, scroll endpoint status, allowlisted labels, dropdown option evidence, and redaction counts without raw paths or unknown labels | Working |
 | `quest.settings.child.privacy_device_permissions` | Open Privacy & safety -> Device permissions | `settingsChildPageProbe` target `privacy_safety:Device permissions` | Opens child page with hand/body tracking, location services, spatial data, enhanced spatial services, and deletion controls | Working, sensitive |
 | `quest.settings.child.privacy_app_permissions` | Open Privacy & safety -> App permissions | `settingsChildPageProbe` target `privacy_safety:App permissions` | Opens child page with permission categories including audio files, connected cameras, headset cameras, location, microphone, nearby devices, photos/videos | Working, sensitive |
 | `quest.settings.child.camera_selectors` | Try Camera selector rows | Broad-row target with coordinate, `UiObject2.click()`, and `ACTION_CLICK`; dropdown target with `childTargetRole=dropdown` | Broad rows activate without exposing options; compact dropdown targets expose bit-rate, frame-rate, stabilization, and eye-perspective options | Working via dropdown target |
@@ -372,9 +380,12 @@ The `examples:quest-ui-automation` test app should grow in small slices:
 9. Add an explicit option-selection dry-run/guard that can target a specific
    option by text but refuses to click unless a mutation extra such as
    `allowOptionSelect=true` is present. Done.
-10. Next useful slice: add a section summary exporter that emits redacted,
-    low-cardinality findings directly from JSONL reports so raw private labels,
-    installed app names, and full XML paths do not need manual handling.
+10. Add a section summary exporter that emits redacted, low-cardinality
+    findings directly from JSONL reports so raw private labels, installed app
+    names, and full XML paths do not need manual handling. Done.
+11. Next useful slice: add an on-device or host-side route inventory for
+    Quest Settings child pages that are safe to open but not mutate, using the
+    exporter as the default path from raw report to public notes.
 
 ## Open Questions
 

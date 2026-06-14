@@ -205,6 +205,20 @@ files directory on the headset:
 /sdcard/Android/data/io.github.mesmerprism.questquestionnaire.questuiautomation/files/sweeps/
 ```
 
+Summarize pulled `report.jsonl` files before copying findings into public
+docs. The host-side exporter emits only a low-cardinality summary: event
+counts, page counts, scroll endpoints, allowlisted settings labels, dropdown
+option rows, and redaction counts. It omits raw XML paths, local paths,
+package/resource IDs, and non-allowlisted labels such as installed app names:
+
+```powershell
+python examples\quest-ui-automation\tools\summarize_report.py `
+  .\artifacts\quest-uiautomator\report.jsonl `
+  --format markdown
+```
+
+Use `--format json` when another script should ingest the public-safe summary.
+
 Active tapping is disabled by default. To test whether a visible Android button
 can be pressed through UIAutomator, pass a specific regex and a small tap limit:
 
