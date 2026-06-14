@@ -19,6 +19,13 @@ outside Android accessibility. Whenever a command changes headset state, record
 the before/after UI dump and keep media, screenshots, serials, and private logs
 out of this public repo.
 
+The 2026-06-14 source-audit disposition lives in
+[`docs/source-audit-intake-2026-06-14.md`](source-audit-intake-2026-06-14.md).
+It records which external recommendations were accepted, deferred, or rejected
+after checking the cited Android, Meta, AOSP, Appium, and scrcpy references.
+The immediate executable mitigation is the staged public-artifact check in
+`tools/check_public_artifacts.py`.
+
 ## Source Map
 
 Android UIAutomator sources:
@@ -414,6 +421,7 @@ known rollback/stop step.
 | `quest.settings.child.dropdown_option_summary` | Summarize opened selector options | Inspect `settings_child_surface.summary.settingsDropdownOptions` after a dropdown opens | Records clean option labels, row bounds, selected flags, checked flags, and default markers | Working |
 | `quest.settings.child.dropdown_option_dry_run` | Target a selector option without selecting it | Run `settingsChildPageProbe` with `childTargetRole=dropdown`, `optionTarget` or `optionTargets`, and default `allowOptionSelect=false` | Records the matched option row and returns `allowOptionSelect=false dry run`; verified for non-default camera capture options without changing settings | Working |
 | `quest.uiautomator.report_summary` | Summarize raw sweep reports for public notes | `python examples/quest-ui-automation/tools/summarize_report.py <report.jsonl> --format markdown` | Emits page counts, scroll endpoint status, allowlisted labels, dropdown option evidence, and redaction counts without raw paths or unknown labels | Working |
+| `quest.uiautomator.public_artifact_check` | Guard public commits from private lab artifacts | `python tools/check_public_artifacts.py` after staging | Rejects generated APKs, raw recordings/screenshots/logs, raw UI dump XML, signing material, local machine paths, and serial-shaped ADB output outside the curated media lane | Working |
 | `quest.settings.child.privacy_device_permissions` | Open Privacy & safety -> Device permissions | `settingsChildPageProbe` target `privacy_safety:Device permissions` | Opens child page with hand/body tracking, location services, spatial data, enhanced spatial services, and deletion controls | Working, sensitive |
 | `quest.settings.child.privacy_app_permissions` | Open Privacy & safety -> App permissions | `settingsChildPageProbe` target `privacy_safety:App permissions` | Opens child page with permission categories including audio files, connected cameras, headset cameras, location, microphone, nearby devices, photos/videos | Working, sensitive |
 | `quest.settings.child.camera_selectors` | Try Camera selector rows | Broad-row target with coordinate, `UiObject2.click()`, and `ACTION_CLICK`; dropdown target with `childTargetRole=dropdown` | Broad rows activate without exposing options; compact dropdown targets expose bit-rate, frame-rate, stabilization, and eye-perspective options | Working via dropdown target |

@@ -98,3 +98,28 @@ Safe public examples use fake ids, fake nonces, fake participant refs, and
 synthetic answers. Before committing, check for local paths, raw participant
 data, device serials, APKs, screenshots, log bundles, signing keys, and private
 evidence artifacts.
+
+Run the staged public-artifact check before committing documentation, examples,
+or lab automation output:
+
+```powershell
+python tools\check_public_artifacts.py
+```
+
+Use a full tracked-file sweep only when preparing a release hygiene pass:
+
+```powershell
+python tools\check_public_artifacts.py --all
+```
+
+## Curated Public Media
+
+The only committed recording lane is `docs/media/*.mp4`, which is used by the
+GitHub Pages onboarding guide. Before adding or replacing a clip there, confirm:
+
+- the clip is intentionally public onboarding media, not raw lab evidence;
+- it contains no participant data, device serials, private app lists, account
+  names, raw logs, or local machine paths;
+- it was reviewed as a final cropped/exported clip, not copied directly from a
+  headset sweep directory;
+- the original raw recording remains outside this repo.

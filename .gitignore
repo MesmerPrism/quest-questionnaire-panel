@@ -12,6 +12,7 @@ artifacts/
 captures/
 logs/
 tmp/
+__pycache__/
 *.log
 *.png
 *.jpg

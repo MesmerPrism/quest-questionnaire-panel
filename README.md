@@ -24,8 +24,11 @@ docs/
   handoff-contract.md
   contract-versioning.md
   research-data-safety.md
+  source-audit-intake-2026-06-14.md
   validation-matrix.md
   handoff-prompt.md
+tools/
+  check_public_artifacts.py # staged guard for private lab artifacts
 ```
 
 ## Current Scope
@@ -94,3 +97,13 @@ For off-store update behavior and fleet-operation caveats, see
 Android's installer UI; Termux plus loopback WiFi ADB, including any
 operator-launched helper that restarts a stopped Termux agent, is an external
 lab/fleet operations path, not part of the questionnaire result contract.
+
+Before committing public docs or lab automation notes, run:
+
+```powershell
+python tools\check_public_artifacts.py
+```
+
+For the latest source-intake decision on Quest UI automation and capture
+references, see
+[`docs/source-audit-intake-2026-06-14.md`](docs/source-audit-intake-2026-06-14.md).
