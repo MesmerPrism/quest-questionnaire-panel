@@ -98,7 +98,7 @@ unity-caller-plugin/
 | 3 | Refactor terminal result writing | Make `cancelled` and `error` outcomes scientifically usable. | Complete |
 | 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Complete |
 | 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | Complete |
-| 6 | Add ViewModel/draft recovery | Protect in-progress study sessions. | Planned |
+| 6 | Add ViewModel/draft recovery | Protect in-progress study sessions. | Complete |
 | 7 | Add per-screen timing metadata | High research value without changing IPC. | Planned |
 | 8 | Split minimal vs. updater build flavors | Cleaner permissions and trust story. | Planned |
 | 9 | Build Unity plugin on top of SDK | Avoid Unity-specific duplication. | Planned |
@@ -274,7 +274,7 @@ Notes:
 
 ### Slice 7: ViewModel And Draft Recovery
 
-Status: Planned
+Status: Complete
 
 Deliverables:
 
@@ -290,6 +290,20 @@ Acceptance:
 - Draft files are app-private only.
 - Draft filenames never contain raw participant data or answers.
 - Stale drafts are rejected when request id/nonce do not match.
+
+Notes:
+
+- Added `QuestionnaireDraftStore`, backed by the app-private
+  `noBackupFilesDir/questionnaire-drafts` directory.
+- Draft file names are `draft-v1-<sha256(request_id, nonce)>.json`; request
+  IDs, nonces, participant codes, and answer values are not placed in file
+  names.
+- BRB current screen and answer state now live in
+  `BrbQuestionnaireViewModel`, with `SavedStateHandle` for Activity
+  recreation and draft JSON for fresh ViewModel/process recovery.
+- Terminal result handling clears the matching draft only after the result file
+  has been written. If result writing fails, the draft is left in place for
+  recovery.
 
 ### Slice 8: Per-Screen Timing Metadata
 
@@ -490,6 +504,19 @@ Field semantics:
   `:examples:native-caller:testDebugUnitTest`,
   `:android-caller-sdk:assembleDebug`, and
   `:examples:native-caller:assembleDebug`.
+- Completed Slice 7 by adding app-private draft persistence and moving BRB
+  current-screen/answer state into `BrbQuestionnaireViewModel`. The ViewModel
+  restores from `SavedStateHandle` across Activity recreation and from the
+  draft store for fresh ViewModel recovery.
+- Added focused tests for draft restore, hashed draft filenames, stale draft
+  rejection, terminal cleanup support, SavedStateHandle restoration, and draft
+  restoration into a fresh BRB ViewModel.
+- Verified Slice 7 with `git diff --check`, `:app:compileDebugKotlin`,
+  `:app:testDebugUnitTest`, `:app:assembleDebug`,
+  `:questionnaire-contract-core:test`, `:brb-questionnaire-core:test`,
+  `:examples:native-caller:testDebugUnitTest`,
+  `:android-caller-sdk:assembleDebug`, and
+  `:examples:native-caller:assembleDebug`.
 
 ## Decision Log
 
@@ -501,6 +528,7 @@ Add decisions here as they become real implementation constraints.
 | 2026-06-14 | Add optional v1 `terminal` result metadata instead of overloading `error` for cancellation. | Keeps cancellation scientifically useful while preserving `error` for true runtime failures. |
 | 2026-06-14 | Keep BRB answer validation in a pure BRB-specific module, not in `android-caller-sdk`. | Preserves the generic SDK boundary while making BRB validation reusable by native and future Unity callers. |
 | 2026-06-14 | Keep renderer selection in the default registry and keep `QuestionnaireActivity` renderer-agnostic. | Lets future questionnaire renderers plug in without changing Activity control flow. |
+| 2026-06-14 | Store panel drafts under app-private no-backup storage with hashed request-id/nonce filenames. | Protects in-progress answers while avoiding raw participant identifiers or answers in filenames and backups. |
 
 ## Open Questions
 

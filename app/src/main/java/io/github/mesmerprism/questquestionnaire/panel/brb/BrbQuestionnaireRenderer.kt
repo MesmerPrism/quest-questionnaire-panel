@@ -34,6 +34,7 @@ private object BrbQuestionnaireRenderer : QuestionnaireRenderer {
             autoSubmit = config.autoSubmit,
             debugCommandScript = config.debugCommandScript,
             debugCommandIntervalMs = config.debugCommandIntervalMs,
+            draftStore = config.draftStore,
             onSubmit = { answers, currentStage, screenIndex ->
                 callbacks.onCompleted(
                     QuestionnaireRendererResult(

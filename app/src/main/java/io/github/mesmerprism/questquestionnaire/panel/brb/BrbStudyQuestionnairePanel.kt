@@ -24,11 +24,15 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
+import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireDraftSnapshot
+import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireDraftStore
 import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireRequest
 import kotlinx.coroutines.delay
 import org.json.JSONArray
@@ -40,23 +44,27 @@ internal fun BrbStudyQuestionnairePanel(
     autoSubmit: Boolean,
     debugCommandScript: String?,
     debugCommandIntervalMs: Int,
+    draftStore: QuestionnaireDraftStore,
     onSubmit: (JSONObject, String, Int) -> Unit,
     onCancel: (String, Int) -> Unit
 ) {
-    val sequence = remember(request) { request.screenSequence }
-    val currentIndex = remember(request) { mutableIntStateOf(0) }
-    val answers = remember(request) { mutableStateOf(QuestionnaireAnswerState()) }
+    val viewModel: BrbQuestionnaireViewModel = viewModel()
+    viewModel.bind(request, draftStore)
+
+    val sequence = request.screenSequence
+    val currentIndex = viewModel.currentIndex
+    val answers = viewModel.answers
     val context = LocalContext.current
-    val audioPlayer = remember(context) { QuestionnaireAudioPlayer(context.applicationContext) }
-    val currentStage = sequence[currentIndex.intValue]
+    val audioPlayer = viewModel.audioPlayerFor(context.applicationContext)
+    val currentStage = sequence[currentIndex]
 
     DisposableEffect(audioPlayer) {
         onDispose { audioPlayer.release() }
     }
 
-    LaunchedEffect(autoSubmit) {
+    LaunchedEffect(autoSubmit, request) {
         if (autoSubmit) {
-            val completedAnswers = answers.value.withDebugCompletedDefaults(request)
+            val completedAnswers = answers.withDebugCompletedDefaults(request)
             onSubmit(
                 completedAnswers.toJson(request, completedStage = sequence.last()),
                 sequence.last(),
@@ -65,55 +73,53 @@ internal fun BrbStudyQuestionnairePanel(
         }
     }
 
-    LaunchedEffect(currentStage, answers.value.language, request.conditionNumber) {
-        audioPathFor(currentStage, answers.value.language, request.conditionNumber)?.let {
+    LaunchedEffect(currentStage, answers.language, request.conditionNumber) {
+        audioPathFor(currentStage, answers.language, request.conditionNumber)?.let {
             audioPlayer.play(it)
         }
     }
 
-    val isFirst = currentIndex.intValue == 0
-    val isLast = currentIndex.intValue == sequence.lastIndex
-    fun activeStage(): String = sequence[currentIndex.intValue]
+    val isFirst = currentIndex == 0
+    val isLast = currentIndex == sequence.lastIndex
+    fun activeStage(): String = sequence[viewModel.currentIndex]
 
     fun replayAudio() {
-        audioPathFor(activeStage(), answers.value.language, request.conditionNumber)
+        audioPathFor(activeStage(), viewModel.answers.language, request.conditionNumber)
             ?.let { audioPlayer.play(it) }
     }
 
     fun goBack() {
-        if (currentIndex.intValue > 0) {
-            currentIndex.intValue -= 1
-        }
+        viewModel.goBack()
     }
 
     fun goNext() {
         val stage = activeStage()
         var handled = false
         if (stage == BrbQuestionnaireContract.StagePriorExperience) {
-            priorExperienceFeedbackAudio(answers.value.language, answers.value.priorExperience)
+            priorExperienceFeedbackAudio(viewModel.answers.language, viewModel.answers.priorExperience)
                 ?.let { audioPlayer.play(it) }
         }
         if (
             stage == BrbQuestionnaireContract.StageFinalEndConfirmation &&
-            answers.value.finalEndConfirmationRating == 10
+            viewModel.answers.finalEndConfirmationRating == 10
         ) {
-            audioPlayer.play(finalTenFeedbackAudio(answers.value.language))
+            audioPlayer.play(finalTenFeedbackAudio(viewModel.answers.language))
             val exportIndex = sequence.indexOf(BrbQuestionnaireContract.StageCompleteExportSummary)
-            if (exportIndex > currentIndex.intValue) {
-                currentIndex.intValue = exportIndex
+            if (exportIndex > viewModel.currentIndex) {
+                viewModel.goTo(exportIndex)
                 handled = true
             }
         }
 
         if (!handled) {
-            if (currentIndex.intValue == sequence.lastIndex) {
+            if (viewModel.currentIndex == sequence.lastIndex) {
                 onSubmit(
-                    answers.value.toJson(request, completedStage = stage),
+                    viewModel.answers.toJson(request, completedStage = stage),
                     stage,
-                    currentIndex.intValue
+                    viewModel.currentIndex
                 )
             } else {
-                currentIndex.intValue += 1
+                viewModel.goNext()
             }
         }
     }
@@ -128,16 +134,17 @@ internal fun BrbStudyQuestionnairePanel(
         commands.forEach { command ->
             when (val action = parsePanelDebugCommand(command)) {
                 PanelDebugAction.Back -> goBack()
-                PanelDebugAction.Cancel -> onCancel(activeStage(), currentIndex.intValue)
-                PanelDebugAction.Next -> if (canProceed(activeStage(), answers.value)) goNext()
+                PanelDebugAction.Cancel -> onCancel(activeStage(), viewModel.currentIndex)
+                PanelDebugAction.Next -> if (canProceed(activeStage(), viewModel.answers)) goNext()
                 PanelDebugAction.ReplayAudio -> replayAudio()
                 PanelDebugAction.Submit ->
                     onSubmit(
-                        answers.value.toJson(request, completedStage = activeStage()),
+                        viewModel.answers.toJson(request, completedStage = activeStage()),
                         activeStage(),
-                        currentIndex.intValue
+                        viewModel.currentIndex
                     )
-                is PanelDebugAction.UpdateAnswers -> answers.value = action.transform(answers.value)
+                is PanelDebugAction.UpdateAnswers ->
+                    viewModel.updateAnswers(action.transform(viewModel.answers))
                 null -> Unit
             }
             if (delayMs > 0L) {
@@ -149,35 +156,35 @@ internal fun BrbStudyQuestionnairePanel(
     StudyPanelScaffold(
         request = request,
         currentStage = currentStage,
-        currentIndex = currentIndex.intValue,
+        currentIndex = currentIndex,
         totalScreens = sequence.size,
         canGoBack = !isFirst,
-        canProceed = canProceed(currentStage, answers.value),
+        canProceed = canProceed(currentStage, answers),
         nextLabel = if (isLast) "Submit" else "Next",
         onBack = ::goBack,
         onNext = ::goNext,
-        onCancel = { onCancel(activeStage(), currentIndex.intValue) },
+        onCancel = { onCancel(activeStage(), viewModel.currentIndex) },
         onReplayAudio = ::replayAudio
     ) {
         when (currentStage) {
             BrbQuestionnaireContract.StageLanguageSelect ->
-                LanguageScreen(answers.value) { answers.value = it }
+                LanguageScreen(answers, viewModel::updateAnswers)
             BrbQuestionnaireContract.StageDemographics ->
-                DemographicsScreen(answers.value) { answers.value = it }
+                DemographicsScreen(answers, viewModel::updateAnswers)
             BrbQuestionnaireContract.StagePriorExperience ->
-                PriorExperienceScreen(answers.value) { answers.value = it }
+                PriorExperienceScreen(answers, viewModel::updateAnswers)
             BrbQuestionnaireContract.StagePostConditionPictographic ->
-                PictographicScreen(request, answers.value) { answers.value = it }
+                PictographicScreen(request, answers, viewModel::updateAnswers)
             BrbQuestionnaireContract.StagePostConditionPresence ->
-                PresenceScreen(request, answers.value) { answers.value = it }
+                PresenceScreen(request, answers, viewModel::updateAnswers)
             BrbQuestionnaireContract.StagePostConditionLostOpportunity ->
-                LostOpportunityScreen(answers.value) { answers.value = it }
+                LostOpportunityScreen(answers, viewModel::updateAnswers)
             BrbQuestionnaireContract.StageFinalEndConfirmation ->
-                FinalConfirmationScreen(answers.value) { answers.value = it }
+                FinalConfirmationScreen(answers, viewModel::updateAnswers)
             BrbQuestionnaireContract.StageFinalExtraPressesPrompt ->
                 FinalExtraPressesPromptScreen()
             BrbQuestionnaireContract.StageCompleteExportSummary ->
-                ExportSummaryScreen(request, answers.value)
+                ExportSummaryScreen(request, answers)
             else ->
                 UnknownStageScreen(currentStage)
         }
@@ -452,7 +459,7 @@ private val PresenceItems = listOf(
     PresenceItem("interaction_memory_1", "I can clearly remember what I chose to do with the button.")
 )
 
-private data class QuestionnaireAnswerState(
+internal data class QuestionnaireAnswerState(
     val language: String = LocaleEnglish,
     val participantCode: String = "",
     val age: Float = 25f,
@@ -551,6 +558,197 @@ private data class QuestionnaireAnswerState(
                 finalEndConfirmationRating
             }
         )
+    }
+
+    fun toDraftJson(): JSONObject =
+        JSONObject()
+            .put("language", language)
+            .put("participant_code", participantCode)
+            .put("age", age)
+            .put("prior_experience", priorExperience)
+            .put("presence_slider", presenceSlider)
+            .put("redness_vas", rednessVas)
+            .put("redness_likert", rednessLikert)
+            .put("ipq_answers", JSONObject(ipqAnswers))
+            .put("lost_opportunity_acknowledged", lostOpportunityAcknowledged)
+            .put("final_end_confirmation_rating", finalEndConfirmationRating ?: JSONObject.NULL)
+
+    companion object {
+        fun fromDraftJson(json: JSONObject): QuestionnaireAnswerState =
+            QuestionnaireAnswerState(
+                language = normalizeDraftLanguage(json.optString("language", LocaleEnglish)),
+                participantCode = json.optString("participant_code", "").take(32),
+                age = json.optDouble("age", 25.0).toFloat().coerceIn(0f, 100f),
+                priorExperience = normalizeDraftYesNo(
+                    json.optString("prior_experience", AnswerNotAnswered)
+                ),
+                presenceSlider = json.optDouble("presence_slider", 50.0)
+                    .toFloat()
+                    .coerceIn(0f, 100f),
+                rednessVas = json.optDouble("redness_vas", 50.0)
+                    .toFloat()
+                    .coerceIn(0f, 100f),
+                rednessLikert = json.optInt("redness_likert", 4).coerceIn(1, 7),
+                ipqAnswers = draftIpqAnswers(json.optJSONObject("ipq_answers")),
+                lostOpportunityAcknowledged = json.optBoolean(
+                    "lost_opportunity_acknowledged",
+                    false
+                ),
+                finalEndConfirmationRating = json.optionalDraftInt(
+                    "final_end_confirmation_rating",
+                    min = 1,
+                    max = 10
+                )
+            )
+
+        private fun normalizeDraftLanguage(value: String): String =
+            if (value == LocaleJapanese) LocaleJapanese else LocaleEnglish
+
+        private fun normalizeDraftYesNo(value: String): String =
+            when (value) {
+                AnswerYes -> AnswerYes
+                AnswerNo -> AnswerNo
+                else -> AnswerNotAnswered
+            }
+
+        private fun draftIpqAnswers(json: JSONObject?): Map<String, Int> =
+            PresenceItems.associate { item ->
+                item.id to (json?.optInt(item.id, 3) ?: 3).coerceIn(0, 6)
+            }
+
+        private fun JSONObject.optionalDraftInt(name: String, min: Int, max: Int): Int? =
+            if (!has(name) || isNull(name)) {
+                null
+            } else {
+                optInt(name).coerceIn(min, max)
+            }
+    }
+}
+
+internal class BrbQuestionnaireViewModel(
+    private val savedStateHandle: SavedStateHandle
+) : ViewModel() {
+    private val currentIndexState = mutableIntStateOf(0)
+    private val answersState = mutableStateOf(QuestionnaireAnswerState())
+    private var boundStateKey: String? = null
+    private var request: QuestionnaireRequest? = null
+    private var draftStore: QuestionnaireDraftStore? = null
+    private var audioPlayer: QuestionnaireAudioPlayer? = null
+
+    val currentIndex: Int
+        get() = currentIndexState.intValue
+
+    val answers: QuestionnaireAnswerState
+        get() = answersState.value
+
+    fun bind(request: QuestionnaireRequest, draftStore: QuestionnaireDraftStore) {
+        val stateKey = request.stateKey()
+        if (boundStateKey == stateKey) {
+            return
+        }
+
+        this.boundStateKey = stateKey
+        this.request = request
+        this.draftStore = draftStore
+
+        val restored = restoreFromSavedState(request)
+            ?: draftStore.read(request)?.toBrbState()
+        currentIndexState.intValue = restored?.screenIndex
+            ?: request.screenSequence.indexOf(request.openStage).coerceAtLeast(0)
+        answersState.value = restored?.answers ?: QuestionnaireAnswerState()
+        saveStateAndDraft()
+    }
+
+    fun audioPlayerFor(context: Context): QuestionnaireAudioPlayer =
+        audioPlayer ?: QuestionnaireAudioPlayer(context).also {
+            audioPlayer = it
+        }
+
+    fun updateAnswers(nextAnswers: QuestionnaireAnswerState) {
+        answersState.value = nextAnswers
+        saveStateAndDraft()
+    }
+
+    fun goBack() {
+        goTo(currentIndex - 1)
+    }
+
+    fun goNext() {
+        goTo(currentIndex + 1)
+    }
+
+    fun goTo(index: Int) {
+        val sequence = request?.screenSequence ?: return
+        currentIndexState.intValue = index.coerceIn(sequence.indices)
+        saveStateAndDraft()
+    }
+
+    override fun onCleared() {
+        audioPlayer?.release()
+        audioPlayer = null
+        super.onCleared()
+    }
+
+    private fun saveStateAndDraft() {
+        val currentRequest = request ?: return
+        savedStateHandle[SavedStateKey] = currentRequest.stateKey()
+        savedStateHandle[SavedCurrentIndex] = currentIndex
+        savedStateHandle[SavedAnswers] = answers.toDraftJson().toString()
+        runCatching {
+            draftStore?.write(
+                request = currentRequest,
+                screenIndex = currentIndex,
+                state = answers.toDraftJson()
+            )
+        }
+    }
+
+    private fun restoreFromSavedState(request: QuestionnaireRequest): BrbPanelState? {
+        if (savedStateHandle.get<String>(SavedStateKey) != request.stateKey()) {
+            return null
+        }
+        val screenIndex = savedStateHandle.get<Int>(SavedCurrentIndex) ?: return null
+        if (screenIndex !in request.screenSequence.indices) {
+            return null
+        }
+        val answersJson = savedStateHandle.get<String>(SavedAnswers) ?: return null
+        return runCatching {
+            BrbPanelState(
+                screenIndex = screenIndex,
+                answers = QuestionnaireAnswerState.fromDraftJson(JSONObject(answersJson))
+            )
+        }.getOrNull()
+    }
+
+    private fun QuestionnaireDraftSnapshot.toBrbState(): BrbPanelState? =
+        runCatching {
+            BrbPanelState(
+                screenIndex = screenIndex,
+                answers = QuestionnaireAnswerState.fromDraftJson(state)
+            )
+        }.getOrNull()
+
+    private fun QuestionnaireRequest.stateKey(): String =
+        listOf(
+            protocolVersion,
+            sessionId,
+            requestId,
+            nonce,
+            studyId,
+            schemaId,
+            openStage,
+            screenSequence.joinToString(separator = "\u0000")
+        ).joinToString(separator = "\u0001")
+
+    private data class BrbPanelState(
+        val screenIndex: Int,
+        val answers: QuestionnaireAnswerState
+    )
+
+    private companion object {
+        const val SavedStateKey = "brb_state_key"
+        const val SavedCurrentIndex = "brb_current_index"
+        const val SavedAnswers = "brb_answers"
     }
 }
 
@@ -717,7 +915,7 @@ private fun applyIpqDebugCommand(
     return answers.copy(ipqAnswers = answers.ipqAnswers + (itemId to value))
 }
 
-private class QuestionnaireAudioPlayer(private val context: Context) {
+internal class QuestionnaireAudioPlayer(private val context: Context) {
     private var mediaPlayer: MediaPlayer? = null
 
     fun play(relativePath: String) {

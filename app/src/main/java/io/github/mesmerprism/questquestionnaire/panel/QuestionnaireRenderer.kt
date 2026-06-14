@@ -6,7 +6,8 @@ import org.json.JSONObject
 data class QuestionnaireRendererConfig(
     val autoSubmit: Boolean,
     val debugCommandScript: String?,
-    val debugCommandIntervalMs: Int
+    val debugCommandIntervalMs: Int,
+    val draftStore: QuestionnaireDraftStore
 )
 
 data class QuestionnaireRendererCallbacks(

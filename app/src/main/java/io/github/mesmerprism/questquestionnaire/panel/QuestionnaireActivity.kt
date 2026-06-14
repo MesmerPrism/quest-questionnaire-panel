@@ -32,6 +32,7 @@ class QuestionnaireActivity : ComponentActivity() {
     private var startedAt: Instant = Instant.now()
     private val terminalResultWriter = TerminalResultWriter()
     private val rendererRegistry = DefaultQuestionnaireRendererRegistry.create()
+    private val draftStore by lazy { QuestionnaireDraftStore.create(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,7 +121,8 @@ class QuestionnaireActivity : ComponentActivity() {
                 )
             } else {
                 350
-            }
+            },
+            draftStore = draftStore
         )
 
     private fun readLaunchContext(): LaunchContext? {
@@ -251,6 +253,7 @@ class QuestionnaireActivity : ComponentActivity() {
             )
         ) {
             TerminalResultWriteOutcome.CallbackSent -> {
+                draftStore.clear(currentRequest)
                 setResult(Activity.RESULT_OK)
                 finish()
             }
@@ -258,6 +261,7 @@ class QuestionnaireActivity : ComponentActivity() {
                 showSubmissionError("result_write_failed")
             }
             TerminalResultWriteOutcome.CallbackFailedAfterWrite -> {
+                draftStore.clear(currentRequest)
                 showResultWrittenCallbackError()
             }
         }
