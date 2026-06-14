@@ -2,7 +2,6 @@ package io.github.mesmerprism.questquestionnaire.panel.brb
 
 import androidx.compose.runtime.Composable
 import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
-import io.github.mesmerprism.questquestionnaire.panel.BrbStudyQuestionnairePanel
 import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireRenderer
 import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireRendererCallbacks
 import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireRendererConfig

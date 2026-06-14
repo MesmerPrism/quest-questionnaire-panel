@@ -97,7 +97,7 @@ unity-caller-plugin/
 | 2 | Extract `android-caller-sdk` | Unlock native callers and make the Unity wrapper smaller. | Initial SDK complete |
 | 3 | Refactor terminal result writing | Make `cancelled` and `error` outcomes scientifically usable. | Complete |
 | 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Complete |
-| 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | In progress |
+| 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | Complete |
 | 6 | Add ViewModel/draft recovery | Protect in-progress study sessions. | Planned |
 | 7 | Add per-screen timing metadata | High research value without changing IPC. | Planned |
 | 8 | Split minimal vs. updater build flavors | Cleaner permissions and trust story. | Planned |
@@ -237,7 +237,7 @@ Notes:
 
 ### Slice 6: Renderer Registry And BRB Package
 
-Status: In progress
+Status: Complete
 
 Deliverables:
 
@@ -266,9 +266,11 @@ Notes:
   no renderer can handle.
 - Launch request parsing no longer hard-codes BRB-supported stages; stage
   support is owned by renderer factories.
-- Remaining work for completion: physically move the BRB composable screens,
-  audio routing, debug commands, and answer state out of
-  `QuestionnaireActivity.kt` into the BRB renderer package.
+- Moved BRB composable screens, answer state, debug commands, audio routing,
+  branching, and BRB answer JSON mapping into
+  `panel/brb/BrbStudyQuestionnairePanel.kt`.
+- `QuestionnaireActivity` now contains generic launch parsing, renderer
+  hosting, terminal result writing, and generic error display only.
 
 ### Slice 7: ViewModel And Draft Recovery
 
@@ -479,6 +481,15 @@ Field semantics:
   renderer factory. `QuestionnaireActivity` now hosts a selected renderer
   instead of calling the BRB panel directly, and generic launch parsing accepts
   non-BRB stage names for future renderer factories.
+- Completed Slice 6 by moving the BRB panel implementation out of
+  `QuestionnaireActivity.kt` and into `panel/brb`. The Activity is now
+  renderer-agnostic after launch parsing.
+- Verified Slice 6 with `git diff --check`,
+  `:app:testDebugUnitTest`, `:app:assembleDebug`,
+  `:questionnaire-contract-core:test`, `:brb-questionnaire-core:test`,
+  `:examples:native-caller:testDebugUnitTest`,
+  `:android-caller-sdk:assembleDebug`, and
+  `:examples:native-caller:assembleDebug`.
 
 ## Decision Log
 
@@ -489,6 +500,7 @@ Add decisions here as they become real implementation constraints.
 | 2026-06-14 | Extract pure contract core before Android SDK. | Keeps protocol validation reusable by Android callers, Unity wrappers, and tests. |
 | 2026-06-14 | Add optional v1 `terminal` result metadata instead of overloading `error` for cancellation. | Keeps cancellation scientifically useful while preserving `error` for true runtime failures. |
 | 2026-06-14 | Keep BRB answer validation in a pure BRB-specific module, not in `android-caller-sdk`. | Preserves the generic SDK boundary while making BRB validation reusable by native and future Unity callers. |
+| 2026-06-14 | Keep renderer selection in the default registry and keep `QuestionnaireActivity` renderer-agnostic. | Lets future questionnaire renderers plug in without changing Activity control flow. |
 
 ## Open Questions
 
