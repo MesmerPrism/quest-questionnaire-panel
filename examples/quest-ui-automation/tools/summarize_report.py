@@ -287,6 +287,9 @@ def summarize_events(
     surface_snapshots: list[dict[str, Any]] = []
     accessibility_states: list[dict[str, Any]] = []
     shell_dump_hints: list[dict[str, Any]] = []
+    scroll_probe_start: dict[str, Any] | None = None
+    scroll_probe_strategies: list[dict[str, Any]] = []
+    scroll_probe_deltas: list[dict[str, Any]] = []
     child_page_surfaces: list[dict[str, Any]] = []
     dropdown_targets: list[dict[str, Any]] = []
     dropdown_surfaces: list[dict[str, Any]] = []
@@ -366,6 +369,40 @@ def summarize_events(
                     "activeRootActionNodeCount": int_value(active_root.get("actionNodeCount")),
                     "activeRootNodesCapped": bool(active_root.get("nodesCapped", False)),
                     "windows": windows,
+                }
+            )
+
+        elif event_type == "scroll_probe_start":
+            scroll_probe_start = {
+                "surface": normalize_text(data.get("surface")),
+                "initialNodeCount": int_value(data.get("initialNodeCount")),
+                "strategies": [normalize_text(value) for value in data.get("strategies", []) or []],
+            }
+
+        elif event_type == "scroll_probe_strategy":
+            attempts = data.get("attempts", []) or []
+            scroll_probe_strategies.append(
+                {
+                    "strategy": normalize_text(data.get("strategy")),
+                    "key": normalize_text(data.get("key")),
+                    "attemptCount": len(attempts),
+                    "hasError": bool(data.get("error") or data.get("errorClass")),
+                    "errorClass": normalize_text(data.get("errorClass")),
+                    "found": data.get("found") if isinstance(data.get("found"), bool) else None,
+                    "performed": data.get("performed") if isinstance(data.get("performed"), bool) else None,
+                }
+            )
+
+        elif event_type == "scroll_probe_delta":
+            before_hash = normalize_text(data.get("beforeVisibleTextHash"))
+            after_hash = normalize_text(data.get("afterVisibleTextHash"))
+            scroll_probe_deltas.append(
+                {
+                    "strategy": normalize_text(data.get("strategy")),
+                    "beforeNodeCount": int_value(data.get("beforeNodeCount")),
+                    "afterNodeCount": int_value(data.get("afterNodeCount")),
+                    "visibleTextChanged": before_hash != after_hash,
+                    "newVisibleTextCount": len(data.get("newVisibleTexts", []) or []),
                 }
             )
 
@@ -543,6 +580,9 @@ def summarize_events(
         "surfaceSnapshots": surface_snapshots,
         "accessibilityStates": accessibility_states,
         "shellDumpHints": shell_dump_hints,
+        "scrollProbeStart": scroll_probe_start,
+        "scrollProbeStrategies": scroll_probe_strategies,
+        "scrollProbeDeltas": scroll_probe_deltas,
         "settingsSections": section_summaries,
         "routeInventory": [
             {
@@ -562,6 +602,7 @@ def summarize_events(
             "notifications": "Unknown notification labels, including installed app names, are counted but not emitted.",
             "rawXml": "Raw XML paths and full UI dumps are never emitted.",
             "surfaceMaps": "Surface-map summaries omit package names, raw node text, window titles, XML paths, and shell command output.",
+            "scrollProbes": "Scroll-probe summaries omit raw visible text and command output; only counts, keys, strategy names, and changed/not-changed status are emitted.",
             "childProbeDefaults": "Generated childTargets include public-safe child_page routes in allowed risk buckets and exclude default-blocked labels.",
         },
     }
@@ -668,6 +709,52 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                     )
                 )
             lines.append("")
+
+        if summary["scrollProbeStart"] or summary["scrollProbeStrategies"] or summary["scrollProbeDeltas"]:
+            lines.append("### Scroll Probe")
+            start = summary["scrollProbeStart"] or {}
+            if start:
+                strategies = ", ".join(start["strategies"]) if start["strategies"] else "(none)"
+                lines.append(f"- Surface: `{start['surface']}`")
+                lines.append(f"- Initial nodes: {start['initialNodeCount']}")
+                lines.append(f"- Requested strategies: {strategies}")
+                lines.append("")
+            if summary["scrollProbeStrategies"]:
+                lines.append(markdown_table_row(["Strategy", "Key", "Attempts", "Found", "Performed", "Error"]))
+                lines.append(markdown_table_row(["---", "---", "---:", "---", "---", "---"]))
+                for strategy in summary["scrollProbeStrategies"]:
+                    found = "" if strategy["found"] is None else ("yes" if strategy["found"] else "no")
+                    performed = "" if strategy["performed"] is None else ("yes" if strategy["performed"] else "no")
+                    error = strategy["errorClass"] if strategy["hasError"] else "no"
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                strategy["strategy"],
+                                strategy["key"],
+                                strategy["attemptCount"],
+                                found,
+                                performed,
+                                error,
+                            ]
+                        )
+                    )
+                lines.append("")
+            if summary["scrollProbeDeltas"]:
+                lines.append(markdown_table_row(["Strategy", "Changed", "Before nodes", "After nodes", "New text count"]))
+                lines.append(markdown_table_row(["---", "---", "---:", "---:", "---:"]))
+                for delta in summary["scrollProbeDeltas"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                delta["strategy"],
+                                "yes" if delta["visibleTextChanged"] else "no",
+                                delta["beforeNodeCount"],
+                                delta["afterNodeCount"],
+                                delta["newVisibleTextCount"],
+                            ]
+                        )
+                    )
+                lines.append("")
 
         sections = summary["settingsSections"]
         if sections:

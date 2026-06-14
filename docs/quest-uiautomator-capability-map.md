@@ -260,6 +260,13 @@ Observed with the development-only `examples:quest-ui-automation` module:
   scrollable, and action lists on 101 nodes. A host-side compressed
   `uiautomator dump` wrote and parsed successfully with 57 XML nodes, confirming
   the shell route works but has different coverage from instrumentation.
+- Key-event scrolling is mapped as a fallback navigation signal, not a
+  reliable settings-list scroll primitive. In a 2026-06-14 focused
+  `metacamDeepSettings` run, six `KEYCODE_DPAD_DOWN` events and six
+  `KEYCODE_SPACE` events changed the visible-text hash, but the resulting
+  surfaces looked like focus/search state changes rather than clean content
+  scrolling. Six `KEYCODE_PAGE_DOWN` events and six `KEYCODE_TAB` events did
+  not change the visible hash.
 
 ## Capability Taxonomy
 
@@ -333,7 +340,7 @@ Wait/stability:
 | S-003 | Accessibility scroll | `performAction` scroll/page actions on nodes exposing those actions | Before/after XML | Low | Works for settings recycler |
 | S-004 | Display-target input scroll | Try `adb shell input -d <display> ... scroll/swipe` using observed display IDs | Before/after XML | Low | Swipe partly works; shell `scroll` absent |
 | S-005 | Tool type | Try UIAutomator `Configurator.setToolType` finger/stylus/mouse for swipes | Before/after XML | Low | No visible improvement yet |
-| S-006 | D-pad/key scroll | Try safe D-pad, Tab, Space, and Page-like key events on settings panels | Before/after XML | Low | Changes focus/navigation, not a clean scroll path yet |
+| S-006 | D-pad/key scroll | Try safe D-pad, Tab, Space, and Page-like key events on settings panels | Before/after XML | Low | Mapped; useful as navigation/focus signal, not reliable scroll |
 | M-001 | Camera settings | Navigate sharing panel -> settings dropdown -> more settings | XML, node DB | Low | Working |
 | M-002 | Advanced video settings | Search for frame rate, bitrate, stabilization, eye preference | XML, node DB | Passive | Found after scroll |
 | M-003 | Red dot setting | Locate red recording indicator toggle but do not toggle by default | XML, checked state | Passive | Found |
@@ -373,6 +380,7 @@ known rollback/stop step.
 | `settings.scroll.shell_swipe_display_0` | Display-targeted shell swipe | `input touchscreen -d 0 swipe 900 720 900 240 500` | Moved the active Quest settings recycler in a single-display probe | Working |
 | `settings.scroll.shell_swipe_display_43` | Probe a non-default Quest display ID | `input touchscreen -d 43 swipe 900 720 900 240 500` | Changed visible content, but the new nodes appeared to come from the Store/background panel, not the target settings list | Ambiguous |
 | `settings.scroll.shell_scroll` | Try Android shell wheel/rotary scroll | `input rotaryencoder -d 0 scroll --axis VSCROLL,3.0` | Fails on this Quest build: `rotaryencoder` is not an accepted source and `scroll` is not listed in `input` usage | Unsupported on current OS |
+| `settings.scroll.key_scroll` | Try keyboard/D-pad scroll events | `scrollProbe` with `strategy=keyScroll`, scoped `keyCode`, and before/after hierarchy dumps | `DPAD_DOWN` and `SPACE` changed visible state; `PAGE_DOWN` and `TAB` did not. Treat as focus/search/navigation behavior, not as a clean list scroll primitive. | Mapped, not reliable scroll |
 | `quest.settings.open` | Open Meta Quest settings through Android settings intent | `am start -W -a android.settings.SETTINGS`; wait; dump | Opens `com.oculus.panelapp.settings` with side nav and scrollable settings grids | Working |
 | `quest.settings.nav.default_probe` | Map safe Quest settings sections | `settingsNavProbe` with `general,notifications,display_brightness,audio,camera,accessibility,developer,help` | Opens and dumps each section; no toggles | Working |
 | `quest.settings.nav.extended_probe` | Map remaining Quest settings side-nav sections | `settingsNavProbe` with `quest_link,action_button,space_setup,world_movement,movement_tracking,privacy_safety,passcode_security,experimental` | Opens and dumps each section; no toggles | Working, privacy-sensitive |

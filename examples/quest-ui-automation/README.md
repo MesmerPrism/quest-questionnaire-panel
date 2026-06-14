@@ -265,6 +265,14 @@ clickable/scrollable counts, display IDs, package counts, accessibility window
 counts, and action-node counts. It does not emit package names, raw UI text,
 window titles, XML paths, or shell command output.
 
+For `scrollProbe` reports, the exporter emits strategy names, key codes,
+attempt counts, before/after node counts, visible-hash changed status, and the
+count of newly visible texts without emitting the raw texts or shell output.
+Focused key-scroll sweeps on 2026-06-14 showed `KEYCODE_DPAD_DOWN` and
+`KEYCODE_SPACE` can change focus/search state, while `KEYCODE_PAGE_DOWN` and
+`KEYCODE_TAB` did not change the visible hash. Prefer `uiObject2` or
+`accessibilityAction` for actual settings-list scrolling.
+
 Active tapping is disabled by default. To test whether a visible Android button
 can be pressed through UIAutomator, pass a specific regex and a small tap limit:
 
