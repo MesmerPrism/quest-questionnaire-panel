@@ -1,0 +1,47 @@
+{
+  "protocol_version": "quest.questionnaire.v1",
+  "schema": "quest.questionnaire.v1.result",
+  "request_id": "f8d62b0a-77e8-4f7d-a7da-7f95fd9a7024",
+  "nonce": "b96d9b51c4874db8a4e8f1b4",
+  "status": "completed",
+  "questionnaire": {
+    "id": "brb-questionnaire-v1",
+    "version": 1
+  },
+  "stage": "post_condition:pictographic",
+  "condition_number": 1,
+  "screen_sequence": [
+    "post_condition:pictographic",
+    "post_condition:presence_questionnaire",
+    "post_condition:lost_opportunity"
+  ],
+  "answers": {
+    "open_stage": "post_condition:pictographic",
+    "completed_stage": "post_condition:lost_opportunity",
+    "language": "en-US",
+    "demographics": {
+      "participant_ref": "P042",
+      "age_range": "30-39",
+      "language": "en-US"
+    },
+    "prior_button_experience": {
+      "has_used_similar_button": false,
+      "notes": null
+    },
+    "post_condition": {
+      "presence_slider": 64,
+      "redness_vas": 71,
+      "redness_likert": 5,
+      "lost_opportunity_acknowledged": true
+    },
+    "final": {
+      "end_confirmation_rating": null,
+      "selected_10": false,
+      "unity_owns_final_physical_presses": true
+    }
+  },
+  "started_at": "2026-06-13T21:10:00Z",
+  "submitted_at": "2026-06-13T21:11:14Z",
+  "error": null
+}
+

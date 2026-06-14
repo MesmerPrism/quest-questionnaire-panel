@@ -1,0 +1,26 @@
+{
+  "protocol_version": "quest.questionnaire.v1",
+  "schema": "quest.questionnaire.v1.result",
+  "request_id": "f8d62b0a-77e8-4f7d-a7da-7f95fd9a7024",
+  "nonce": "b96d9b51c4874db8a4e8f1b4",
+  "status": "error",
+  "questionnaire": {
+    "id": "brb-questionnaire-v1",
+    "version": 1
+  },
+  "stage": "post_condition:pictographic",
+  "condition_number": 1,
+  "screen_sequence": [
+    "post_condition:pictographic",
+    "post_condition:presence_questionnaire",
+    "post_condition:lost_opportunity"
+  ],
+  "answers": {},
+  "started_at": "2026-06-13T21:10:00Z",
+  "submitted_at": "2026-06-13T21:10:04Z",
+  "error": {
+    "code": "unsupported_stage",
+    "message": "Panel could not render the requested stage."
+  }
+}
+

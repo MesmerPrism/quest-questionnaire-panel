@@ -87,7 +87,7 @@ unity-caller-plugin/
 
 | Priority | Work item | Why it matters | Status |
 | ---: | --- | --- | --- |
-| 1 | Extract `questionnaire-contract-core` | Prevent validator/schema drift before more callers exist. | Planned |
+| 1 | Extract `questionnaire-contract-core` | Prevent validator/schema drift before more callers exist. | Initial skeleton complete |
 | 2 | Extract `android-caller-sdk` | Unlock native callers and make the Unity wrapper smaller. | Planned |
 | 3 | Refactor terminal result writing | Make `cancelled` and `error` outcomes scientifically usable. | Planned |
 | 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Planned |
@@ -102,7 +102,7 @@ unity-caller-plugin/
 
 ### Slice 1: Contract Core Skeleton
 
-Status: Planned
+Status: Initial skeleton complete
 
 Deliverables:
 
@@ -389,6 +389,13 @@ Field semantics:
 - Active implementation goal set in Codex for this thread.
 - Initial implementation order: contract core, native caller adoption, Android
   SDK, structured terminal results, stage-aware BRB validation.
+- Started Slice 1 by adding the `:questionnaire-contract-core` module,
+  protocol constants, request/result envelope models, generic envelope
+  validation, and golden JSON fixtures.
+- Verified Slice 1 skeleton with `:questionnaire-contract-core:test`,
+  `:app:assembleDebug`, and `:examples:native-caller:assembleDebug`.
+- Next implementation step: Slice 2, make the native caller use contract-core
+  while preserving existing BRB answer validation behavior.
 
 ## Decision Log
 
@@ -419,4 +426,3 @@ Before committing Android implementation changes:
 - Relevant unit tests for changed modules
 - No raw participant data, device serials, APKs, screenshots, logcat bundles,
   signing keys, local machine paths, or private evidence artifacts committed
-
