@@ -180,6 +180,15 @@ Recovery options:
 - rerun the same command after the panel is visible;
 - do not use force-stop or package killing as the default public path.
 
+## Remote Bridge Slot
+
+If this automation is triggered through `quest-termux-lab`, use the typed
+command `uiautomator.run_allowlisted_scenario`. That command must carry an
+active remote-session lease, pass the local ADB shell gate, and map only to
+named scenarios in this runbook. Return exporter summaries by default; do not
+return raw XML, screenshots, recordings, logcat bundles, device serials, local
+paths, installed app names, or private package IDs.
+
 ## Publication Gate
 
 Before committing public updates:
