@@ -53,6 +53,34 @@ If the first UI dump has zero nodes, do not run a broad settings crawl. Run a
 fresh `currentWindow` or `surfaceMap` pass and restore a visible headset panel
 manually if needed.
 
+## System Surface Reachability Slot
+
+Use this passive slot to compare which Android-backed Meta system surfaces are
+actually exposed to UIAutomator on the current OS build:
+
+```powershell
+adb shell am instrument -w `
+  -e scenario systemSurfaceReachability `
+  -e surfaces current,quickSettings,notifications,androidSettings,metacamPanel `
+  -e waitAfterSurfaceMs 1000 `
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Pass evidence:
+
+- each requested surface emits either `system_surface_attempt` or
+  `system_surface_error`;
+- each successful surface has a matching `accessibility_state` row;
+- the exporter renders a `System Surface Reachability` table;
+- the summary reports only counts, display IDs, changed/empty status, and
+  error class presence, not raw UI text or package names.
+
+Use deeper Metacam surfaces only in a scoped capture-settings pass:
+
+```text
+surfaces=current,metacamPanel,metacamSettings,metacamDeepSettings,metacamAdvancedSettings
+```
+
 ## Section Crawl Slot
 
 Use this to map top-level settings sections, main-content scroll endpoints, and

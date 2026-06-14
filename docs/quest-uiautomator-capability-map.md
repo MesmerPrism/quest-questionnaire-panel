@@ -373,6 +373,7 @@ Wait/stability:
 | R-002 | Shell dump parity | Compare `uiautomator dump --compressed` and instrumentation XML | XML diff summary | Passive | Working host-side; coverage differs from instrumentation |
 | R-003 | Window map | Dump `UiAutomation.getWindows()` with display IDs, types, layers, bounds | JSONL | Passive | Working |
 | R-004 | Action map | Walk active/window roots and record each node's accessibility action list | JSONL | Passive | Working |
+| R-004b | System surface reachability | Run `systemSurfaceReachability` over current, quick-settings, notifications, Android settings, and Metacam entry points | JSONL structural counts, accessibility windows, redacted summary | Passive by default; deeper Metacam surfaces are scoped capture-settings probes | Implemented; live default/deeper sweep pending |
 | R-005 | Metacam launch | Launch sharing panel and dump candidates | XML, JSONL | Passive | Working |
 | R-006 | Recorder tile | Tap `screenrecording_button`, wait, relaunch, tap stop | JSONL, media file listing only | Active recording | Working |
 | S-001 | UiScrollable settings | Use resource-id `settings_recycler_view` with scroll/fling variants | Before/after XML | Low | Partial, unreliable |
@@ -416,6 +417,7 @@ known rollback/stop step.
 | `metacam.settings.deep` | Open deeper camera settings panel | Run `metacam.settings.basic`; click `com.oculus.metacam:id/camera_settings_menu_more_settings`; dump | Shows settings panel with red-dot, hide-controls, capture markers, aspect ratio | Working |
 | `quest.baseline.current_window` | Dump the current UI/accessibility baseline | `currentWindow` instrumentation scenario; summarize with `summarize_report.py` | Emits structural XML node counts, display IDs, clickable/scrollable counts, accessibility window counts, and action-node counts without raw text or paths | Working |
 | `quest.surface.surface_map_current` | Dump shell display/window state plus accessibility windows | `surfaceMap` with `surface=current`; summarize with `summarize_report.py` | Captures display/window shell command witnesses, an instrumentation hierarchy snapshot, accessibility windows, and a host-shell-dump hint | Working |
+| `quest.surface.reachability_probe` | Compare Android-backed Quest system surface entry points | Run `systemSurfaceReachability` with default `surfaces=current,quickSettings,notifications,androidSettings,metacamPanel`; summarize with `summarize_report.py`; use deeper Metacam surfaces only for scoped capture-settings passes | Emits redacted per-surface structural counts, display IDs, changed/empty status, errors, and matching accessibility-window summaries without raw UI text or package names | Implemented, live evidence pending |
 | `settings.scroll.uiscrollable` | Scroll settings recycler view | Find `com.oculus.panelapp.settings:id/settings_recycler_view`; call `UiScrollable.scrollForward` | Returned failure or no visible new content in first sweep | Needs variants |
 | `settings.scroll.uiobject2` | Scroll settings recycler view through AndroidX object API | Find `By.scrollable(true)` with resource `settings_recycler_view`; call `scroll(Direction.DOWN, 0.75f, 1000)` | Reveals `Format and quality`, `Bit rate`, `Frame rate`, `Image stabilization`, and `Eye perspective` | Working |
 | `settings.scroll.accessibility_action` | Scroll settings recycler view through raw accessibility action | Find scrollable node with resource `settings_recycler_view`; call `ACTION_SCROLL_FORWARD` | Reveals the advanced capture settings and returns true | Working |
@@ -505,6 +507,10 @@ The `examples:quest-ui-automation` test app should grow in small slices:
 15. Next useful slice: run `settingsRecoveryProbe` after the next zero-node
     Settings failure and record whether passive baselines plus bounded retries
     restore a visible accessibility tree.
+16. Run `systemSurfaceReachability` over the default surface set and a scoped
+    deeper Metacam surface set, summarize both reports, and update the
+    quick-settings, notification, Android settings, and Metacam statuses with
+    current OS evidence.
 
 ## Open Questions
 
@@ -528,8 +534,10 @@ The `examples:quest-ui-automation` test app should grow in small slices:
   accessibility scrolling.
 - Can Meta Horizon MCP `ui_select` and `ui_tap` cover the same successful
   resource/text-driven paths as the local instrumentation app?
-- Which system settings panes are fully accessible by intent, and which require
-  Home/menu navigation?
+- Which system settings panes are fully accessible by intent, helper API, or
+  explicit activity, and which still require Home/menu navigation? The next
+  default witness is `systemSurfaceReachability` over current, quick settings,
+  notifications, Android settings, and Metacam.
 - Under which headset visibility/sleep states does the VRShell settings relay
   return a zero-node Settings surface, and which passive recovery step restores
   a visible accessibility tree without force-stopping packages?

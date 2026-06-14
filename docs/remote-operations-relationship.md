@@ -92,6 +92,13 @@ logcat bundles, device serials, local paths, installed app names, and private
 package IDs stay out of public repos unless a private live-run config
 explicitly keeps them in local evidence.
 
+The current low-risk remote scenarios are:
+
+- `settingsRecoveryProbe` for invisible or zero-node Settings relaunch
+  diagnostics without force-stop/package-kill recovery;
+- `systemSurfaceReachability` for passive structural comparison of current,
+  quick-settings, notification, Android settings, and Metacam entry surfaces.
+
 ## Decision Rule
 
 If a change affects participant questionnaire behavior, request/result JSON,

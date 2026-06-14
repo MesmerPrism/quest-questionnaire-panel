@@ -307,6 +307,11 @@ def summarize_events(
         "passiveBaselines": [],
         "results": [],
     }
+    system_surfaces: dict[str, list[dict[str, Any]]] = {
+        "starts": [],
+        "attempts": [],
+        "errors": [],
+    }
     child_page_surfaces: list[dict[str, Any]] = []
     child_page_skips: list[dict[str, Any]] = []
     dropdown_targets: list[dict[str, Any]] = []
@@ -574,6 +579,41 @@ def summarize_events(
                 }
             )
 
+        elif event_type == "system_surface_probe_start":
+            system_surfaces["starts"].append(
+                {
+                    "surfaces": [normalize_text(value) for value in data.get("surfaces", []) or []],
+                    "waitAfterSurfaceMs": int_value(data.get("waitAfterSurfaceMs")),
+                }
+            )
+
+        elif event_type == "system_surface_attempt":
+            system_surfaces["attempts"].append(
+                {
+                    "surface": normalize_text(data.get("surface")),
+                    "index": int_value(data.get("index"), -1),
+                    "nodeCount": int_value(data.get("nodeCount")),
+                    "clickableCount": int_value(data.get("clickableCount")),
+                    "enabledCount": int_value(data.get("enabledCount")),
+                    "scrollableCount": int_value(data.get("scrollableCount")),
+                    "checkedCount": int_value(data.get("checkedCount")),
+                    "packageCount": int_value(data.get("packageCount")),
+                    "displayIds": sorted(normalize_text(value) for value in data.get("displayIds", []) or []),
+                    "changedFromPrevious": bool(data.get("changedFromPrevious", False)),
+                    "empty": bool(data.get("empty", False)),
+                }
+            )
+
+        elif event_type == "system_surface_error":
+            system_surfaces["errors"].append(
+                {
+                    "surface": normalize_text(data.get("surface")),
+                    "index": int_value(data.get("index"), -1),
+                    "errorClass": normalize_text(data.get("errorClass")),
+                    "hasMessage": bool(normalize_text(data.get("message"))),
+                }
+            )
+
         elif event_type == "settings_section_page":
             target = normalize_text(data.get("target"))
             section = sections.setdefault(
@@ -764,6 +804,7 @@ def summarize_events(
         "scrollProbeDeltas": scroll_probe_deltas,
         "mediaProjectionPrompt": media_projection_prompt,
         "settingsRecovery": settings_recovery,
+        "systemSurfaces": system_surfaces,
         "settingsSections": section_summaries,
         "routeInventory": [
             {
@@ -787,6 +828,7 @@ def summarize_events(
             "scrollProbes": "Scroll-probe summaries omit raw visible text and command output; only counts, keys, strategy names, and changed/not-changed status are emitted.",
             "mediaProjectionPrompt": "MediaProjection prompt summaries omit raw prompt text, package names, token/resultData contents, command output, and coordinates; only button roles and result-state booleans are emitted.",
             "settingsRecovery": "Settings recovery summaries omit focus/window command output and raw UI text; only node counts, retry status, and zero-node diagnostics are emitted.",
+            "systemSurfaces": "System-surface reachability summaries omit raw UI text, package names, window titles, and XML paths; only counts, display IDs, and changed/empty status are emitted.",
             "childProbeDefaults": "Generated childTargets include public-safe child_page routes in allowed risk buckets and exclude default-blocked labels.",
         },
     }
@@ -1017,6 +1059,70 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                                 "yes" if result["settingsVisible"] else "no",
                                 "yes" if result["recovered"] else "no",
                                 "yes" if result["passiveOnly"] else "no",
+                            ]
+                        )
+                    )
+                lines.append("")
+
+        system_surfaces = summary["systemSurfaces"]
+        if any(system_surfaces.values()):
+            lines.append("### System Surface Reachability")
+            if system_surfaces["starts"]:
+                lines.append(markdown_table_row(["Surfaces", "Wait after surface ms"]))
+                lines.append(markdown_table_row(["---", "---:"]))
+                for start in system_surfaces["starts"]:
+                    surfaces = ", ".join(start["surfaces"]) if start["surfaces"] else "(none)"
+                    lines.append(markdown_table_row([surfaces, start["waitAfterSurfaceMs"]]))
+                lines.append("")
+            if system_surfaces["attempts"]:
+                lines.append(
+                    markdown_table_row(
+                        [
+                            "Index",
+                            "Surface",
+                            "Nodes",
+                            "Clickable",
+                            "Enabled",
+                            "Scrollable",
+                            "Checked",
+                            "Displays",
+                            "Packages",
+                            "Changed",
+                            "Empty",
+                        ]
+                    )
+                )
+                lines.append(markdown_table_row(["---:", "---", "---:", "---:", "---:", "---:", "---:", "---", "---:", "---", "---"]))
+                for attempt in system_surfaces["attempts"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                attempt["index"],
+                                attempt["surface"],
+                                attempt["nodeCount"],
+                                attempt["clickableCount"],
+                                attempt["enabledCount"],
+                                attempt["scrollableCount"],
+                                attempt["checkedCount"],
+                                ", ".join(attempt["displayIds"]) if attempt["displayIds"] else "(none)",
+                                attempt["packageCount"],
+                                "yes" if attempt["changedFromPrevious"] else "no",
+                                "yes" if attempt["empty"] else "no",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if system_surfaces["errors"]:
+                lines.append(markdown_table_row(["Index", "Surface", "Error class", "Message present"]))
+                lines.append(markdown_table_row(["---:", "---", "---", "---"]))
+                for error in system_surfaces["errors"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                error["index"],
+                                error["surface"],
+                                error["errorClass"],
+                                "yes" if error["hasMessage"] else "no",
                             ]
                         )
                     )

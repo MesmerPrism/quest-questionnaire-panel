@@ -37,6 +37,19 @@ adb shell am instrument -w `
   io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
+Run a passive system-surface reachability sweep. This attempts each named
+surface through the same safe entry points as `surfaceMap`, records structural
+counts, dumps accessibility windows, and keeps only redacted counts in the
+exporter summary:
+
+```powershell
+adb shell am instrument -w `
+  -e scenario systemSurfaceReachability `
+  -e surfaces current,quickSettings,notifications,androidSettings,metacamPanel `
+  -e waitAfterSurfaceMs 1000 `
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+```
+
 Run a scroll strategy comparison on the deeper Metacam settings panel:
 
 ```powershell
@@ -123,6 +136,17 @@ displayIds=<comma-separated Android display IDs for shell input>
 inputSource=touchscreen|touchpad|rotaryencoder|mouse
 axisValues=-3.0;3.0
 ```
+
+Useful system-surface reachability extras:
+
+```text
+surfaces=current|quickSettings|notifications|androidSettings|metacamPanel|metacamSettings|metacamDeepSettings|metacamAdvancedSettings[, ...]
+waitAfterSurfaceMs=<milliseconds>
+```
+
+The default surface list avoids deeper Metacam menu taps. Add
+`metacamSettings`, `metacamDeepSettings`, or `metacamAdvancedSettings` only for
+a scoped capture-settings reachability pass.
 
 Useful settings-nav extras:
 

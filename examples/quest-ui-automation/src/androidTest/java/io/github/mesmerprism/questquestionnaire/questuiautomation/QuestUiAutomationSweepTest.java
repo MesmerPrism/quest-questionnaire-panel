@@ -93,6 +93,8 @@ public final class QuestUiAutomationSweepTest {
                 runOptionalSettingsScrolls(device, report, args);
             } else if ("surfaceMap".equals(scenario)) {
                 runSurfaceMap(instrumentation, device, report, args);
+            } else if ("systemSurfaceReachability".equals(scenario)) {
+                runSystemSurfaceReachability(instrumentation, device, report, args);
             } else if ("scrollProbe".equals(scenario)) {
                 runScrollProbe(instrumentation, device, report, args);
             } else if ("settingsNavProbe".equals(scenario)) {
@@ -148,6 +150,44 @@ public final class QuestUiAutomationSweepTest {
                 .put("xml", snapshot.xmlFile.getAbsolutePath())
                 .put("nodeCount", snapshot.nodes.size()));
         dumpAccessibilityState(instrumentation, report, "surface_map_" + surface);
+    }
+
+    private static void runSystemSurfaceReachability(
+            Instrumentation instrumentation,
+            UiDevice device,
+            Report report,
+            Bundle args
+    ) throws Exception {
+        List<String> surfaces = parseCsv(args.getString(
+                "surfaces",
+                "current,quickSettings,notifications,androidSettings,metacamPanel"
+        ));
+        int waitAfterSurfaceMs = parseInt(args.getString("waitAfterSurfaceMs", "1000"), 1000);
+
+        report.event("system_surface_probe_start", new JSONObject()
+                .put("surfaces", new JSONArray(surfaces))
+                .put("waitAfterSurfaceMs", waitAfterSurfaceMs)
+                .put("safety", "Passive reachability diagnostics: no row toggles, dropdown selections, recorder start/stop, force-stop, package kill, or settings mutation."));
+
+        String previousHash = "";
+        for (int index = 0; index < surfaces.size(); index += 1) {
+            String surface = surfaces.get(index);
+            try {
+                UiSnapshot snapshot = prepareSurface(device, report, surface);
+                device.waitForIdle(3000);
+                Thread.sleep(Math.max(waitAfterSurfaceMs, 0));
+                JSONObject attempt = systemSurfaceAttempt(surface, index, snapshot, previousHash);
+                report.event("system_surface_attempt", attempt);
+                dumpAccessibilityState(instrumentation, report, "system_surface_" + sanitizeName(surface));
+                previousHash = attempt.optString("visibleTextHash", "");
+            } catch (Exception exception) {
+                report.event("system_surface_error", new JSONObject()
+                        .put("surface", surface)
+                        .put("index", index)
+                        .put("errorClass", exception.getClass().getName())
+                        .put("message", exception.getMessage() == null ? "" : exception.getMessage()));
+            }
+        }
     }
 
     private static void runSettingsRecoveryProbe(
@@ -1422,10 +1462,52 @@ public final class QuestUiAutomationSweepTest {
                 .put("empty", snapshot.nodes.isEmpty());
     }
 
+    private static JSONObject systemSurfaceAttempt(
+            String surface,
+            int index,
+            UiSnapshot snapshot,
+            String previousHash
+    ) throws JSONException {
+        String visibleTextHash = visibleTextHash(snapshot.nodes);
+        return new JSONObject()
+                .put("surface", surface)
+                .put("index", index)
+                .put("nodeCount", snapshot.nodes.size())
+                .put("clickableCount", countClickableNodes(snapshot.nodes))
+                .put("enabledCount", countEnabledNodes(snapshot.nodes))
+                .put("scrollableCount", countScrollableNodes(snapshot.nodes))
+                .put("checkedCount", countCheckedNodes(snapshot.nodes))
+                .put("packageCount", countDistinctPackages(snapshot.nodes))
+                .put("displayIds", displayIds(snapshot.nodes))
+                .put("visibleTextHash", visibleTextHash)
+                .put("changedFromPrevious", !previousHash.isEmpty() && !previousHash.equals(visibleTextHash))
+                .put("empty", snapshot.nodes.isEmpty());
+    }
+
     private static int countPackageNodes(List<UiNode> nodes, String packageName) {
         int count = 0;
         for (UiNode node : nodes) {
             if (packageName.equals(node.packageName)) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    private static int countClickableNodes(List<UiNode> nodes) {
+        int count = 0;
+        for (UiNode node : nodes) {
+            if (node.clickable) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    private static int countEnabledNodes(List<UiNode> nodes) {
+        int count = 0;
+        for (UiNode node : nodes) {
+            if (node.enabled) {
                 count += 1;
             }
         }
@@ -1440,6 +1522,36 @@ public final class QuestUiAutomationSweepTest {
             }
         }
         return count;
+    }
+
+    private static int countCheckedNodes(List<UiNode> nodes) {
+        int count = 0;
+        for (UiNode node : nodes) {
+            if (node.checked) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    private static int countDistinctPackages(List<UiNode> nodes) {
+        Set<String> packages = new LinkedHashSet<>();
+        for (UiNode node : nodes) {
+            if (!node.packageName.isEmpty()) {
+                packages.add(node.packageName);
+            }
+        }
+        return packages.size();
+    }
+
+    private static JSONArray displayIds(List<UiNode> nodes) {
+        Set<String> displayIds = new LinkedHashSet<>();
+        for (UiNode node : nodes) {
+            if (!node.displayId.isEmpty()) {
+                displayIds.add(node.displayId);
+            }
+        }
+        return new JSONArray(displayIds);
     }
 
     private static JSONObject scrollSettingsSideNav(
