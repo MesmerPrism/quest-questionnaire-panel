@@ -301,6 +301,7 @@ def summarize_events(
         "appOpRestores": [],
     }
     child_page_surfaces: list[dict[str, Any]] = []
+    child_page_skips: list[dict[str, Any]] = []
     dropdown_targets: list[dict[str, Any]] = []
     dropdown_surfaces: list[dict[str, Any]] = []
     parse_errors = []
@@ -614,6 +615,17 @@ def summarize_events(
                 }
             )
 
+        elif event_type == "settings_child_skip":
+            child_page_skips.append(
+                {
+                    "section": normalize_text(data.get("section")),
+                    "label": normalize_text(data.get("label")),
+                    "childTargetRole": normalize_text(data.get("childTargetRole")),
+                    "clickMode": normalize_text(data.get("clickMode")),
+                    "reason": normalize_text(data.get("reason")),
+                }
+            )
+
         elif event_type == "settings_child_surface":
             section = normalize_text(data.get("section"))
             label = normalize_text(data.get("label"))
@@ -700,6 +712,7 @@ def summarize_events(
         ],
         "plannedChildProbeTargets": list(child_probe_targets.values()),
         "childPageSurfaces": child_page_surfaces,
+        "childPageSkips": child_page_skips,
         "dropdownOptionTargets": dropdown_targets,
         "dropdownSurfaces": dropdown_surfaces,
         "redactionPolicy": {
@@ -1055,6 +1068,24 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                             "yes" if surface["differsFromClickedPage"] else "not proven",
                             labels,
                             surface["redactedTextCount"],
+                        ]
+                    )
+                )
+            lines.append("")
+
+        if summary["childPageSkips"]:
+            lines.append("### Child Page Skips")
+            lines.append(markdown_table_row(["Section", "Label", "Role", "Click mode", "Reason"]))
+            lines.append(markdown_table_row(["---", "---", "---", "---", "---"]))
+            for skip in summary["childPageSkips"]:
+                lines.append(
+                    markdown_table_row(
+                        [
+                            TARGET_TITLES.get(skip["section"], skip["section"]),
+                            skip["label"],
+                            skip["childTargetRole"],
+                            skip["clickMode"],
+                            skip["reason"],
                         ]
                     )
                 )

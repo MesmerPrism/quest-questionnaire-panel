@@ -166,12 +166,21 @@ public final class QuestUiAutomationSweepTest {
                 .put("maxNavScrolls", maxNavScrolls)
                 .put("resetSettingsEachTarget", resetEachTarget));
 
-        prepareSurface(device, report, "androidSettings");
+        UiSnapshot initialSettings = prepareSurface(device, report, "androidSettings");
+        if (initialSettings.nodes.isEmpty()) {
+            report.event("settings_nav_probe_unavailable", emptySettingsSurfaceEvent("initial"));
+            return;
+        }
         dumpAccessibilityState(instrumentation, report, "settings_nav_initial");
 
         for (String target : targets) {
             if (resetEachTarget) {
-                prepareSurface(device, report, "androidSettings");
+                UiSnapshot preparedSettings = prepareSurface(device, report, "androidSettings");
+                if (preparedSettings.nodes.isEmpty()) {
+                    report.event("settings_nav_target", emptySettingsSurfaceEvent(target)
+                            .put("target", target));
+                    continue;
+                }
             }
             UiSnapshot before = dumpAndClassify(
                     device,
@@ -252,7 +261,16 @@ public final class QuestUiAutomationSweepTest {
         for (ChildTargetSpec spec : targets) {
             for (String rawClickMode : clickModes) {
                 String clickMode = normalizeChildClickMode(rawClickMode);
-                prepareSurface(device, report, "androidSettings");
+                UiSnapshot preparedSettings = prepareSurface(device, report, "androidSettings");
+                if (preparedSettings.nodes.isEmpty()) {
+                    report.event("settings_child_skip", new JSONObject()
+                            .put("section", spec.section)
+                            .put("label", spec.label)
+                            .put("childTargetRole", childTargetRole)
+                            .put("clickMode", clickMode)
+                            .put("reason", "prepared settings surface had zero nodes"));
+                    continue;
+                }
                 JSONObject navOutcome = clickSettingsNavTarget(device, spec.section, maxNavScrolls);
                 report.event("settings_child_nav_target", navOutcome
                         .put("childLabel", spec.label)
@@ -383,7 +401,12 @@ public final class QuestUiAutomationSweepTest {
                 .put("mainCoordinateFallback", coordinateFallback));
 
         for (String target : targets) {
-            prepareSurface(device, report, "androidSettings");
+            UiSnapshot preparedSettings = prepareSurface(device, report, "androidSettings");
+            if (preparedSettings.nodes.isEmpty()) {
+                report.event("settings_section_skip", emptySettingsSurfaceEvent(target)
+                        .put("target", target));
+                continue;
+            }
             JSONObject navOutcome = clickSettingsNavTarget(device, target, maxNavScrolls);
             report.event("settings_section_nav_target", navOutcome);
             device.waitForIdle(3000);
@@ -1313,6 +1336,15 @@ public final class QuestUiAutomationSweepTest {
                     .put("error", exception.toString())
                     .put("errorClass", exception.getClass().getName());
         }
+    }
+
+    private static JSONObject emptySettingsSurfaceEvent(String target) throws JSONException {
+        return new JSONObject()
+                .put("target", target)
+                .put("found", false)
+                .put("clicked", false)
+                .put("error", "prepared settings surface had zero nodes")
+                .put("diagnostic", "android.settings.SETTINGS returned but UIAutomator saw no accessibility nodes; run currentWindow/surfaceMap or restore a visible headset panel before retrying");
     }
 
     private static JSONObject scrollSettingsSideNav(

@@ -11,6 +11,8 @@ database for headset settings navigation.
 Machine-readable command records live in
 `docs/quest-uiautomator-command-database.jsonl`. Keep that JSONL in sync when a
 sequence changes from planned to working, unreliable, unsupported, or unsafe.
+The repeatable sweep plan lives in
+[`docs/quest-uiautomator-runbook.md`](quest-uiautomator-runbook.md).
 
 The working assumption is conservative: UIAutomator can only see Android views
 exported through the accessibility tree. It cannot inspect Unity/OpenXR scene
@@ -222,6 +224,13 @@ Observed with the development-only `examples:quest-ui-automation` module:
   reached a true no-move endpoint after five successful main-content scrolls.
   Do not commit per-app notification names from raw local reports; summarize
   that surface as categories plus per-app notification rows.
+- A fresh 2026-06-14 low-risk section crawler pass over Link, General, Action
+  button, Environment setup, Movement, Tracking, Accessibility, Display &
+  brightness, Audio, Camera, and Experimental reached explicit no-move
+  endpoints for all 11 targets with `mainCoordinateFallback=false`. Movement
+  and Camera each required two object scrolls before the stopped endpoint;
+  Experimental required one object scroll. Route inventory from that pass
+  produced nine default child targets.
 - `examples/quest-ui-automation/tools/summarize_report.py` converts pulled
   `report.jsonl` files into public-safe Markdown or JSON. It emits event
   counts, settings page counts, scroll endpoint status, allowlisted settings
@@ -251,6 +260,16 @@ Observed with the development-only `examples:quest-ui-automation` module:
   child-page probe opened all six with coordinate row clicks and Back return;
   each reached distinct child content, with only safe labels and redaction
   counts carried into public notes.
+- A later 2026-06-14 generated child-page sweep opened eight of nine low-risk
+  child targets with coordinate row clicks and Back return: Quick controls,
+  Storage, Ongoing activities, Boundary, Travel mode, Vision, Mobility, and
+  Hearing. `audio:Spatial audio for windows` skipped in that broad run because
+  the Audio side-nav target was not found. A focused retry exposed a distinct
+  environment-state failure: `android.settings.SETTINGS` returned through the
+  VRShell relay, but the prepared Settings dump had zero accessibility nodes
+  and focus showed Settings as invisible/sleeping. The automation now records
+  that as an explicit `settings_child_skip` instead of continuing into selector
+  search; the exporter renders such rows under `Child Page Skips`.
 - Help rows have side effects beyond an in-panel child page. `Help & Tips app`
   opened `com.oculus.helpcenter` in the tested action-mode sweep. `Support`
   also brought Help Center content into the UI dump and exposed SystemUX
@@ -380,6 +399,8 @@ Wait/stability:
 | Q-013 | Redacted report summary exporter | Convert raw JSONL sweep reports into public-safe Markdown/JSON summaries | Summary table, redaction counts, event counts | Passive host-side | Working for section crawler and dropdown reports |
 | Q-014 | Settings route inventory | Classify route-like controls exposed on section crawler pages without clicking them | JSONL route candidates, risk buckets, redacted exporter summary | Passive; raw reports may contain sensitive labels | Working for child-page/dropdown routes in focused section sweep |
 | Q-015 | Generated low-risk child-page plan | Generate `childTargets` from route inventory and run a compact `settingsChildPageProbe` | JSONL child-surface summaries, redacted exporter summary | Open/dump only; excludes sensitive/external/mutation buckets by default | Working for General, Environment setup, Accessibility, and Audio child pages |
+| Q-016 | Zero-node settings-surface guard | Skip settings nav/section/child probes when `prepare_android_settings` has zero nodes | JSONL skip row, focus before/after | Passive; environment-state diagnostic | Working for child-page probe; added to nav and section crawler paths |
+| Q-017 | Child-page skip exporter | Include `settings_child_skip` rows in redacted summaries | Markdown/JSON skip table | Passive host-side | Working for zero-node Audio retry |
 
 ## Command Sequence Database
 
@@ -415,6 +436,7 @@ known rollback/stop step.
 | `quest.settings.section.notifications_crawl` | Crawl Notifications to its endpoint | `settingsSectionCrawler` target `notifications` with a higher scroll cap | Reaches six pages: global notification controls, notification position/device categories, and per-app notification rows. Raw app names are local evidence only and should not be committed. | Working, privacy-sensitive |
 | `quest.settings.section.route_inventory` | Inventory safe route candidates on settings pages | Run `settingsSectionCrawler`; read `settings_section_route_inventory` events or summarize with `summarize_report.py` | Classifies route-like controls as `child_page`, `dropdown`, `button`, or `dropdown_option`, with conservative risk buckets and recommended follow-up probe type. Verified focused sweep found General child pages, Camera dropdowns, Privacy child pages, and Help external child pages. | Working |
 | `quest.settings.child.route_plan_probe` | Generate and run low-risk child probes from route inventory | Run `summarize_report.py <section-report> --format child-targets`; pass the result to `settingsChildPageProbe` with `childTargetRole=row`, `clickModes=coordinate`, compact dumps, and bounded content/nav scrolls | Converts passive route inventory into a focused child-page sweep. Default plans opened General child pages plus Environment setup, Accessibility, and Audio child pages without public raw labels. | Working |
+| `quest.settings.child.zero_node_skip` | Fail fast when Settings launches but exposes no accessibility nodes | Run a settings child/nav/section scenario; if `prepare_android_settings` has zero nodes, emit a skip row instead of searching selectors | Records an environment-state diagnostic for invisible or sleeping Settings surfaces; avoids treating the route as unsupported | Working |
 | `quest.settings.child_probe` | Probe allowlisted child pages without toggles | Open a section, locate a literal/regex row label in main settings content, click a non-checkable same-row target, dump the result, press Back | Produces child-surface summaries and flags whether content differs from the clicked page | Working |
 | `quest.settings.child.action_modes` | Compare child-row activation routes | Run `settingsChildPageProbe` with `clickModes=coordinate,uiObject2,accessibilityClick,accessibilityExpand` against the same allowlisted rows | Separates coordinate-tap failures from live `UiObject2.click()` and raw accessibility-action behavior | Partial |
 | `quest.settings.child.dropdown_targets` | Open selector option popovers | Run `settingsChildPageProbe` with `childTargetRole=dropdown` and `clickModes=coordinate,uiObject2,accessibilityClick` for camera bit rate, frame rate, image stabilization, and eye perspective | Exposes `context_menu_list` options without selecting a value | Working |
@@ -473,6 +495,10 @@ The `examples:quest-ui-automation` test app should grow in small slices:
     explicitly scoped. Done for default General-section child targets.
 13. Next useful slice: expand the generated child-target planner across more
     low-risk sections as the safe-label allowlist grows.
+14. Add a settings-surface recovery probe that records whether a zero-node
+    Settings launch can be recovered by a passive `currentWindow`/`surfaceMap`
+    pass plus manual panel restore. Keep force-stop/package-kill paths out of
+    the default public workflow.
 
 ## Open Questions
 
@@ -498,3 +524,6 @@ The `examples:quest-ui-automation` test app should grow in small slices:
   resource/text-driven paths as the local instrumentation app?
 - Which system settings panes are fully accessible by intent, and which require
   Home/menu navigation?
+- Under which headset visibility/sleep states does the VRShell settings relay
+  return a zero-node Settings surface, and which passive recovery step restores
+  a visible accessibility tree without force-stopping packages?

@@ -259,8 +259,9 @@ files directory on the headset:
 Summarize pulled `report.jsonl` files before copying findings into public
 docs. The host-side exporter emits only a low-cardinality summary: event
 counts, page counts, scroll endpoints, allowlisted settings labels, dropdown
-option rows, and redaction counts. It omits raw XML paths, local paths,
-package/resource IDs, and non-allowlisted labels such as installed app names:
+option rows, child-page skip reasons, and redaction counts. It omits raw XML
+paths, local paths, package/resource IDs, and non-allowlisted labels such as
+installed app names:
 
 ```powershell
 python examples\quest-ui-automation\tools\summarize_report.py `
@@ -283,15 +284,16 @@ $targets = python examples\quest-ui-automation\tools\summarize_report.py `
   .\artifacts\quest-uiautomator\section-crawl-report.jsonl `
   --format child-targets
 
-adb shell am instrument -w `
-  -e scenario settingsChildPageProbe `
-  -e childTargets "$targets" `
-  -e childTargetRole row `
-  -e clickModes coordinate `
-  -e maxContentScrolls 2 `
-  -e maxNavScrolls 10 `
-  -e dumpChildAccessibility false `
-  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+$instrument = "am instrument -w " +
+  "-e scenario settingsChildPageProbe " +
+  "-e childTargets '$targets' " +
+  "-e childTargetRole row " +
+  "-e clickModes coordinate " +
+  "-e maxContentScrolls 2 " +
+  "-e maxNavScrolls 10 " +
+  "-e dumpChildAccessibility false " +
+  "io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner"
+adb shell $instrument
 ```
 
 The 2026-06-14 focused General-section route plan produced Quick controls,
@@ -300,6 +302,15 @@ route plan over Environment setup, Accessibility, and Audio produced Boundary,
 Travel mode, Vision, Mobility, Hearing, and Spatial audio for windows. Compact
 `settingsChildPageProbe` runs opened each page and returned, and the exporter
 summarized the child surfaces with safe labels plus redaction counts.
+
+Pass generated targets to the remote shell as one quoted command string; labels
+such as `Quick controls` and `Spatial audio for windows` contain spaces.
+
+If Quest Settings launches through the VRShell relay but UIAutomator sees no
+accessibility nodes, settings nav/section/child probes emit an explicit skip
+row such as `prepared settings surface had zero nodes`. Treat that as a
+headset visibility or sleeping-surface state, not proof that the route is
+unsupported.
 
 The exporter also summarizes `currentWindow` and `surfaceMap` reports. For
 those baseline sweeps it emits structural counts only: XML node counts,

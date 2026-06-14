@@ -25,6 +25,7 @@ docs/
   contract-versioning.md
   research-data-safety.md
   source-audit-intake-2026-06-14.md
+  quest-uiautomator-runbook.md
   validation-matrix.md
   handoff-prompt.md
 tools/
