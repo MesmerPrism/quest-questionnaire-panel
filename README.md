@@ -3,6 +3,10 @@
 Standalone native Quest 2D questionnaire panel app and the minimal caller app
 needed to prove cross-app communication.
 
+Project website: <https://mesmerprism.com/quest-questionnaire-panel/>.
+
+Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md).
+
 The first target is not a fully generic survey framework. The first target is
 to extract the Big Red Button questionnaire behavior into a reusable 2D Quest
 panel app with a versioned Android IPC contract that native XR and Unity XR

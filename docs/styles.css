@@ -555,6 +555,10 @@ code {
 }
 
 @media (max-width: 640px) {
+  .site-header {
+    position: static;
+  }
+
   .site-header nav {
     flex-wrap: wrap;
     gap: 8px 16px;
@@ -569,11 +573,11 @@ code {
 
   .intro {
     padding-top: 44px;
-    scroll-margin-top: 132px;
+    scroll-margin-top: 24px;
   }
 
   .section {
-    scroll-margin-top: 132px;
+    scroll-margin-top: 24px;
   }
 
   h1 {

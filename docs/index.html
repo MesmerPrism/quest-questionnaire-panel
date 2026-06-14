@@ -17,6 +17,7 @@
         <a href="#status">Status</a>
         <a href="#brb">BRB integration</a>
         <a href="#reuse">Use it elsewhere</a>
+        <a href="#contribute">Contribute</a>
         <a href="#contract">Contract</a>
         <a href="#integrity">Recovery</a>
         <a href="#implementation">Deep dive</a>
@@ -343,6 +344,66 @@
               <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireReturnReceiver.java">return receiver</a>.
             </p>
           </div>
+        </div>
+      </section>
+
+      <section id="contribute" class="section" aria-labelledby="contribute-title">
+        <div class="section-heading">
+          <h2 id="contribute-title">Use Or Contribute</h2>
+          <p>
+            The project is public so other XR teams can reuse the contract,
+            study the BRB integration, and contribute focused improvements
+            without depending on private lab artifacts.
+          </p>
+        </div>
+
+        <div class="source-map">
+          <article>
+            <h3>Use the panel</h3>
+            <p>
+              Start with the minimal panel build and the plain contract docs.
+              The product path is explicit Android IPC, not ADB or shared
+              storage.
+            </p>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">Panel README and build flavors</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">Handoff contract</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.request.schema.json">Request JSON schema</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.result.schema.json">Result JSON schema</a></li>
+            </ul>
+          </article>
+
+          <article>
+            <h3>Integrate a caller</h3>
+            <p>
+              Reuse the Android SDK or Unity wrapper when possible, then check
+              the native caller and BRB reference for end-to-end behavior.
+            </p>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/README.md">Android caller SDK</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/NativeCallerActivity.kt">Native caller example</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">BRB Unity reference branch</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/validation-matrix.md">Validation matrix</a></li>
+            </ul>
+          </article>
+
+          <article>
+            <h3>Contribute safely</h3>
+            <p>
+              Contributions should keep public docs clean, avoid private lab
+              evidence, and include the smallest relevant checks for the touched
+              module.
+            </p>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/CONTRIBUTING.md">Contribution guide</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/issues">Issues and feature requests</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/WORKPLAN.md">Development workplan</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/tools/check_public_artifacts.py">Public artifact guard</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/LICENSE">License</a></li>
+            </ul>
+          </article>
         </div>
       </section>
 
@@ -881,6 +942,8 @@ startActivity(
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/contract-versioning.md">Contract versioning</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin</a>
         <a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">BRB Unity reference branch</a>
+        <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/CONTRIBUTING.md">Contribution guide</a>
+        <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/issues">Issues</a>
       </nav>
     </footer>
   </body>
