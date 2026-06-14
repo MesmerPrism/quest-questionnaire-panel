@@ -1,5 +1,6 @@
 package io.github.mesmerprism.questquestionnaire.panel
 
+import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
 import io.github.mesmerprism.questquestionnaire.contract.QuestQuestionnaireProtocol
 
 object QuestionnaireContract {
@@ -18,48 +19,21 @@ object QuestionnaireContract {
     const val ExtraDebugCommandScript = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_SCRIPT"
     const val ExtraDebugCommandIntervalMs = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_INTERVAL_MS"
 
-    const val StageLanguageSelect = "language_select"
-    const val StageDemographics = "demographics"
-    const val StagePriorExperience = "prior_experience"
-    const val StagePostConditionPictographic = "post_condition:pictographic"
-    const val StagePostConditionPresence = "post_condition:presence_questionnaire"
-    const val StagePostConditionLostOpportunity = "post_condition:lost_opportunity"
-    const val StageFinalEndConfirmation = "final:end_confirmation"
-    const val StageFinalExtraPressesPrompt = "final:extra_presses_prompt"
-    const val StageCompleteExportSummary = "complete:export_summary"
+    const val StageLanguageSelect = BrbQuestionnaireContract.StageLanguageSelect
+    const val StageDemographics = BrbQuestionnaireContract.StageDemographics
+    const val StagePriorExperience = BrbQuestionnaireContract.StagePriorExperience
+    const val StagePostConditionPictographic =
+        BrbQuestionnaireContract.StagePostConditionPictographic
+    const val StagePostConditionPresence = BrbQuestionnaireContract.StagePostConditionPresence
+    const val StagePostConditionLostOpportunity =
+        BrbQuestionnaireContract.StagePostConditionLostOpportunity
+    const val StageFinalEndConfirmation = BrbQuestionnaireContract.StageFinalEndConfirmation
+    const val StageFinalExtraPressesPrompt = BrbQuestionnaireContract.StageFinalExtraPressesPrompt
+    const val StageCompleteExportSummary = BrbQuestionnaireContract.StageCompleteExportSummary
 
-    val SupportedStages = setOf(
-        StageLanguageSelect,
-        StageDemographics,
-        StagePriorExperience,
-        StagePostConditionPictographic,
-        StagePostConditionPresence,
-        StagePostConditionLostOpportunity,
-        StageFinalEndConfirmation,
-        StageFinalExtraPressesPrompt,
-        StageCompleteExportSummary
-    )
-
-    val InitialStudySequence = listOf(
-        StageLanguageSelect,
-        StageDemographics,
-        StagePriorExperience
-    )
-
-    val PostConditionSequence = listOf(
-        StagePostConditionPictographic,
-        StagePostConditionPresence
-    )
-
-    val ConditionOnePostSequence = listOf(
-        StagePostConditionPictographic,
-        StagePostConditionPresence,
-        StagePostConditionLostOpportunity
-    )
-
-    val FinalSequence = listOf(
-        StageFinalEndConfirmation,
-        StageFinalExtraPressesPrompt,
-        StageCompleteExportSummary
-    )
+    val SupportedStages = BrbQuestionnaireContract.SupportedStages
+    val InitialStudySequence = BrbQuestionnaireContract.InitialStudySequence
+    val PostConditionSequence = BrbQuestionnaireContract.PostConditionSequence
+    val ConditionOnePostSequence = BrbQuestionnaireContract.ConditionOnePostSequence
+    val FinalSequence = BrbQuestionnaireContract.FinalSequence
 }

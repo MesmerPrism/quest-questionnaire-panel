@@ -35,37 +35,110 @@ class QuestionnaireResultValidatorTest {
     }
 
     @Test
-    fun rejectsCompletedResultWithoutPlaceholderAnswer() {
+    fun rejectsInitialSequenceWithoutLanguageAnswer() {
         val json = JSONObject(validResultJson()).apply {
+            put("screen_sequence", JSONArray(QuestionnaireContract.InitialStudySequence))
             put("answers", JSONObject().put("open_stage", QuestionnaireContract.DefaultStage))
         }
 
         val validation = QuestionnaireResultValidator.validate(
             resultJson = json.toString(),
-            expected = Expected
+            expected = Expected.copy(screenSequence = QuestionnaireContract.InitialStudySequence)
         )
 
         assertFalse(validation.valid)
-        assertEquals("missing_demographics", validation.reason)
+        assertEquals("missing_language", validation.reason)
     }
 
     @Test
-    fun acceptsStructuredStudyResult() {
+    fun acceptsInitialSequenceResultWithoutPostConditionOrFinalBuckets() {
         val json = JSONObject(validResultJson()).apply {
+            put("screen_sequence", JSONArray(QuestionnaireContract.InitialStudySequence))
             put(
                 "answers",
                 JSONObject()
                     .put("open_stage", QuestionnaireContract.DefaultStage)
+                    .put("language", "en-US")
                     .put("demographics", JSONObject().put("participant_code", "P001").put("age", 42))
                     .put("prior_button_experience", JSONObject().put("answer", "yes"))
-                    .put("post_condition", JSONObject())
-                    .put("final", JSONObject().put("end_confirmation_rating", 10).put("selected_10", true))
             )
         }
 
         val validation = QuestionnaireResultValidator.validate(
             resultJson = json.toString(),
-            expected = Expected
+            expected = Expected.copy(screenSequence = QuestionnaireContract.InitialStudySequence)
+        )
+
+        assertTrue(validation.valid)
+        assertEquals("completed", validation.status)
+    }
+
+    @Test
+    fun acceptsPostConditionSequenceWithoutInitialOrFinalBuckets() {
+        val json = JSONObject(validResultJson()).apply {
+            put("stage", QuestionnaireContract.StagePostConditionPictographic)
+            put("screen_sequence", JSONArray(QuestionnaireContract.ConditionOnePostSequence))
+            put(
+                "answers",
+                JSONObject()
+                    .put("open_stage", QuestionnaireContract.StagePostConditionPictographic)
+                    .put(
+                        "post_condition",
+                        JSONObject()
+                            .put("presence_slider", 50)
+                            .put("redness_vas", 50)
+                            .put("redness_likert", 4)
+                            .put(
+                                "presence_questionnaire",
+                                JSONObject()
+                                    .put("spatial_presence_1", 3)
+                                    .put("spatial_presence_2", 3)
+                                    .put("involvement_1", 3)
+                                    .put("experienced_realism_1", 3)
+                                    .put("interaction_memory_1", 3)
+                            )
+                            .put("lost_opportunity_acknowledged", true)
+                    )
+            )
+        }
+
+        val validation = QuestionnaireResultValidator.validate(
+            resultJson = json.toString(),
+            expected = Expected.copy(
+                stage = QuestionnaireContract.StagePostConditionPictographic,
+                screenSequence = QuestionnaireContract.ConditionOnePostSequence
+            )
+        )
+
+        assertTrue(validation.valid)
+        assertEquals("completed", validation.status)
+    }
+
+    @Test
+    fun acceptsFinalSequenceWithoutInitialOrPostConditionBuckets() {
+        val json = JSONObject(validResultJson()).apply {
+            put("stage", QuestionnaireContract.StageFinalEndConfirmation)
+            put("screen_sequence", JSONArray(QuestionnaireContract.FinalSequence))
+            put(
+                "answers",
+                JSONObject()
+                    .put("open_stage", QuestionnaireContract.StageFinalEndConfirmation)
+                    .put(
+                        "final",
+                        JSONObject()
+                            .put("end_confirmation_rating", 10)
+                            .put("selected_10", true)
+                            .put("unity_owns_final_physical_presses", true)
+                    )
+            )
+        }
+
+        val validation = QuestionnaireResultValidator.validate(
+            resultJson = json.toString(),
+            expected = Expected.copy(
+                stage = QuestionnaireContract.StageFinalEndConfirmation,
+                screenSequence = QuestionnaireContract.FinalSequence
+            )
         )
 
         assertTrue(validation.valid)

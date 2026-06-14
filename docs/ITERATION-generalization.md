@@ -58,6 +58,12 @@ questionnaire-contract-core/
   Schema-aware answer validator interface
   Golden JSON fixtures and tests
 
+brb-questionnaire-core/
+  BRB questionnaire id and stage constants
+  BRB sequence definitions
+  Stage-aware BRB answer validator
+  BRB-specific validator tests
+
 android-caller-sdk/
   QuestQuestionnaireLauncher
   Result file creation
@@ -90,7 +96,7 @@ unity-caller-plugin/
 | 1 | Extract `questionnaire-contract-core` | Prevent validator/schema drift before more callers exist. | Initial skeleton complete |
 | 2 | Extract `android-caller-sdk` | Unlock native callers and make the Unity wrapper smaller. | Initial SDK complete |
 | 3 | Refactor terminal result writing | Make `cancelled` and `error` outcomes scientifically usable. | Complete |
-| 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Planned |
+| 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Complete |
 | 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | Planned |
 | 6 | Add ViewModel/draft recovery | Protect in-progress study sessions. | Planned |
 | 7 | Add per-screen timing metadata | High research value without changing IPC. | Planned |
@@ -200,7 +206,7 @@ Notes:
 
 ### Slice 5: Stage-Aware BRB Validator
 
-Status: Planned
+Status: Complete
 
 Deliverables:
 
@@ -216,6 +222,18 @@ Acceptance:
 - Post-condition sequence requires post-condition answers.
 - Final sequence requires final answers.
 - Cancelled/error results do not require completed-answer buckets.
+
+Notes:
+
+- Added pure Kotlin `:brb-questionnaire-core` so BRB constants and answer
+  validation are reusable without putting BRB rules in the generic Android
+  caller SDK.
+- The native caller demo now delegates BRB answer validation to
+  `BrbAnswerValidator`.
+- Panel result mapping now emits only BRB answer buckets relevant to the
+  requested sequence.
+- Legacy placeholder answers remain accepted only for single-screen smoke
+  results, not for real multi-screen BRB sequences.
 
 ### Slice 6: Renderer Registry And BRB Package
 
@@ -433,6 +451,16 @@ Field semantics:
   initialization error results.
 - Verified Slice 4 with `:questionnaire-contract-core:test` and
   `:app:testDebugUnitTest` before full assemble checks.
+- Completed Slice 5 by adding `:brb-questionnaire-core` with shared BRB stage
+  constants and `BrbAnswerValidator`. Completed results now validate against
+  the requested BRB sequence: initial buckets for initial launches,
+  post-condition buckets for post-condition launches, final buckets for final
+  launches, and no completed-answer bucket requirement for cancelled/error
+  results.
+- Updated BRB result examples so initial, post-condition, and final completed
+  payloads are shown as separate sequence-scoped shapes.
+- Verified Slice 5 with `:brb-questionnaire-core:test`,
+  `:app:testDebugUnitTest`, and `:examples:native-caller:testDebugUnitTest`.
 
 ## Decision Log
 
@@ -442,6 +470,7 @@ Add decisions here as they become real implementation constraints.
 | --- | --- | --- |
 | 2026-06-14 | Extract pure contract core before Android SDK. | Keeps protocol validation reusable by Android callers, Unity wrappers, and tests. |
 | 2026-06-14 | Add optional v1 `terminal` result metadata instead of overloading `error` for cancellation. | Keeps cancellation scientifically useful while preserving `error` for true runtime failures. |
+| 2026-06-14 | Keep BRB answer validation in a pure BRB-specific module, not in `android-caller-sdk`. | Preserves the generic SDK boundary while making BRB validation reusable by native and future Unity callers. |
 
 ## Open Questions
 

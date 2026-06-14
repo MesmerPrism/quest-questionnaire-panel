@@ -17,3 +17,7 @@ Result status is terminal and lives in JSON: `completed`, `cancelled`, or
 `error`. Non-completed terminal results include a `terminal` object with the
 non-sensitive reason, current stage, and zero-based screen index. Only `error`
 results use the `error` object for a safe code/message pair.
+
+Completed BRB answer payloads are sequence-scoped. Initial, post-condition,
+and final launches require different answer buckets; callers should not assume
+every BRB result contains demographics, post-condition, and final answers.

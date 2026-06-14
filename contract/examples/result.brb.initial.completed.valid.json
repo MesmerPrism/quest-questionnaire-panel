@@ -1,0 +1,39 @@
+{
+  "protocol_version": "quest.questionnaire.v1",
+  "schema": "quest.questionnaire.v1.result",
+  "request_id": "f8d62b0a-77e8-4f7d-a7da-7f95fd9a7024",
+  "nonce": "b96d9b51c4874db8a4e8f1b4",
+  "status": "completed",
+  "questionnaire": {
+    "id": "brb-questionnaire-v1",
+    "version": 1
+  },
+  "stage": "language_select",
+  "condition_number": null,
+  "screen_sequence": [
+    "language_select",
+    "demographics",
+    "prior_experience"
+  ],
+  "answers": {
+    "open_stage": "language_select",
+    "completed_stage": "prior_experience",
+    "screen_sequence": [
+      "language_select",
+      "demographics",
+      "prior_experience"
+    ],
+    "condition_number": null,
+    "language": "en-US",
+    "demographics": {
+      "participant_code": "example-participant",
+      "age": 42
+    },
+    "prior_button_experience": {
+      "answer": "yes"
+    }
+  },
+  "started_at": "2026-06-13T21:00:00Z",
+  "submitted_at": "2026-06-13T21:02:14Z",
+  "error": null
+}

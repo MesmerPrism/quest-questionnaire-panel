@@ -328,8 +328,9 @@ private fun BrbStudyQuestionnairePanel(
 
     LaunchedEffect(autoSubmit) {
         if (autoSubmit) {
+            val completedAnswers = answers.value.withDebugCompletedDefaults(request)
             onSubmit(
-                answers.value.toJson(request, completedStage = sequence.last()),
+                completedAnswers.toJson(request, completedStage = sequence.last()),
                 sequence.last(),
                 sequence.lastIndex
             )
@@ -755,40 +756,107 @@ private data class QuestionnaireAnswerState(
     val lostOpportunityAcknowledged: Boolean = false,
     val finalEndConfirmationRating: Int? = null
 ) {
-    fun toJson(request: QuestionnaireRequest, completedStage: String): JSONObject =
-        JSONObject()
+    fun toJson(request: QuestionnaireRequest, completedStage: String): JSONObject {
+        val sequence = request.screenSequence
+        return JSONObject()
             .put("open_stage", request.openStage)
             .put("completed_stage", completedStage)
-            .put("screen_sequence", JSONArray(request.screenSequence))
+            .put("screen_sequence", JSONArray(sequence))
             .put("condition_number", request.conditionNumber ?: JSONObject.NULL)
-            .put("language", language)
-            .put(
-                "demographics",
-                JSONObject()
-                    .put("participant_code", participantCode)
-                    .put("age", age.toInt())
-            )
-            .put(
-                "prior_button_experience",
-                JSONObject().put("answer", priorExperience)
-            )
-            .put(
-                "post_condition",
-                JSONObject()
-                    .put("presence_slider", presenceSlider.toInt())
-                    .put("redness_vas", rednessVas.toInt())
-                    .put("redness_likert", rednessLikert)
-                    .put("presence_questionnaire", JSONObject(ipqAnswers))
-                    .put("lost_opportunity_acknowledged", lostOpportunityAcknowledged)
-            )
-            .put(
-                "final",
-                JSONObject()
-                    .put("end_confirmation_rating", finalEndConfirmationRating ?: JSONObject.NULL)
-                    .put("selected_10", finalEndConfirmationRating == 10)
-                    .put("unity_owns_final_physical_presses", true)
-            )
+            .apply {
+                if (QuestionnaireContract.StageLanguageSelect in sequence) {
+                    put("language", language)
+                }
+                if (QuestionnaireContract.StageDemographics in sequence) {
+                    put(
+                        "demographics",
+                        JSONObject()
+                            .put("participant_code", participantCode)
+                            .put("age", age.toInt())
+                    )
+                }
+                if (QuestionnaireContract.StagePriorExperience in sequence) {
+                    put(
+                        "prior_button_experience",
+                        JSONObject().put("answer", priorExperience)
+                    )
+                }
+                if (sequence.any { it in BrbPostConditionAnswerStages }) {
+                    put("post_condition", postConditionJson(sequence))
+                }
+                if (sequence.any { it in BrbFinalAnswerStages }) {
+                    put("final", finalJson(sequence))
+                }
+            }
+    }
+
+    private fun postConditionJson(sequence: List<String>): JSONObject =
+        JSONObject().apply {
+            if (QuestionnaireContract.StagePostConditionPictographic in sequence) {
+                put("presence_slider", presenceSlider.toInt())
+                put("redness_vas", rednessVas.toInt())
+                put("redness_likert", rednessLikert)
+            }
+            if (QuestionnaireContract.StagePostConditionPresence in sequence) {
+                put("presence_questionnaire", JSONObject(ipqAnswers))
+            }
+            if (QuestionnaireContract.StagePostConditionLostOpportunity in sequence) {
+                put("lost_opportunity_acknowledged", lostOpportunityAcknowledged)
+            }
+        }
+
+    private fun finalJson(sequence: List<String>): JSONObject =
+        JSONObject().apply {
+            if (QuestionnaireContract.StageFinalEndConfirmation in sequence) {
+                put("end_confirmation_rating", finalEndConfirmationRating ?: JSONObject.NULL)
+                put("selected_10", finalEndConfirmationRating == 10)
+            }
+            if (QuestionnaireContract.StageFinalExtraPressesPrompt in sequence) {
+                put("unity_owns_final_physical_presses", true)
+            }
+        }
+
+    fun withDebugCompletedDefaults(request: QuestionnaireRequest): QuestionnaireAnswerState {
+        val sequence = request.screenSequence
+        return copy(
+            priorExperience = if (
+                QuestionnaireContract.StagePriorExperience in sequence &&
+                priorExperience == AnswerNotAnswered
+            ) {
+                AnswerNo
+            } else {
+                priorExperience
+            },
+            lostOpportunityAcknowledged = if (
+                QuestionnaireContract.StagePostConditionLostOpportunity in sequence
+            ) {
+                true
+            } else {
+                lostOpportunityAcknowledged
+            },
+            finalEndConfirmationRating = if (
+                QuestionnaireContract.StageFinalEndConfirmation in sequence &&
+                finalEndConfirmationRating == null
+            ) {
+                10
+            } else {
+                finalEndConfirmationRating
+            }
+        )
+    }
 }
+
+private val BrbPostConditionAnswerStages = setOf(
+    QuestionnaireContract.StagePostConditionPictographic,
+    QuestionnaireContract.StagePostConditionPresence,
+    QuestionnaireContract.StagePostConditionLostOpportunity
+)
+
+private val BrbFinalAnswerStages = setOf(
+    QuestionnaireContract.StageFinalEndConfirmation,
+    QuestionnaireContract.StageFinalExtraPressesPrompt,
+    QuestionnaireContract.StageCompleteExportSummary
+)
 
 private fun canProceed(stage: String, answers: QuestionnaireAnswerState): Boolean =
     when (stage) {

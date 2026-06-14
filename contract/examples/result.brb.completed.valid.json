@@ -18,30 +18,27 @@
   "answers": {
     "open_stage": "post_condition:pictographic",
     "completed_stage": "post_condition:lost_opportunity",
-    "language": "en-US",
-    "demographics": {
-      "participant_ref": "P042",
-      "age_range": "30-39",
-      "language": "en-US"
-    },
-    "prior_button_experience": {
-      "has_used_similar_button": false,
-      "notes": null
-    },
+    "screen_sequence": [
+      "post_condition:pictographic",
+      "post_condition:presence_questionnaire",
+      "post_condition:lost_opportunity"
+    ],
+    "condition_number": 1,
     "post_condition": {
       "presence_slider": 64,
       "redness_vas": 71,
       "redness_likert": 5,
+      "presence_questionnaire": {
+        "spatial_presence_1": 3,
+        "spatial_presence_2": 4,
+        "involvement_1": 3,
+        "experienced_realism_1": 4,
+        "interaction_memory_1": 5
+      },
       "lost_opportunity_acknowledged": true
-    },
-    "final": {
-      "end_confirmation_rating": null,
-      "selected_10": false,
-      "unity_owns_final_physical_presses": true
     }
   },
   "started_at": "2026-06-13T21:10:00Z",
   "submitted_at": "2026-06-13T21:11:14Z",
   "error": null
 }
-

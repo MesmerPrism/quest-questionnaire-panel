@@ -111,3 +111,14 @@ caller-owned result URI.
 is the immediate end path. Any non-10 value continues through
 `final:extra_presses_prompt`, after which Unity records the physical button
 interaction.
+
+Completed BRB results include only the answer buckets relevant to the requested
+sequence:
+
+| Sequence | Required completed-answer buckets |
+| --- | --- |
+| Initial | `language`, `demographics`, `prior_button_experience` |
+| Post-condition | `post_condition` |
+| Final | `final` |
+
+Cancelled and error results do not require completed-answer buckets.

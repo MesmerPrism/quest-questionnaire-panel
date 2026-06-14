@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.mesmerprism.questquestionnaire.brb.BrbAnswerValidator
 import io.github.mesmerprism.questquestionnaire.sdk.QuestionnaireCallbackState
 import io.github.mesmerprism.questquestionnaire.sdk.QuestionnaireCallerMetadata
 import io.github.mesmerprism.questquestionnaire.sdk.QuestionnaireLaunchPreflight
@@ -119,7 +120,7 @@ class NativeCallerActivity : ComponentActivity() {
         when (
             val result = launcher.recoverLatestResult(
                 context = this,
-                answerValidator = BrbQuestionnaireAnswerValidator
+                answerValidator = BrbAnswerValidator
             )
         ) {
             RecoveredQuestionnaireResult.NoPending ->
