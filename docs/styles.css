@@ -107,6 +107,7 @@ main {
   grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
   gap: 48px;
   padding: 72px 0 52px;
+  scroll-margin-top: 88px;
   align-items: end;
 }
 
@@ -187,6 +188,7 @@ h3 {
 .section {
   padding: 48px 0;
   border-top: 1px solid var(--line);
+  scroll-margin-top: 88px;
 }
 
 .section-heading {
@@ -221,9 +223,12 @@ h3 {
 
 .ownership-grid,
 .example-pair,
-.demo-grid,
 .reuse-layout {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.demo-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .reader-grid,
@@ -432,7 +437,7 @@ code {
 .demo-card video {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 1832 / 1920;
   background: #111;
   object-fit: cover;
 }
@@ -564,6 +569,11 @@ code {
 
   .intro {
     padding-top: 44px;
+    scroll-margin-top: 132px;
+  }
+
+  .section {
+    scroll-margin-top: 132px;
   }
 
   h1 {

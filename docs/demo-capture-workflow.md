@@ -11,8 +11,7 @@ built-in recorder.
 
 - GitHub Pages entry point: `docs/index.html`.
 - Current curated clips: `docs/media/brb-blink.mp4`,
-  `docs/media/brb-press.mp4`, `docs/media/panel-open.mp4`,
-  `docs/media/panel-navigate.mp4`, and `docs/media/panel-close.mp4`.
+  `docs/media/brb-press.mp4`, and `docs/media/panel-menu.mp4`.
 - BRB Unity reference branch:
   `MesmerPrism/the-big-red-button-institute` branch
   `codex/brb-questionnaire-panel-bridge`.
@@ -194,11 +193,9 @@ Trim the one raw headset recording into these public onboarding clips:
 
 | Clip | Source moment |
 | --- | --- |
-| `docs/media/brb-blink.mp4` | Unity receives `blink_button:6` and blinks the 3D button. |
+| `docs/media/brb-blink.mp4` | Unity receives the blink command and blinks the 3D button. |
 | `docs/media/brb-press.mp4` | Unity receives `press_button`, plays the press animation, and updates the counter. |
-| `docs/media/panel-open.mp4` | Unity launches the panel for the initial questionnaire sequence. |
-| `docs/media/panel-navigate.mp4` | The panel advances through requested BRB questionnaire screens. |
-| `docs/media/panel-close.mp4` | The panel submits, writes the caller-owned result, sends the callback, and closes. |
+| `docs/media/panel-menu.mp4` | Unity foregrounds the panel, the panel performs one answer/submit action, and the panel closes back to the caller. |
 
 Only the final reviewed clips belong in `docs/media/`. Do not commit the raw
 one-take recording, UIAutomator XML, screenshots, logcat output, headset

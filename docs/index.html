@@ -773,10 +773,9 @@ startActivity(
           <article>
             <h3>Cut the reviewed public clips</h3>
             <p>
-              Trim the raw recording into the existing onboarding clip names:
-              <code>brb-blink</code>, <code>brb-press</code>,
-              <code>panel-open</code>, <code>panel-navigate</code>, and
-              <code>panel-close</code>. Keep the raw one-take MP4 outside this
+              Trim the reviewed source into the onboarding loop names:
+              <code>brb-blink</code>, <code>brb-press</code>, and
+              <code>panel-menu</code>. Keep the raw source MP4 outside this
               repository.
             </p>
             <p>
@@ -791,16 +790,15 @@ startActivity(
         <div class="section-heading">
           <h2 id="demos-title">What The Pieces Look Like</h2>
           <p>
-            These are the current cut-down public clips. The next refresh should
-            come from one continuous built-in headset recording so the Unity
-            scene, panel launch, questionnaire navigation, and return path all
-            share the same source take.
+            These looped clips show the current Unity and panel handoff in the
+            order a caller experiences it: animate the study object, accept the
+            study press, then foreground and close the questionnaire panel.
           </p>
         </div>
 
         <div class="demo-grid">
           <article class="demo-card">
-            <video controls muted loop playsinline preload="metadata">
+            <video autoplay muted loop playsinline preload="metadata" aria-label="Big red button blink loop">
               <source src="media/brb-blink.mp4" type="video/mp4" />
             </video>
             <h3>Unity: blink the button</h3>
@@ -811,7 +809,7 @@ startActivity(
           </article>
 
           <article class="demo-card">
-            <video controls muted loop playsinline preload="metadata">
+            <video autoplay muted loop playsinline preload="metadata" aria-label="Big red button press loop">
               <source src="media/brb-press.mp4" type="video/mp4" />
             </video>
             <h3>Unity: press animation and counter</h3>
@@ -823,35 +821,14 @@ startActivity(
           </article>
 
           <article class="demo-card">
-            <video controls muted loop playsinline preload="metadata">
-              <source src="media/panel-open.mp4" type="video/mp4" />
+            <video autoplay muted loop playsinline preload="metadata" aria-label="Questionnaire panel open action and close loop">
+              <source src="media/panel-menu.mp4" type="video/mp4" />
             </video>
-            <h3>Panel: launch from the caller</h3>
+            <h3>Panel: answer and close</h3>
             <p>
-              Unity opens the native 2D panel with an explicit Android Intent
-              while the study scene remains the caller-owned context.
-            </p>
-          </article>
-
-          <article class="demo-card">
-            <video controls muted loop playsinline preload="metadata">
-              <source src="media/panel-navigate.mp4" type="video/mp4" />
-            </video>
-            <h3>Panel: move through screens</h3>
-            <p>
-              The panel renders the requested BRB sequence, gathers answers,
-              and enforces required inputs before moving forward.
-            </p>
-          </article>
-
-          <article class="demo-card">
-            <video controls muted loop playsinline preload="metadata">
-              <source src="media/panel-close.mp4" type="video/mp4" />
-            </video>
-            <h3>Panel: submit and close</h3>
-            <p>
-              On submit, the panel writes the result JSON to the granted URI,
-              sends the callback, and finishes only the panel activity.
+              The caller brings the native 2D panel forward, one answer action
+              is submitted, and the panel finishes without taking ownership of
+              the Unity scene.
             </p>
           </article>
         </div>
