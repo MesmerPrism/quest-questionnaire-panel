@@ -253,8 +253,10 @@ adb shell am instrument -w `
 ```
 
 The 2026-06-14 focused General-section route plan produced Quick controls,
-Storage, and Ongoing activities as default child targets. A compact
-`settingsChildPageProbe` opened each page and returned, and the exporter
+Storage, and Ongoing activities as default child targets. A second low-risk
+route plan over Environment setup, Accessibility, and Audio produced Boundary,
+Travel mode, Vision, Mobility, Hearing, and Spatial audio for windows. Compact
+`settingsChildPageProbe` runs opened each page and returned, and the exporter
 summarized the child surfaces with safe labels plus redaction counts.
 
 Active tapping is disabled by default. To test whether a visible Android button
