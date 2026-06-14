@@ -120,9 +120,9 @@ Observed with the development-only `examples:quest-ui-automation` module:
   not call `getMediaProjection()` or `createVirtualDisplay()`, `dumpsys
   media_projection` stayed `null` after the run.
 - The Metacam settings path exposed mic-audio, camera view, aspect-ratio, red
-  recording indicator, hide-controls, and capture-marker settings. Resolution,
-  bitrate, frame-rate, and eye preference were not yet found through the first
-  settings sweeps.
+  recording indicator, hide-controls, and capture-marker settings. Later
+  settings sweeps reached bitrate, frame-rate, stabilization, and eye
+  preference lower in the same Camera settings section.
 - Scrolling is partly solved:
   - `UiObject2.scroll(Direction.DOWN, ...)` on
     `com.oculus.panelapp.settings:id/settings_recycler_view` works.
@@ -192,14 +192,16 @@ Observed with the development-only `examples:quest-ui-automation` module:
   spatial services, and spatial-data deletion controls; `App permissions` opens
   app permission categories such as audio files, connected cameras, headset
   cameras, location, microphone, nearby devices, and photos/videos.
-- Camera selector rows such as `Bit rate`, `Frame rate`, `Image stabilization`,
-  and `Eye perspective` have two distinct target levels. Clicking the broad
+- Camera selector rows such as `Aspect ratio`, `Bit rate`, `Frame rate`,
+  `Image stabilization`, and `Eye perspective` have two distinct target
+  levels. Clicking the broad
   `settings_list_item` row activates successfully through `coordinate`,
   `uiObject2`, and `accessibilityClick`, but does not expose a distinct options
   surface. Targeting the row's `dropdown_button`/`android.widget.Spinner`
   control with `childTargetRole=dropdown` does expose
-  `com.oculus.panelapp.settings:id/context_menu_list` options:
-  bit rate `3 mbps (Default)`, `6 mbps`, `9 mbps`, `14 mbps`; frame rate
+  `com.oculus.panelapp.settings:id/context_menu_list` options: aspect ratio
+  `Square 1:1`, `Landscape 16:9 (Default)`, `Portrait 9:16`; bit rate
+  `3 mbps (Default)`, `6 mbps`, `9 mbps`, `14 mbps`; frame rate
   `30 fps (Default)`, `60 fps`; image stabilization `Off (Default)`, `Low`,
   `Medium`, `High`; eye perspective `Left eye (Default)`, `Right eye`.
   Coordinate, `UiObject2.click()`, and accessibility `ACTION_CLICK` all opened
@@ -214,8 +216,20 @@ Observed with the development-only `examples:quest-ui-automation` module:
   by text after the dropdown opens. The default is a dry run:
   `allowOptionSelect=false` records the option row, bounds, selected/checked
   state, and refusal reason without clicking it. A 2026-06-14 sweep verified
-  dry-run matches for bit rate `9 mbps`, frame rate `60 fps`, image
-  stabilization `High`, and eye perspective `Right eye`; none were selected.
+  dry-run matches for aspect ratio `Portrait 9:16`, bit rate `9 mbps`, frame
+  rate `60 fps`, image stabilization `High`, and eye perspective `Right eye`;
+  none were selected.
+- A scoped 2026-06-14 mutation run selected `Portrait 9:16`, `14 mbps`,
+  `60 fps`, and `High` stabilization, then confirmed a true portrait Metacam
+  recording at `1080x1920` and about 60 FPS. A rollback run restored
+  `Landscape 16:9`, `3 mbps`, `30 fps`, and `Off` stabilization. This proves
+  the capture workflow and setting rollback, but the current BRB plus panel
+  composition still was not fully framed in either landscape or portrait mode.
+- The installed OVR Metrics package exposes broadcasts that can disable the
+  visible performance overlay before polished captures:
+  `DISABLE_OVERLAY`, `DISABLE_OVERLAY_CAPTURE`, `DISABLE_GRAPH`,
+  `DISABLE_STATS`, and `DISABLE_CSV` under the
+  `com.oculus.ovrmonitormetricsservice` action prefix.
 - A full non-mutating section crawler pass reached endpoints for all known
   top-level Quest Settings side-nav sections with object scrolling only.
   Most sections fit on one main-content page. Multi-page sections observed in
@@ -408,9 +422,9 @@ Wait/stability:
 | Q-007 | Settings section crawler | Open settings sections and scroll main `settings_recycler_view` without toggles | XML, JSONL | Low, privacy-sensitive labels | Working for selected sections |
 | Q-008 | Settings child-page probe | Click allowlisted non-toggle rows and dump child pages/selectors | XML, JSONL | Low to sensitive, allowlist only | Privacy child pages work; camera/help inconclusive |
 | Q-009 | Settings child-row action modes | Re-run allowlisted rows with `coordinate`, `uiObject2`, `accessibilityClick`, and `accessibilityExpand` | XML, JSONL action outcomes | Low to sensitive, allowlist only | Partial: camera rows still no selector; Help rows open external surfaces |
-| Q-010 | Settings dropdown targets | Target `dropdown_button`/`Spinner` controls with `childTargetRole=dropdown` | XML, JSONL option texts | Low, do not select options | Working for camera bit rate, frame rate, stabilization, eye perspective |
+| Q-010 | Settings dropdown targets | Target `dropdown_button`/`Spinner` controls with `childTargetRole=dropdown` | XML, JSONL option texts | Low, do not select options | Working for camera aspect ratio, bit rate, frame rate, stabilization, eye perspective |
 | Q-011 | Dropdown option inspector | Record `context_menu_item` option text, bounds, selected, checked, and default-marker state | JSONL summary rows | Low, passive after open | Working for camera dropdowns |
-| Q-012 | Dropdown option dry-run guard | Target a named dropdown option and refuse selection unless `allowOptionSelect=true` | JSONL option row, bounds, selected/checked, guard reason | Low by default; mutation only when explicitly enabled | Working for camera capture dropdowns |
+| Q-012 | Dropdown option dry-run guard | Target a named dropdown option and refuse selection unless `allowOptionSelect=true` | JSONL option row, bounds, selected/checked, guard reason | Low by default; mutation only when explicitly enabled | Working for camera capture dropdowns, including aspect ratio |
 | Q-013 | Redacted report summary exporter | Convert raw JSONL sweep reports into public-safe Markdown/JSON summaries | Summary table, redaction counts, event counts | Passive host-side | Working for section crawler and dropdown reports |
 | Q-014 | Settings route inventory | Classify route-like controls exposed on section crawler pages without clicking them | JSONL route candidates, risk buckets, redacted exporter summary | Passive; raw reports may contain sensitive labels | Working for child-page/dropdown routes in focused section sweep |
 | Q-015 | Generated low-risk child-page plan | Generate `childTargets` from route inventory and run a compact `settingsChildPageProbe` | JSONL child-surface summaries, redacted exporter summary | Open/dump only; excludes sensitive/external/mutation buckets by default | Working for General, Environment setup, Accessibility, and Audio child pages |
@@ -457,14 +471,15 @@ known rollback/stop step.
 | `quest.settings.recovery_probe` | Characterize zero-node Settings launch/retry behavior | `settingsRecoveryProbe` with `retryCount`, `retryWaitMs`, and `dumpPassiveBaselines=true` | Opens Settings, records whether the accessibility tree is visible, takes passive current-window/window-display baselines if zero nodes appear, and retries the same Settings intent without force-stop or package killing | Working for visible Settings state; zero-node recovery pending |
 | `quest.settings.child_probe` | Probe allowlisted child pages without toggles | Open a section, locate a literal/regex row label in main settings content, click a non-checkable same-row target, dump the result, press Back | Produces child-surface summaries and flags whether content differs from the clicked page | Working |
 | `quest.settings.child.action_modes` | Compare child-row activation routes | Run `settingsChildPageProbe` with `clickModes=coordinate,uiObject2,accessibilityClick,accessibilityExpand` against the same allowlisted rows | Separates coordinate-tap failures from live `UiObject2.click()` and raw accessibility-action behavior | Partial |
-| `quest.settings.child.dropdown_targets` | Open selector option popovers | Run `settingsChildPageProbe` with `childTargetRole=dropdown` and `clickModes=coordinate,uiObject2,accessibilityClick` for camera bit rate, frame rate, image stabilization, and eye perspective | Exposes `context_menu_list` options without selecting a value | Working |
+| `quest.settings.child.dropdown_targets` | Open selector option popovers | Run `settingsChildPageProbe` with `childTargetRole=dropdown` and `clickModes=coordinate,uiObject2,accessibilityClick` for camera aspect ratio, bit rate, frame rate, image stabilization, and eye perspective | Exposes `context_menu_list` options without selecting a value | Working |
 | `quest.settings.child.dropdown_option_summary` | Summarize opened selector options | Inspect `settings_child_surface.summary.settingsDropdownOptions` after a dropdown opens | Records clean option labels, row bounds, selected flags, checked flags, and default markers | Working |
 | `quest.settings.child.dropdown_option_dry_run` | Target a selector option without selecting it | Run `settingsChildPageProbe` with `childTargetRole=dropdown`, `optionTarget` or `optionTargets`, and default `allowOptionSelect=false` | Records the matched option row and returns `allowOptionSelect=false dry run`; verified for non-default camera capture options without changing settings | Working |
 | `quest.uiautomator.report_summary` | Summarize raw sweep reports for public notes | `python examples/quest-ui-automation/tools/summarize_report.py <report.jsonl> --format markdown` | Emits page counts, scroll endpoint status, allowlisted labels, dropdown option evidence, and redaction counts without raw paths or unknown labels | Working |
 | `quest.uiautomator.public_artifact_check` | Guard public commits from private lab artifacts | `python tools/check_public_artifacts.py` after staging | Rejects generated APKs, raw recordings/screenshots/logs, raw UI dump XML, signing material, local machine paths, serial-shaped ADB output, and common credential/private-controller tokens outside the curated media lane | Working |
 | `quest.settings.child.privacy_device_permissions` | Open Privacy & safety -> Device permissions | `settingsChildPageProbe` target `privacy_safety:Device permissions` | Opens child page with hand/body tracking, location services, spatial data, enhanced spatial services, and deletion controls | Working, sensitive |
 | `quest.settings.child.privacy_app_permissions` | Open Privacy & safety -> App permissions | `settingsChildPageProbe` target `privacy_safety:App permissions` | Opens child page with permission categories including audio files, connected cameras, headset cameras, location, microphone, nearby devices, photos/videos | Working, sensitive |
-| `quest.settings.child.camera_selectors` | Try Camera selector rows | Broad-row target with coordinate, `UiObject2.click()`, and `ACTION_CLICK`; dropdown target with `childTargetRole=dropdown` | Broad rows activate without exposing options; compact dropdown targets expose bit-rate, frame-rate, stabilization, and eye-perspective options | Working via dropdown target |
+| `quest.settings.child.camera_selectors` | Try Camera selector rows | Broad-row target with coordinate, `UiObject2.click()`, and `ACTION_CLICK`; dropdown target with `childTargetRole=dropdown` | Broad rows activate without exposing options; compact dropdown targets expose aspect-ratio, bit-rate, frame-rate, stabilization, and eye-perspective options | Working via dropdown target |
+| `quest.capture.brb_one_take` | Record BRB plus panel demo through Metacam | Disable OVR Metrics overlay broadcasts, center BRB before recorder start, start `metacamRecordProbe`, trigger BRB and panel CLI commands, let probe stop recorder, restore temporary settings | Produced landscape and portrait one-take sources; portrait was real `1080x1920`, but neither mode fully framed the current BRB/panel composition | Workflow verified; final framing unresolved |
 | `quest.settings.child.help_rows` | Try Help rows | `settingsChildPageProbe` targets `help:Support`, `help:Help & Tips app` | `Help & Tips app` opens Help Center; `Support` can surface Help Center and SystemUX support/report UI. These are active external surfaces with side effects | Working but not passive |
 | `quest.quick_settings.open_api` | Try Android quick-settings helper | `UiDevice.openQuickSettings()`; wait; dump | Did not expose a distinct Quest quick-settings surface in current probes | Not proven |
 | `quest.notifications.open_api` | Try Android notification helper | `UiDevice.openNotification()`; wait; dump | Did not expose a distinct notification shade in current probes | Not proven |

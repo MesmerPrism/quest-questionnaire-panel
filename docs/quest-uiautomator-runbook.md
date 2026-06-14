@@ -96,6 +96,126 @@ Current 2026-06-14 reachability evidence:
   a settings profile with two scrollables, while advanced settings switched the
   active root again after scrolling.
 
+## BRB Demo Recording Slot
+
+Use this active slot for the public BRB plus questionnaire-panel capture pass,
+not for product validation. The detailed public clip map is
+[`docs/demo-capture-workflow.md`](demo-capture-workflow.md).
+
+Preflight:
+
+```powershell
+foreach ($action in @(
+  'DISABLE_OVERLAY',
+  'DISABLE_OVERLAY_CAPTURE',
+  'DISABLE_GRAPH',
+  'DISABLE_STATS',
+  'DISABLE_CSV'
+)) {
+  adb shell am broadcast `
+    -a "com.oculus.ovrmonitormetricsservice.$action" `
+    -n com.oculus.ovrmonitormetricsservice/.SettingsBroadcastReceiver
+}
+
+adb shell am start -W `
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity `
+  --es brb.runtimeCommand center_button
+```
+
+When capture framing needs a portrait source, set and later restore Metacam
+recorder settings through the guarded dropdown path:
+
+```powershell
+$instrument = "am instrument -w " +
+  "-e scenario settingsChildPageProbe " +
+  "-e childTargets 'camera:Aspect ratio,camera:Bit rate,camera:Frame rate,camera:Image stabilization' " +
+  "-e childTargetRole dropdown " +
+  "-e clickModes coordinate " +
+  "-e optionTargets 'Aspect ratio=Portrait 9:16;Bit rate=14 mbps;Frame rate=60 fps;Image stabilization=High' " +
+  "-e allowOptionSelect true " +
+  "-e optionClickMode coordinate " +
+  "-e maxContentScrolls 5 -e maxNavScrolls 10 " +
+  "-e dumpChildAccessibility false " +
+  "io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner"
+adb shell $instrument
+```
+
+Rollback command:
+
+```powershell
+$instrument = "am instrument -w " +
+  "-e scenario settingsChildPageProbe " +
+  "-e childTargets 'camera:Aspect ratio,camera:Bit rate,camera:Frame rate,camera:Image stabilization' " +
+  "-e childTargetRole dropdown " +
+  "-e clickModes coordinate " +
+  "-e optionTargets 'Aspect ratio=Landscape 16:9;Bit rate=3 mbps;Frame rate=30 fps;Image stabilization=Off' " +
+  "-e allowOptionSelect true " +
+  "-e optionClickMode coordinate " +
+  "-e maxContentScrolls 5 -e maxNavScrolls 10 " +
+  "-e dumpChildAccessibility false " +
+  "io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner"
+adb shell $instrument
+```
+
+Run the recorder bracket in one shell:
+
+```powershell
+adb shell am instrument -w `
+  -e scenario metacamRecordProbe `
+  -e recordMs 180000 `
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+While the probe is sleeping, use a second shell to trigger the BRB Unity
+moments and panel routes:
+
+```powershell
+adb shell am start -W `
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity `
+  --es brb.runtimeCommand center_button
+
+adb shell am start -W `
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity `
+  --es brb.runtimeCommand "blink_button:6"
+
+adb shell am start -W `
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity `
+  --es brb.runtimeCommand press_button
+
+adb shell am start -W `
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity `
+  --ez brb.questionnaireOpen true `
+  --es brb.questionnaireTrigger initial
+```
+
+Add the post-condition and final-panel commands from the demo-capture workflow
+when the recording needs the full showcase. Let the recorder probe finish so it
+can reopen the Metacam sharing panel and tap stop.
+
+Pass evidence:
+
+- report has `record_probe_start_result.tapped=true`;
+- report has `record_probe_stop_result.tapped=true`;
+- report has a `finish` row;
+- if temporary settings were changed, a follow-up selector summary confirms the
+  defaults again;
+- any headset video listing remains local evidence only;
+- the raw one-take MP4 stays outside this repo;
+- only reviewed, cut clips under `docs/media/*.mp4` can be committed.
+
+Current 2026-06-14 evidence:
+
+- portrait mode produced a real `1080x1920`, roughly 60 FPS Metacam source;
+- OVR Metrics disable broadcasts completed before capture, and review contact
+  sheets showed no performance HUD overlay;
+- both landscape and portrait modes proved the workflow, but neither fully
+  framed the current BRB plus panel composition.
+
+If the stop tap fails, stop recording manually through the visible headset
+sharing UI and record the failure in private run notes. Do not commit raw
+UIAutomator reports, video listings, local paths, device serials, or the raw
+one-take video.
+
 ## Section Crawl Slot
 
 Use this to map top-level settings sections, main-content scroll endpoints, and
@@ -182,7 +302,7 @@ targeting:
 ```powershell
 adb shell am instrument -w `
   -e scenario settingsChildPageProbe `
-  -e childTargets "camera:Bit rate,camera:Frame rate,camera:Image stabilization,camera:Eye perspective" `
+  -e childTargets "camera:Aspect ratio,camera:Bit rate,camera:Frame rate,camera:Image stabilization,camera:Eye perspective" `
   -e childTargetRole dropdown `
   -e clickModes "coordinate,uiObject2,accessibilityClick" `
   -e maxContentScrolls 4 `
@@ -196,6 +316,10 @@ Mutation gate:
 - `allowOptionSelect=false` is the default.
 - Only use `allowOptionSelect=true` with a written current value, desired value,
   rollback step, and stop condition.
+- Verified camera options include aspect ratio `Square 1:1`,
+  `Landscape 16:9 (Default)`, and `Portrait 9:16`; bit rate
+  `3/6/9/14 mbps`; frame rate `30/60 fps`; image stabilization
+  `Off/Low/Medium/High`; and eye perspective `Left/Right eye`.
 
 ## Zero-Node Settings Surface
 

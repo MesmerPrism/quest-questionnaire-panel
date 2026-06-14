@@ -21,6 +21,7 @@
         <a href="#integrity">Recovery</a>
         <a href="#implementation">Deep dive</a>
         <a href="#commands">Commands</a>
+        <a href="#capture">Capture</a>
         <a href="#demos">Demos</a>
       </nav>
     </header>
@@ -665,6 +666,8 @@ startActivity(
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/self-update.md">Self-update notes</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/contract-versioning.md">Contract versioning</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/research-data-safety.md">Research data safety</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/demo-capture-workflow.md">BRB demo capture workflow</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/quest-uiautomator-runbook.md">Quest UIAutomator recorder runbook</a></li>
             </ul>
           </article>
         </div>
@@ -702,6 +705,14 @@ startActivity(
           </article>
 
           <article>
+            <h3>Run a Unity blink command</h3>
+            <p>Use this to capture the timed 3D button blink from the BRB runtime.</p>
+            <pre><code>adb shell am start -W \
+  -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
+  --es brb.runtimeCommand "blink_button:6"</code></pre>
+          </article>
+
+          <article>
             <h3>Open the initial panel sequence from Unity</h3>
             <p>Unity prepares the request and launches the panel route.</p>
             <pre><code>adb shell am start -W \
@@ -732,14 +743,58 @@ startActivity(
         </div>
       </section>
 
+      <section id="capture" class="section" aria-labelledby="capture-title">
+        <div class="section-heading">
+          <h2 id="capture-title">Demo Capture Refresh</h2>
+          <p>
+            The preferred public capture path is now one continuous Quest
+            built-in headset recording started and stopped through UIAutomator,
+            with the final public clips cut from that single source take.
+            Landscape and portrait Metacam modes are both verified; portrait
+            produces a true vertical source, but the current BRB plus panel
+            composition still needs separate framing work before final clips
+            are refreshed.
+          </p>
+        </div>
+
+        <div class="example-pair">
+          <article>
+            <h3>Start the one-take headset recorder</h3>
+            <p>
+              Run this in one shell, then trigger the BRB Unity and panel
+              commands from another shell while the recorder probe is waiting.
+            </p>
+            <pre><code>adb shell am instrument -w \
+  -e scenario metacamRecordProbe \
+  -e recordMs 180000 \
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner</code></pre>
+          </article>
+
+          <article>
+            <h3>Cut the reviewed public clips</h3>
+            <p>
+              Trim the raw recording into the existing onboarding clip names:
+              <code>brb-blink</code>, <code>brb-press</code>,
+              <code>panel-open</code>, <code>panel-navigate</code>, and
+              <code>panel-close</code>. Keep the raw one-take MP4 outside this
+              repository.
+            </p>
+            <p>
+              The detailed capture checklist is in the
+              <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/demo-capture-workflow.md">BRB demo capture workflow</a>.
+            </p>
+          </article>
+        </div>
+      </section>
+
       <section id="demos" class="section" aria-labelledby="demos-title">
         <div class="section-heading">
           <h2 id="demos-title">What The Pieces Look Like</h2>
           <p>
-            These clips show the Unity side and the panel side separately. The
-            point is not that ADB is required; it is that each action can be
-            triggered and validated repeatably while the integration is being
-            built.
+            These are the current cut-down public clips. The next refresh should
+            come from one continuous built-in headset recording so the Unity
+            scene, panel launch, questionnaire navigation, and return path all
+            share the same source take.
           </p>
         </div>
 

@@ -227,7 +227,7 @@ Focused camera dropdown sweep:
 ```powershell
 adb shell am instrument -w `
   -e scenario settingsChildPageProbe `
-  -e childTargets "camera:Bit rate,camera:Frame rate,camera:Image stabilization,camera:Eye perspective" `
+  -e childTargets "camera:Aspect ratio,camera:Bit rate,camera:Frame rate,camera:Image stabilization,camera:Eye perspective" `
   -e childTargetRole dropdown `
   -e clickModes "coordinate,uiObject2,accessibilityClick" `
   -e maxContentScrolls 4 `
@@ -237,7 +237,12 @@ adb shell am instrument -w `
 ```
 
 The 2026-06-14 Quest sweep exposed `context_menu_list` options for those
-camera dropdowns without selecting a different value.
+camera dropdowns without selecting a different value. Verified options include
+aspect ratio `Square 1:1`, `Landscape 16:9 (Default)`, and `Portrait 9:16`;
+bit rate `3 mbps (Default)`, `6 mbps`, `9 mbps`, and `14 mbps`; frame rate
+`30 fps (Default)` and `60 fps`; image stabilization `Off (Default)`, `Low`,
+`Medium`, and `High`; and eye perspective `Left eye (Default)` and
+`Right eye`.
 Each `settings_child_surface.summary` includes `settingsDropdownOptions` when a
 dropdown is open. The option rows include `texts`, bounds, `selected`,
 `checked`, and `hasDefaultMarker` fields.
@@ -249,10 +254,10 @@ option row, records the option bounds/state, and refuses to click while
 ```powershell
 $instrument = "am instrument -w " +
   "-e scenario settingsChildPageProbe " +
-  "-e childTargets 'camera:Bit rate,camera:Frame rate,camera:Image stabilization,camera:Eye perspective' " +
+  "-e childTargets 'camera:Aspect ratio,camera:Bit rate,camera:Frame rate,camera:Image stabilization,camera:Eye perspective' " +
   "-e childTargetRole dropdown " +
   "-e clickModes coordinate " +
-  "-e optionTargets 'Bit rate=9 mbps;Frame rate=60 fps;Image stabilization=High;Eye perspective=Right eye' " +
+  "-e optionTargets 'Aspect ratio=Portrait 9:16;Bit rate=9 mbps;Frame rate=60 fps;Image stabilization=High;Eye perspective=Right eye' " +
   "-e allowOptionSelect false " +
   "-e maxContentScrolls 4 -e maxNavScrolls 10 " +
   "io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner"
@@ -413,4 +418,6 @@ adb shell am instrument -w `
 This probe taps the visible `com.oculus.metacam:id/screenrecording_button`,
 waits briefly, relaunches the Metacam sharing panel, and taps the same exposed
 button again. It records only text/XML sweep evidence; do not pull generated
-MP4 media into this public repo.
+MP4 media into this public repo. For the BRB plus panel public showcase, use
+the one-take bracket and clip map in
+[`docs/demo-capture-workflow.md`](../../docs/demo-capture-workflow.md).

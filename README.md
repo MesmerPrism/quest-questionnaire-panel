@@ -24,6 +24,7 @@ docs/
   handoff-contract.md
   contract-versioning.md
   research-data-safety.md
+  demo-capture-workflow.md
   source-audit-intake-2026-06-14.md
   quest-uiautomator-runbook.md
   remote-operations-relationship.md
@@ -113,3 +114,7 @@ python tools\check_public_artifacts.py
 For the latest source-intake decision on Quest UI automation and capture
 references, see
 [`docs/source-audit-intake-2026-06-14.md`](docs/source-audit-intake-2026-06-14.md).
+
+For the current public BRB plus panel demo capture plan, including the
+one-take headset-recorder workflow and clip map, see
+[`docs/demo-capture-workflow.md`](docs/demo-capture-workflow.md).
