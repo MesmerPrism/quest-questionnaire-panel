@@ -89,7 +89,7 @@ unity-caller-plugin/
 | ---: | --- | --- | --- |
 | 1 | Extract `questionnaire-contract-core` | Prevent validator/schema drift before more callers exist. | Initial skeleton complete |
 | 2 | Extract `android-caller-sdk` | Unlock native callers and make the Unity wrapper smaller. | Initial SDK complete |
-| 3 | Refactor terminal result writing | Make `cancelled` and `error` outcomes scientifically usable. | Planned |
+| 3 | Refactor terminal result writing | Make `cancelled` and `error` outcomes scientifically usable. | Complete |
 | 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Planned |
 | 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | Planned |
 | 6 | Add ViewModel/draft recovery | Protect in-progress study sessions. | Planned |
@@ -168,7 +168,7 @@ Acceptance:
 
 ### Slice 4: Structured Cancelled/Error Results
 
-Status: Planned
+Status: Complete
 
 Deliverables:
 
@@ -187,6 +187,16 @@ Acceptance:
 - Callback failure after result write is represented differently from result
   write failure.
 - Caller recovery on resume/cold start can still read a written result.
+
+Notes:
+
+- Added a shared optional `terminal` result object with a non-sensitive reason,
+  current stage, and zero-based screen index.
+- Kept `error` for true error status only; user cancellation now uses
+  `terminal.reason=user_cancelled` and `error=null`.
+- Panel-side result writing now closes the caller-owned output stream before
+  sending the completion callback, and distinguishes `result_write_failed`
+  from `callback_failed_after_write`.
 
 ### Slice 5: Stage-Aware BRB Validator
 
@@ -417,6 +427,12 @@ Field semantics:
 - Verified the initial SDK slice with `:android-caller-sdk:assembleDebug`,
   `:examples:native-caller:testDebugUnitTest`, `:questionnaire-contract-core:test`,
   `:app:assembleDebug`, and `:examples:native-caller:assembleDebug`.
+- Completed Slice 4 by adding a panel-side `TerminalResultWriter`, structured
+  terminal context in the shared result envelope model/schema/examples, and
+  Activity handling for completed, cancelled, and trusted renderer
+  initialization error results.
+- Verified Slice 4 with `:questionnaire-contract-core:test` and
+  `:app:testDebugUnitTest` before full assemble checks.
 
 ## Decision Log
 
@@ -425,11 +441,10 @@ Add decisions here as they become real implementation constraints.
 | Date | Decision | Reason |
 | --- | --- | --- |
 | 2026-06-14 | Extract pure contract core before Android SDK. | Keeps protocol validation reusable by Android callers, Unity wrappers, and tests. |
+| 2026-06-14 | Add optional v1 `terminal` result metadata instead of overloading `error` for cancellation. | Keeps cancellation scientifically useful while preserving `error` for true runtime failures. |
 
 ## Open Questions
 
-- Should `terminal_reason` be added as a new neutral result field in v1, or
-  should `error` continue to carry cancellation reasons until v2?
 - Should `questionnaire-contract-core` use handwritten JSON parsing first, or
   introduce serialization/code generation later?
 - What is the default public flavor name: `minimalResearch`, `research`, or

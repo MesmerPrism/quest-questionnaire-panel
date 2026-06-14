@@ -1,6 +1,7 @@
 package io.github.mesmerprism.questquestionnaire.contract
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,6 +18,11 @@ class QuestionnaireResultEnvelopeValidatorTest {
         val validation = validateFixture("result.cancelled.valid.json")
 
         assertValid(QuestionnaireTerminalStatus.Cancelled, validation)
+        val envelope = (validation as QuestionnaireResultValidation.Valid).envelope
+        assertEquals("user_cancelled", envelope.terminal?.reason)
+        assertEquals("post_condition:pictographic", envelope.terminal?.currentStage)
+        assertEquals(0, envelope.terminal?.screenIndex)
+        assertNull(envelope.error)
     }
 
     @Test
@@ -24,6 +30,9 @@ class QuestionnaireResultEnvelopeValidatorTest {
         val validation = validateFixture("result.error.valid.json")
 
         assertValid(QuestionnaireTerminalStatus.Error, validation)
+        val envelope = (validation as QuestionnaireResultValidation.Valid).envelope
+        assertEquals("renderer_runtime_error", envelope.terminal?.reason)
+        assertEquals("unsupported_stage", envelope.error?.code)
     }
 
     @Test
@@ -72,4 +81,3 @@ class QuestionnaireResultEnvelopeValidatorTest {
         )
     }
 }
-

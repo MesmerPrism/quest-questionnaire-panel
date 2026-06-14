@@ -38,6 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import io.github.mesmerprism.questquestionnaire.contract.QuestionnaireTerminalContext
+import io.github.mesmerprism.questquestionnaire.contract.QuestionnaireTerminalStatus
 import java.time.Instant
 import kotlinx.coroutines.delay
 import org.json.JSONArray
@@ -48,6 +50,7 @@ class QuestionnaireActivity : ComponentActivity() {
     private var resultUri: Uri? = null
     private var returnToCaller: PendingIntent? = null
     private var startedAt: Instant = Instant.now()
+    private val terminalResultWriter = TerminalResultWriter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,6 +61,19 @@ class QuestionnaireActivity : ComponentActivity() {
         returnToCaller = launch.returnToCaller
         startedAt = Instant.now()
 
+        try {
+            showQuestionnaire(launch)
+        } catch (_: Exception) {
+            submitErrorResult(
+                code = "renderer_initialization_failed",
+                message = "Panel could not initialize the requested questionnaire.",
+                currentStage = launch.request.openStage,
+                screenIndex = launch.initialScreenIndex
+            )
+        }
+    }
+
+    private fun showQuestionnaire(launch: LaunchContext) {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -83,8 +99,12 @@ class QuestionnaireActivity : ComponentActivity() {
                         } else {
                             350
                         },
-                        onSubmit = { answers -> submitResult("completed", answers) },
-                        onCancel = { submitResult("cancelled", JSONObject()) }
+                        onSubmit = { answers, currentStage, screenIndex ->
+                            submitCompletedResult(answers, currentStage, screenIndex)
+                        },
+                        onCancel = { currentStage, screenIndex ->
+                            submitCancelledResult(currentStage, screenIndex)
+                        }
                     )
                 }
             }
@@ -123,7 +143,84 @@ class QuestionnaireActivity : ComponentActivity() {
         )
     }
 
-    private fun submitResult(status: String, answers: JSONObject) {
+    private fun submitCompletedResult(
+        answers: JSONObject,
+        currentStage: String,
+        screenIndex: Int
+    ) {
+        submitTerminalResult(
+            QuestionnaireResult.from(
+                request = requireCurrentRequest() ?: return,
+                status = QuestionnaireTerminalStatus.Completed,
+                answers = answers,
+                startedAt = startedAt,
+                terminal = terminalContext(
+                    reason = "completed",
+                    currentStage = currentStage,
+                    screenIndex = screenIndex
+                )
+            )
+        )
+    }
+
+    private fun submitCancelledResult(currentStage: String, screenIndex: Int) {
+        submitTerminalResult(
+            QuestionnaireResult.from(
+                request = requireCurrentRequest() ?: return,
+                status = QuestionnaireTerminalStatus.Cancelled,
+                answers = JSONObject(),
+                startedAt = startedAt,
+                terminal = terminalContext(
+                    reason = "user_cancelled",
+                    currentStage = currentStage,
+                    screenIndex = screenIndex
+                )
+            )
+        )
+    }
+
+    private fun submitErrorResult(
+        code: String,
+        message: String,
+        currentStage: String,
+        screenIndex: Int
+    ) {
+        submitTerminalResult(
+            QuestionnaireResult.from(
+                request = requireCurrentRequest() ?: return,
+                status = QuestionnaireTerminalStatus.Error,
+                answers = JSONObject(),
+                startedAt = startedAt,
+                terminal = terminalContext(
+                    reason = "renderer_runtime_error",
+                    currentStage = currentStage,
+                    screenIndex = screenIndex
+                ),
+                error = QuestionnaireResultError(code = code, message = message)
+            )
+        )
+    }
+
+    private fun requireCurrentRequest(): QuestionnaireRequest? {
+        val currentRequest = request
+        if (currentRequest == null) {
+            showSubmissionError("missing_launch_state")
+        }
+        return currentRequest
+    }
+
+    private fun terminalContext(
+        reason: String,
+        currentStage: String,
+        screenIndex: Int
+    ): QuestionnaireTerminalContext =
+        QuestionnaireTerminalContext(
+            reason = reason,
+            currentStage = currentStage,
+            screenIndex = screenIndex.coerceAtLeast(0)
+        )
+
+    private fun submitTerminalResult(result: QuestionnaireResult) {
         val currentRequest = request
         val uri = resultUri
         val callback = returnToCaller
@@ -133,32 +230,25 @@ class QuestionnaireActivity : ComponentActivity() {
             return
         }
 
-        val payload = QuestionnaireResult.from(
-            request = currentRequest,
-            status = status,
-            answers = answers,
-            startedAt = startedAt
-        ).toJson()
-
-        try {
-            contentResolver.openOutputStream(uri, "wt").use { stream ->
-                requireNotNull(stream) { "Could not open result URI for writing" }
-                    .write(payload.toString(2).toByteArray(Charsets.UTF_8))
+        when (
+            terminalResultWriter.write(
+                contentResolver = contentResolver,
+                resultUri = uri,
+                returnToCaller = callback,
+                result = result
+            )
+        ) {
+            TerminalResultWriteOutcome.CallbackSent -> {
+                setResult(Activity.RESULT_OK)
+                finish()
             }
-        } catch (_: Exception) {
-            showSubmissionError("result_write_failed")
-            return
+            TerminalResultWriteOutcome.WriteFailed -> {
+                showSubmissionError("result_write_failed")
+            }
+            TerminalResultWriteOutcome.CallbackFailedAfterWrite -> {
+                showResultWrittenCallbackError()
+            }
         }
-
-        try {
-            callback.send()
-        } catch (_: PendingIntent.CanceledException) {
-            showSubmissionError("callback_cancelled")
-            return
-        }
-
-        setResult(Activity.RESULT_OK)
-        finish()
     }
 
     private fun showLaunchError(code: String) {
@@ -191,11 +281,29 @@ class QuestionnaireActivity : ComponentActivity() {
         }
     }
 
+    private fun showResultWrittenCallbackError() {
+        setResult(Activity.RESULT_OK)
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    ErrorPanel(
+                        title = "Questionnaire result was written",
+                        code = "callback_failed_after_write",
+                        onClose = { finish() }
+                    )
+                }
+            }
+        }
+    }
+
     private data class LaunchContext(
         val request: QuestionnaireRequest,
         val resultUri: Uri,
         val returnToCaller: PendingIntent
-    )
+    ) {
+        val initialScreenIndex: Int =
+            request.screenSequence.indexOf(request.openStage).coerceAtLeast(0)
+    }
 }
 
 @Composable
@@ -204,8 +312,8 @@ private fun BrbStudyQuestionnairePanel(
     autoSubmit: Boolean,
     debugCommandScript: String?,
     debugCommandIntervalMs: Int,
-    onSubmit: (JSONObject) -> Unit,
-    onCancel: () -> Unit
+    onSubmit: (JSONObject, String, Int) -> Unit,
+    onCancel: (String, Int) -> Unit
 ) {
     val sequence = remember(request) { request.screenSequence }
     val currentIndex = remember(request) { mutableIntStateOf(0) }
@@ -220,7 +328,11 @@ private fun BrbStudyQuestionnairePanel(
 
     LaunchedEffect(autoSubmit) {
         if (autoSubmit) {
-            onSubmit(answers.value.toJson(request, completedStage = sequence.last()))
+            onSubmit(
+                answers.value.toJson(request, completedStage = sequence.last()),
+                sequence.last(),
+                sequence.lastIndex
+            )
         }
     }
 
@@ -266,7 +378,11 @@ private fun BrbStudyQuestionnairePanel(
 
         if (!handled) {
             if (currentIndex.intValue == sequence.lastIndex) {
-                onSubmit(answers.value.toJson(request, completedStage = stage))
+                onSubmit(
+                    answers.value.toJson(request, completedStage = stage),
+                    stage,
+                    currentIndex.intValue
+                )
             } else {
                 currentIndex.intValue += 1
             }
@@ -283,11 +399,15 @@ private fun BrbStudyQuestionnairePanel(
         commands.forEach { command ->
             when (val action = parsePanelDebugCommand(command)) {
                 PanelDebugAction.Back -> goBack()
-                PanelDebugAction.Cancel -> onCancel()
+                PanelDebugAction.Cancel -> onCancel(activeStage(), currentIndex.intValue)
                 PanelDebugAction.Next -> if (canProceed(activeStage(), answers.value)) goNext()
                 PanelDebugAction.ReplayAudio -> replayAudio()
                 PanelDebugAction.Submit ->
-                    onSubmit(answers.value.toJson(request, completedStage = activeStage()))
+                    onSubmit(
+                        answers.value.toJson(request, completedStage = activeStage()),
+                        activeStage(),
+                        currentIndex.intValue
+                    )
                 is PanelDebugAction.UpdateAnswers -> answers.value = action.transform(answers.value)
                 null -> Unit
             }
@@ -307,7 +427,7 @@ private fun BrbStudyQuestionnairePanel(
         nextLabel = if (isLast) "Submit" else "Next",
         onBack = ::goBack,
         onNext = ::goNext,
-        onCancel = onCancel,
+        onCancel = { onCancel(activeStage(), currentIndex.intValue) },
         onReplayAudio = ::replayAudio
     ) {
         when (currentStage) {

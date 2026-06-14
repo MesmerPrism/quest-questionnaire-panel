@@ -63,6 +63,16 @@
       "type": "string",
       "format": "date-time"
     },
+    "terminal": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["reason", "current_stage", "screen_index"],
+      "properties": {
+        "reason": { "type": "string" },
+        "current_stage": { "type": "string" },
+        "screen_index": { "type": "integer", "minimum": 0 }
+      }
+    },
     "error": {
       "type": ["object", "null"],
       "additionalProperties": false,

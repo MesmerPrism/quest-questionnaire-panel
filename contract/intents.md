@@ -65,6 +65,11 @@ closes the output stream.
 The callback is only a signal. Result status and answers live in the result
 JSON, not in callback extras.
 
+If result writing fails, the panel keeps the failure local because the caller
+cannot rely on result-file recovery. If the result was written and closed but
+the callback cannot be sent, the caller can still recover the terminal JSON on
+resume or cold start.
+
 ## BRB Stage Names
 
 BRB split-app stage names:

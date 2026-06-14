@@ -12,3 +12,8 @@ Contract files:
 Caller-owned result URI is required for product flows. The result `content://`
 URI is carried as Intent data for the write grant and also in `result_uri` for
 simple app-side lookup.
+
+Result status is terminal and lives in JSON: `completed`, `cancelled`, or
+`error`. Non-completed terminal results include a `terminal` object with the
+non-sensitive reason, current stage, and zero-based screen index. Only `error`
+results use the `error` object for a safe code/message pair.

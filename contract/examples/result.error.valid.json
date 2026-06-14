@@ -18,9 +18,13 @@
   "answers": {},
   "started_at": "2026-06-13T21:10:00Z",
   "submitted_at": "2026-06-13T21:10:04Z",
+  "terminal": {
+    "reason": "renderer_runtime_error",
+    "current_stage": "post_condition:pictographic",
+    "screen_index": 0
+  },
   "error": {
     "code": "unsupported_stage",
     "message": "Panel could not render the requested stage."
   }
 }
-

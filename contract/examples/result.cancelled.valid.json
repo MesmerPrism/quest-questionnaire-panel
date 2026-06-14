@@ -21,9 +21,10 @@
   },
   "started_at": "2026-06-13T21:10:00Z",
   "submitted_at": "2026-06-13T21:10:42Z",
-  "error": {
-    "code": "user_cancelled",
-    "message": "Participant cancelled before submitting the sequence."
-  }
+  "terminal": {
+    "reason": "user_cancelled",
+    "current_stage": "post_condition:pictographic",
+    "screen_index": 0
+  },
+  "error": null
 }
-

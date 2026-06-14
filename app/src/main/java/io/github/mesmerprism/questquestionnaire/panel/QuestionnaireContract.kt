@@ -1,10 +1,12 @@
 package io.github.mesmerprism.questquestionnaire.panel
 
+import io.github.mesmerprism.questquestionnaire.contract.QuestQuestionnaireProtocol
+
 object QuestionnaireContract {
-    const val ProtocolVersion = "quest.questionnaire.v1"
-    const val ResultSchema = "quest.questionnaire.v1.result"
-    const val ActionStart = "io.github.mesmerprism.questquestionnaire.action.START"
-    const val RequestMimeType = "application/vnd.quest-questionnaire.request+json"
+    const val ProtocolVersion = QuestQuestionnaireProtocol.Version
+    const val ResultSchema = QuestQuestionnaireProtocol.ResultSchema
+    const val ActionStart = QuestQuestionnaireProtocol.StartAction
+    const val RequestMimeType = QuestQuestionnaireProtocol.RequestMimeType
 
     const val ExtraSessionId = "session_id"
     const val ExtraRequestId = "request_id"

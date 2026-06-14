@@ -26,6 +26,7 @@ data class QuestionnaireResultEnvelope(
     val answers: JSONObject,
     val startedAt: String?,
     val submittedAt: String?,
+    val terminal: QuestionnaireTerminalContext?,
     val error: QuestionnaireResultError?
 ) {
     companion object {
@@ -57,6 +58,9 @@ data class QuestionnaireResultEnvelope(
                     ?: throw QuestionnaireContractException("missing_answers"),
                 startedAt = json.optionalString("started_at"),
                 submittedAt = json.optionalString("submitted_at"),
+                terminal = json.optJSONObject("terminal")?.let(
+                    QuestionnaireTerminalContext::fromJson
+                ),
                 error = json.optJSONObject("error")?.let(QuestionnaireResultError::fromJson)
             )
         }
@@ -89,6 +93,27 @@ data class QuestionnaireResultError(
     }
 }
 
+data class QuestionnaireTerminalContext(
+    val reason: String,
+    val currentStage: String,
+    val screenIndex: Int
+) {
+    fun toJson(): JSONObject =
+        JSONObject()
+            .put("reason", reason)
+            .put("current_stage", currentStage)
+            .put("screen_index", screenIndex)
+
+    companion object {
+        fun fromJson(json: JSONObject): QuestionnaireTerminalContext =
+            QuestionnaireTerminalContext(
+                reason = json.requiredString("reason"),
+                currentStage = json.requiredString("current_stage"),
+                screenIndex = json.requiredNonNegativeInt("screen_index")
+            )
+    }
+}
+
 internal fun JSONObject.optionalStringArray(name: String): List<String> {
     if (!has(name) || isNull(name)) {
         return emptyList()
@@ -108,6 +133,24 @@ internal fun JSONObject.optionalStringArray(name: String): List<String> {
     }
 }
 
+internal fun JSONObject.requiredNonNegativeInt(name: String): Int {
+    if (!has(name) || isNull(name)) {
+        throw QuestionnaireContractException("missing_$name")
+    }
+
+    val value = get(name)
+    if (value !is Number) {
+        throw QuestionnaireContractException("invalid_$name")
+    }
+
+    val intValue = value.toInt()
+    if (intValue < 0) {
+        throw QuestionnaireContractException("invalid_$name")
+    }
+
+    return intValue
+}
+
 internal fun JSONObject.requiredPositiveInt(name: String): Int {
     if (!has(name) || isNull(name)) {
         throw QuestionnaireContractException("missing_$name")
@@ -125,4 +168,3 @@ internal fun JSONObject.requiredPositiveInt(name: String): Int {
 
     return intValue
 }
-
