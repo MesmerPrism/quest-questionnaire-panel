@@ -57,8 +57,10 @@ Termux/Linux sidecar experiments and outbound fleet-control prototypes:
 - Termux-local ADB only after `adb shell id` reports `uid=2000(shell)`;
 - verified APK update simulation through `apk.update_verified`;
 - active remote-session leases for non-passive remote commands;
-- allowlisted launch, foreground snapshot, bounded logcat, and future
-  UIAutomator/MediaProjection command kinds;
+- allowlisted launch, foreground snapshot, bounded logcat, ADB lease checks,
+  helper status checks, and an allowlisted UIAutomator scenario bridge;
+- consent-gated MediaProjection preview placeholders that require a separate
+  app-owned helper before they can stream pixels;
 - synthetic fixtures and public-boundary scanning.
 
 Termux is useful for lab updates, recovery, and remote observation. It is not
@@ -72,7 +74,7 @@ instrumentation APK for mapping Quest system UI surfaces such as Settings and
 the built-in recorder panel. Its current public runbook is
 [Quest UIAutomator Sweep Runbook](quest-uiautomator-runbook.md).
 
-The intended remote bridge is:
+The remote bridge is implemented in `quest-termux-lab` as a gated command:
 
 ```text
 quest-termux-lab command
@@ -84,10 +86,11 @@ quest-termux-lab command
 ```
 
 The agent should then check the active lease, check the local ADB shell gate,
-run only the named allowlisted instrumentation scenario, and return redacted
-summary output from the exporter. Raw XML, screenshots, videos, logcat bundles,
-device serials, local paths, installed app names, and private package IDs stay
-out of public repos.
+run only the named allowlisted instrumentation scenario, and default to a
+redacted command summary. Raw instrumentation output, XML, screenshots, videos,
+logcat bundles, device serials, local paths, installed app names, and private
+package IDs stay out of public repos unless a private live-run config
+explicitly keeps them in local evidence.
 
 ## Decision Rule
 

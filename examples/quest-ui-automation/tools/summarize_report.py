@@ -300,6 +300,13 @@ def summarize_events(
         "traces": [],
         "appOpRestores": [],
     }
+    settings_recovery: dict[str, list[dict[str, Any]]] = {
+        "starts": [],
+        "attempts": [],
+        "zeroNodes": [],
+        "passiveBaselines": [],
+        "results": [],
+    }
     child_page_surfaces: list[dict[str, Any]] = []
     child_page_skips: list[dict[str, Any]] = []
     dropdown_targets: list[dict[str, Any]] = []
@@ -512,6 +519,61 @@ def summarize_events(
                 }
             )
 
+        elif event_type == "settings_recovery_start":
+            settings_recovery["starts"].append(
+                {
+                    "retryCount": int_value(data.get("retryCount")),
+                    "retryWaitMs": int_value(data.get("retryWaitMs")),
+                    "dumpPassiveBaselines": bool(data.get("dumpPassiveBaselines", False)),
+                }
+            )
+
+        elif event_type == "settings_recovery_attempt":
+            settings_recovery["attempts"].append(
+                {
+                    "phase": normalize_text(data.get("phase")),
+                    "attempt": int_value(data.get("attempt")),
+                    "nodeCount": int_value(data.get("nodeCount")),
+                    "settingsNodeCount": int_value(data.get("settingsNodeCount")),
+                    "scrollableCount": int_value(data.get("scrollableCount")),
+                    "empty": bool(data.get("empty", False)),
+                }
+            )
+
+        elif event_type == "settings_recovery_zero_node":
+            settings_recovery["zeroNodes"].append(
+                {
+                    "phase": normalize_text(data.get("phase")),
+                    "attempt": int_value(data.get("attempt")),
+                    "target": normalize_text(data.get("target")),
+                    "diagnostic": normalize_text(data.get("diagnostic")),
+                }
+            )
+
+        elif event_type == "settings_recovery_passive_baseline":
+            settings_recovery["passiveBaselines"].append(
+                {
+                    "phase": normalize_text(data.get("phase")),
+                    "nodeCount": int_value(data.get("nodeCount")),
+                    "settingsNodeCount": int_value(data.get("settingsNodeCount")),
+                    "scrollableCount": int_value(data.get("scrollableCount")),
+                    "empty": bool(data.get("empty", False)),
+                }
+            )
+
+        elif event_type == "settings_recovery_result":
+            settings_recovery["results"].append(
+                {
+                    "initialNodeCount": int_value(data.get("initialNodeCount")),
+                    "finalNodeCount": int_value(data.get("finalNodeCount")),
+                    "initialZeroNode": bool(data.get("initialZeroNode", False)),
+                    "settingsVisible": bool(data.get("settingsVisible", False)),
+                    "recovered": bool(data.get("recovered", False)),
+                    "retryCount": int_value(data.get("retryCount")),
+                    "passiveOnly": bool(data.get("passiveOnly", False)),
+                }
+            )
+
         elif event_type == "settings_section_page":
             target = normalize_text(data.get("target"))
             section = sections.setdefault(
@@ -701,6 +763,7 @@ def summarize_events(
         "scrollProbeStrategies": scroll_probe_strategies,
         "scrollProbeDeltas": scroll_probe_deltas,
         "mediaProjectionPrompt": media_projection_prompt,
+        "settingsRecovery": settings_recovery,
         "settingsSections": section_summaries,
         "routeInventory": [
             {
@@ -723,6 +786,7 @@ def summarize_events(
             "surfaceMaps": "Surface-map summaries omit package names, raw node text, window titles, XML paths, and shell command output.",
             "scrollProbes": "Scroll-probe summaries omit raw visible text and command output; only counts, keys, strategy names, and changed/not-changed status are emitted.",
             "mediaProjectionPrompt": "MediaProjection prompt summaries omit raw prompt text, package names, token/resultData contents, command output, and coordinates; only button roles and result-state booleans are emitted.",
+            "settingsRecovery": "Settings recovery summaries omit focus/window command output and raw UI text; only node counts, retry status, and zero-node diagnostics are emitted.",
             "childProbeDefaults": "Generated childTargets include public-safe child_page routes in allowed risk buckets and exclude default-blocked labels.",
         },
     }
@@ -871,6 +935,88 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                                 delta["beforeNodeCount"],
                                 delta["afterNodeCount"],
                                 delta["newVisibleTextCount"],
+                            ]
+                        )
+                    )
+                lines.append("")
+
+        recovery = summary["settingsRecovery"]
+        if any(recovery.values()):
+            lines.append("### Settings Recovery")
+            if recovery["starts"]:
+                lines.append(markdown_table_row(["Retries", "Retry wait ms", "Passive baselines"]))
+                lines.append(markdown_table_row(["---:", "---:", "---"]))
+                for start in recovery["starts"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                start["retryCount"],
+                                start["retryWaitMs"],
+                                "yes" if start["dumpPassiveBaselines"] else "no",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if recovery["attempts"]:
+                lines.append(markdown_table_row(["Phase", "Attempt", "Nodes", "Settings nodes", "Scrollables", "Empty"]))
+                lines.append(markdown_table_row(["---", "---:", "---:", "---:", "---:", "---"]))
+                for attempt in recovery["attempts"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                attempt["phase"],
+                                attempt["attempt"],
+                                attempt["nodeCount"],
+                                attempt["settingsNodeCount"],
+                                attempt["scrollableCount"],
+                                "yes" if attempt["empty"] else "no",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if recovery["passiveBaselines"]:
+                lines.append(markdown_table_row(["Passive baseline", "Nodes", "Settings nodes", "Scrollables", "Empty"]))
+                lines.append(markdown_table_row(["---", "---:", "---:", "---:", "---"]))
+                for baseline in recovery["passiveBaselines"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                baseline["phase"],
+                                baseline["nodeCount"],
+                                baseline["settingsNodeCount"],
+                                baseline["scrollableCount"],
+                                "yes" if baseline["empty"] else "no",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if recovery["zeroNodes"]:
+                lines.append(markdown_table_row(["Phase", "Attempt", "Diagnostic"]))
+                lines.append(markdown_table_row(["---", "---:", "---"]))
+                for zero_node in recovery["zeroNodes"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                zero_node["phase"],
+                                zero_node["attempt"],
+                                zero_node["diagnostic"],
+                            ]
+                        )
+                    )
+                lines.append("")
+            if recovery["results"]:
+                lines.append(markdown_table_row(["Initial nodes", "Final nodes", "Initially zero", "Visible", "Recovered", "Passive only"]))
+                lines.append(markdown_table_row(["---:", "---:", "---", "---", "---", "---"]))
+                for result in recovery["results"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                result["initialNodeCount"],
+                                result["finalNodeCount"],
+                                "yes" if result["initialZeroNode"] else "no",
+                                "yes" if result["settingsVisible"] else "no",
+                                "yes" if result["recovered"] else "no",
+                                "yes" if result["passiveOnly"] else "no",
                             ]
                         )
                     )

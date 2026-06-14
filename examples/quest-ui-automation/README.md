@@ -312,6 +312,21 @@ row such as `prepared settings surface had zero nodes`. Treat that as a
 headset visibility or sleeping-surface state, not proof that the route is
 unsupported.
 
+Run the passive Settings recovery probe when you need to characterize that
+zero-node state. It opens Settings, records whether the accessibility tree is
+visible, takes passive current-window/window-display baselines if the tree is
+empty, then retries the same Settings intent without force-stopping packages or
+changing settings:
+
+```powershell
+adb shell am instrument -w `
+  -e scenario settingsRecoveryProbe `
+  -e retryCount 2 `
+  -e retryWaitMs 1500 `
+  -e dumpPassiveBaselines true `
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+```
+
 The exporter also summarizes `currentWindow` and `surfaceMap` reports. For
 those baseline sweeps it emits structural counts only: XML node counts,
 clickable/scrollable counts, display IDs, package counts, accessibility window

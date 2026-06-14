@@ -176,9 +176,28 @@ Expected handling:
 Recovery options:
 
 - run `currentWindow` or `surfaceMap=current` to capture current state;
+- run `settingsRecoveryProbe` to record the zero-node state, passive baselines,
+  and bounded retries without force-stopping packages:
+
+```powershell
+adb shell am instrument -w `
+  -e scenario settingsRecoveryProbe `
+  -e retryCount 2 `
+  -e retryWaitMs 1500 `
+  -e dumpPassiveBaselines true `
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+```
+
 - restore a visible headset panel manually;
 - rerun the same command after the panel is visible;
 - do not use force-stop or package killing as the default public path.
+
+Current 2026-06-14 recovery-probe evidence:
+
+- visible Settings state validated: `settingsRecoveryProbe` saw 363 XML nodes,
+  107 Settings-package nodes, two scrollables, and five accessibility windows;
+- zero-node behavior was not reproduced in that run, so passive-baseline
+  recovery remains pending until the next invisible/sleeping Settings state.
 
 ## Remote Bridge Slot
 

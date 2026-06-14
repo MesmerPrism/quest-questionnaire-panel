@@ -101,6 +101,8 @@ public final class QuestUiAutomationSweepTest {
                 runSettingsSectionCrawler(instrumentation, device, report, args);
             } else if ("settingsChildPageProbe".equals(scenario)) {
                 runSettingsChildPageProbe(instrumentation, device, report, args);
+            } else if ("settingsRecoveryProbe".equals(scenario)) {
+                runSettingsRecoveryProbe(instrumentation, device, report, args);
             } else if ("mediaProjectionPrompt".equals(scenario)) {
                 runMediaProjectionPromptProbe(instrumentation, device, report, args);
             } else if ("metacamPanel".equals(scenario)) {
@@ -146,6 +148,68 @@ public final class QuestUiAutomationSweepTest {
                 .put("xml", snapshot.xmlFile.getAbsolutePath())
                 .put("nodeCount", snapshot.nodes.size()));
         dumpAccessibilityState(instrumentation, report, "surface_map_" + surface);
+    }
+
+    private static void runSettingsRecoveryProbe(
+            Instrumentation instrumentation,
+            UiDevice device,
+            Report report,
+            Bundle args
+    ) throws Exception {
+        int retryCount = parseInt(args.getString("retryCount", "2"), 2);
+        int retryWaitMs = parseInt(args.getString("retryWaitMs", "1500"), 1500);
+        boolean dumpPassiveBaselines = parseBoolean(args.getString("dumpPassiveBaselines", "true"), true);
+
+        report.event("settings_recovery_start", new JSONObject()
+                .put("retryCount", retryCount)
+                .put("retryWaitMs", retryWaitMs)
+                .put("dumpPassiveBaselines", dumpPassiveBaselines)
+                .put("safety", "Passive diagnostics only: no force-stop, package kill, setting toggle, or coordinate recovery path."));
+
+        UiSnapshot initial = prepareSurface(device, report, "androidSettings");
+        report.event("settings_recovery_attempt", settingsRecoveryAttempt("initial", 0, initial));
+        dumpAccessibilityState(instrumentation, report, "settings_recovery_initial");
+
+        UiSnapshot latest = initial;
+        if (initial.nodes.isEmpty()) {
+            report.event("settings_recovery_zero_node", emptySettingsSurfaceEvent("initial")
+                    .put("phase", "initial")
+                    .put("attempt", 0));
+            if (dumpPassiveBaselines) {
+                report.command("settings_recovery_focus_after_zero", focusSummary(device));
+                report.command("settings_recovery_window_displays", shell(
+                        device,
+                        "dumpsys window displays | sed -n '1,220p'"
+                ));
+                UiSnapshot current = dumpAndClassify(
+                        device,
+                        report,
+                        "settings_recovery_current_window",
+                        DEFAULT_CANDIDATE_PATTERN
+                );
+                report.event("settings_recovery_passive_baseline", settingsRecoveryAttempt("currentWindow", 0, current));
+                dumpAccessibilityState(instrumentation, report, "settings_recovery_current_window");
+            }
+
+            for (int attempt = 1; attempt <= retryCount; attempt += 1) {
+                Thread.sleep(Math.max(retryWaitMs, 0));
+                latest = prepareSurface(device, report, "androidSettings");
+                report.event("settings_recovery_attempt", settingsRecoveryAttempt("retry", attempt, latest));
+                dumpAccessibilityState(instrumentation, report, "settings_recovery_retry_" + attempt);
+                if (!latest.nodes.isEmpty()) {
+                    break;
+                }
+            }
+        }
+
+        report.event("settings_recovery_result", new JSONObject()
+                .put("initialNodeCount", initial.nodes.size())
+                .put("finalNodeCount", latest.nodes.size())
+                .put("initialZeroNode", initial.nodes.isEmpty())
+                .put("settingsVisible", !latest.nodes.isEmpty())
+                .put("recovered", initial.nodes.isEmpty() && !latest.nodes.isEmpty())
+                .put("retryCount", retryCount)
+                .put("passiveOnly", true));
     }
 
     private static void runSettingsNavProbe(
@@ -1345,6 +1409,37 @@ public final class QuestUiAutomationSweepTest {
                 .put("clicked", false)
                 .put("error", "prepared settings surface had zero nodes")
                 .put("diagnostic", "android.settings.SETTINGS returned but UIAutomator saw no accessibility nodes; run currentWindow/surfaceMap or restore a visible headset panel before retrying");
+    }
+
+    private static JSONObject settingsRecoveryAttempt(String phase, int attempt, UiSnapshot snapshot) throws JSONException {
+        return new JSONObject()
+                .put("phase", phase)
+                .put("attempt", attempt)
+                .put("nodeCount", snapshot.nodes.size())
+                .put("settingsNodeCount", countPackageNodes(snapshot.nodes, "com.oculus.panelapp.settings"))
+                .put("scrollableCount", countScrollableNodes(snapshot.nodes))
+                .put("visibleTextHash", visibleTextHash(snapshot.nodes))
+                .put("empty", snapshot.nodes.isEmpty());
+    }
+
+    private static int countPackageNodes(List<UiNode> nodes, String packageName) {
+        int count = 0;
+        for (UiNode node : nodes) {
+            if (packageName.equals(node.packageName)) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    private static int countScrollableNodes(List<UiNode> nodes) {
+        int count = 0;
+        for (UiNode node : nodes) {
+            if (node.scrollable) {
+                count += 1;
+            }
+        }
+        return count;
     }
 
     private static JSONObject scrollSettingsSideNav(

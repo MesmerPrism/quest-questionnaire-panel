@@ -401,6 +401,7 @@ Wait/stability:
 | Q-015 | Generated low-risk child-page plan | Generate `childTargets` from route inventory and run a compact `settingsChildPageProbe` | JSONL child-surface summaries, redacted exporter summary | Open/dump only; excludes sensitive/external/mutation buckets by default | Working for General, Environment setup, Accessibility, and Audio child pages |
 | Q-016 | Zero-node settings-surface guard | Skip settings nav/section/child probes when `prepare_android_settings` has zero nodes | JSONL skip row, focus before/after | Passive; environment-state diagnostic | Working for child-page probe; added to nav and section crawler paths |
 | Q-017 | Child-page skip exporter | Include `settings_child_skip` rows in redacted summaries | Markdown/JSON skip table | Passive host-side | Working for zero-node Audio retry |
+| Q-018 | Settings recovery probe | Record initial Settings accessibility visibility, passive current-window/window-display baselines on zero nodes, and bounded retries | JSONL recovery attempts, redacted summary | Passive; no force-stop, package kill, setting toggle, or coordinate recovery | Live visible-state validation passed; zero-node recovery behavior still pending |
 
 ## Command Sequence Database
 
@@ -437,6 +438,7 @@ known rollback/stop step.
 | `quest.settings.section.route_inventory` | Inventory safe route candidates on settings pages | Run `settingsSectionCrawler`; read `settings_section_route_inventory` events or summarize with `summarize_report.py` | Classifies route-like controls as `child_page`, `dropdown`, `button`, or `dropdown_option`, with conservative risk buckets and recommended follow-up probe type. Verified focused sweep found General child pages, Camera dropdowns, Privacy child pages, and Help external child pages. | Working |
 | `quest.settings.child.route_plan_probe` | Generate and run low-risk child probes from route inventory | Run `summarize_report.py <section-report> --format child-targets`; pass the result to `settingsChildPageProbe` with `childTargetRole=row`, `clickModes=coordinate`, compact dumps, and bounded content/nav scrolls | Converts passive route inventory into a focused child-page sweep. Default plans opened General child pages plus Environment setup, Accessibility, and Audio child pages without public raw labels. | Working |
 | `quest.settings.child.zero_node_skip` | Fail fast when Settings launches but exposes no accessibility nodes | Run a settings child/nav/section scenario; if `prepare_android_settings` has zero nodes, emit a skip row instead of searching selectors | Records an environment-state diagnostic for invisible or sleeping Settings surfaces; avoids treating the route as unsupported | Working |
+| `quest.settings.recovery_probe` | Characterize zero-node Settings launch/retry behavior | `settingsRecoveryProbe` with `retryCount`, `retryWaitMs`, and `dumpPassiveBaselines=true` | Opens Settings, records whether the accessibility tree is visible, takes passive current-window/window-display baselines if zero nodes appear, and retries the same Settings intent without force-stop or package killing | Working for visible Settings state; zero-node recovery pending |
 | `quest.settings.child_probe` | Probe allowlisted child pages without toggles | Open a section, locate a literal/regex row label in main settings content, click a non-checkable same-row target, dump the result, press Back | Produces child-surface summaries and flags whether content differs from the clicked page | Working |
 | `quest.settings.child.action_modes` | Compare child-row activation routes | Run `settingsChildPageProbe` with `clickModes=coordinate,uiObject2,accessibilityClick,accessibilityExpand` against the same allowlisted rows | Separates coordinate-tap failures from live `UiObject2.click()` and raw accessibility-action behavior | Partial |
 | `quest.settings.child.dropdown_targets` | Open selector option popovers | Run `settingsChildPageProbe` with `childTargetRole=dropdown` and `clickModes=coordinate,uiObject2,accessibilityClick` for camera bit rate, frame rate, image stabilization, and eye perspective | Exposes `context_menu_list` options without selecting a value | Working |
@@ -496,9 +498,13 @@ The `examples:quest-ui-automation` test app should grow in small slices:
 13. Next useful slice: expand the generated child-target planner across more
     low-risk sections as the safe-label allowlist grows.
 14. Add a settings-surface recovery probe that records whether a zero-node
-    Settings launch can be recovered by a passive `currentWindow`/`surfaceMap`
-    pass plus manual panel restore. Keep force-stop/package-kill paths out of
-    the default public workflow.
+    Settings launch can be recovered by passive baselines and bounded retries.
+    Keep force-stop/package-kill paths out of the default public workflow.
+    Done for the probe and visible-state validation; live zero-node rerun
+    evidence is still needed.
+15. Next useful slice: run `settingsRecoveryProbe` after the next zero-node
+    Settings failure and record whether passive baselines plus bounded retries
+    restore a visible accessibility tree.
 
 ## Open Questions
 
