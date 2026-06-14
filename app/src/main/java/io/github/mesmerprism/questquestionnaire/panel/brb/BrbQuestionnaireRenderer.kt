@@ -35,20 +35,22 @@ private object BrbQuestionnaireRenderer : QuestionnaireRenderer {
             debugCommandScript = config.debugCommandScript,
             debugCommandIntervalMs = config.debugCommandIntervalMs,
             draftStore = config.draftStore,
-            onSubmit = { answers, currentStage, screenIndex ->
+            onSubmit = { answers, currentStage, screenIndex, timing ->
                 callbacks.onCompleted(
                     QuestionnaireRendererResult(
                         answers = answers,
                         currentStage = currentStage,
-                        screenIndex = screenIndex
+                        screenIndex = screenIndex,
+                        timing = timing
                     )
                 )
             },
-            onCancel = { currentStage, screenIndex ->
+            onCancel = { currentStage, screenIndex, timing ->
                 callbacks.onCancelled(
                     QuestionnaireRendererTerminal(
                         currentStage = currentStage,
-                        screenIndex = screenIndex
+                        screenIndex = screenIndex,
+                        timing = timing
                     )
                 )
             }

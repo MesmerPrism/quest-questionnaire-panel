@@ -63,6 +63,90 @@
       "type": "string",
       "format": "date-time"
     },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "submitted_at", "duration_ms", "screens"],
+      "properties": {
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "submitted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "screens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "screen_id",
+              "ordinal",
+              "entered_at",
+              "entered_elapsed_ms",
+              "first_interaction_at",
+              "first_interaction_elapsed_ms",
+              "left_at",
+              "left_elapsed_ms",
+              "duration_ms",
+              "interaction_count",
+              "validation_failures"
+            ],
+            "properties": {
+              "screen_id": {
+                "type": "string"
+              },
+              "ordinal": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "entered_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "entered_elapsed_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "first_interaction_at": {
+                "type": ["string", "null"],
+                "format": "date-time"
+              },
+              "first_interaction_elapsed_ms": {
+                "type": ["integer", "null"],
+                "minimum": 0
+              },
+              "left_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "left_elapsed_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "interaction_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "validation_failures": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
     "terminal": {
       "type": ["object", "null"],
       "additionalProperties": false,

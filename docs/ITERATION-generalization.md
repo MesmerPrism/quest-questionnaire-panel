@@ -99,7 +99,7 @@ unity-caller-plugin/
 | 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Complete |
 | 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | Complete |
 | 6 | Add ViewModel/draft recovery | Protect in-progress study sessions. | Complete |
-| 7 | Add per-screen timing metadata | High research value without changing IPC. | Planned |
+| 7 | Add per-screen timing metadata | High research value without changing IPC. | Complete |
 | 8 | Split minimal vs. updater build flavors | Cleaner permissions and trust story. | Planned |
 | 9 | Build Unity plugin on top of SDK | Avoid Unity-specific duplication. | Planned |
 | 10 | Add generic questionnaire demo | Prove the panel is not BRB-only. | Planned |
@@ -307,7 +307,7 @@ Notes:
 
 ### Slice 8: Per-Screen Timing Metadata
 
-Status: Planned
+Status: Complete
 
 Deliverables:
 
@@ -322,6 +322,18 @@ Acceptance:
 - Timing does not include high-frequency gaze, hand pose, controller pose, or
   raw interaction traces.
 - Timing semantics are documented in contract docs.
+
+Notes:
+
+- Added optional v1 `timing` metadata to the result JSON schema and shared
+  result envelope parser.
+- BRB renderer timing is collected by `BrbQuestionnaireViewModel` as screen
+  visit segments: entered, first answer-changing interaction, left, duration,
+  answer-changing interaction count, and validation failure count.
+- Timing uses wall-clock instants plus monotonic elapsed millisecond offsets.
+- Timing is emitted on completed and cancelled BRB renderer terminals; trusted
+  renderer errors can carry timing through the generic renderer callback model.
+- The completed BRB result fixture now includes an example timing object.
 
 ### Slice 9: Minimal vs. Lab-Updater Build Flavors
 
@@ -517,6 +529,15 @@ Field semantics:
   `:examples:native-caller:testDebugUnitTest`,
   `:android-caller-sdk:assembleDebug`, and
   `:examples:native-caller:assembleDebug`.
+- Completed Slice 8 by adding optional timing to the v1 result schema,
+  contract parser, app result model, generic renderer callback model, and BRB
+  renderer state. Added tests for contract timing parsing/rejection, result
+  JSON emission, and BRB ViewModel screen/interactions timing.
+- Verified Slice 8 with `git diff --check`,
+  `:questionnaire-contract-core:test`, `:brb-questionnaire-core:test`,
+  `:app:testDebugUnitTest`, `:examples:native-caller:testDebugUnitTest`,
+  `:android-caller-sdk:assembleDebug`, `:app:assembleDebug`, and
+  `:examples:native-caller:assembleDebug`.
 
 ## Decision Log
 
@@ -529,6 +550,7 @@ Add decisions here as they become real implementation constraints.
 | 2026-06-14 | Keep BRB answer validation in a pure BRB-specific module, not in `android-caller-sdk`. | Preserves the generic SDK boundary while making BRB validation reusable by native and future Unity callers. |
 | 2026-06-14 | Keep renderer selection in the default registry and keep `QuestionnaireActivity` renderer-agnostic. | Lets future questionnaire renderers plug in without changing Activity control flow. |
 | 2026-06-14 | Store panel drafts under app-private no-backup storage with hashed request-id/nonce filenames. | Protects in-progress answers while avoiding raw participant identifiers or answers in filenames and backups. |
+| 2026-06-14 | Keep panel timing to screen lifecycle and answer-changing interaction counts. | Adds research-useful timing while avoiding gaze, pose, controller, or raw interaction traces in results. |
 
 ## Open Questions
 

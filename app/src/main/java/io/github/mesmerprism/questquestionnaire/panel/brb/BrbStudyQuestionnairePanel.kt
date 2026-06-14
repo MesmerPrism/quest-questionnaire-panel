@@ -34,6 +34,9 @@ import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
 import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireDraftSnapshot
 import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireDraftStore
 import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireRequest
+import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireResultTiming
+import io.github.mesmerprism.questquestionnaire.panel.QuestionnaireScreenTiming
+import java.time.Instant
 import kotlinx.coroutines.delay
 import org.json.JSONArray
 import org.json.JSONObject
@@ -45,8 +48,8 @@ internal fun BrbStudyQuestionnairePanel(
     debugCommandScript: String?,
     debugCommandIntervalMs: Int,
     draftStore: QuestionnaireDraftStore,
-    onSubmit: (JSONObject, String, Int) -> Unit,
-    onCancel: (String, Int) -> Unit
+    onSubmit: (JSONObject, String, Int, QuestionnaireResultTiming) -> Unit,
+    onCancel: (String, Int, QuestionnaireResultTiming) -> Unit
 ) {
     val viewModel: BrbQuestionnaireViewModel = viewModel()
     viewModel.bind(request, draftStore)
@@ -68,7 +71,8 @@ internal fun BrbStudyQuestionnairePanel(
             onSubmit(
                 completedAnswers.toJson(request, completedStage = sequence.last()),
                 sequence.last(),
-                sequence.lastIndex
+                sequence.lastIndex,
+                viewModel.timingSnapshot(sequence.lastIndex)
             )
         }
     }
@@ -94,6 +98,10 @@ internal fun BrbStudyQuestionnairePanel(
 
     fun goNext() {
         val stage = activeStage()
+        if (!canProceed(stage, viewModel.answers)) {
+            viewModel.recordValidationFailure()
+            return
+        }
         var handled = false
         if (stage == BrbQuestionnaireContract.StagePriorExperience) {
             priorExperienceFeedbackAudio(viewModel.answers.language, viewModel.answers.priorExperience)
@@ -116,7 +124,8 @@ internal fun BrbStudyQuestionnairePanel(
                 onSubmit(
                     viewModel.answers.toJson(request, completedStage = stage),
                     stage,
-                    viewModel.currentIndex
+                    viewModel.currentIndex,
+                    viewModel.timingSnapshot(viewModel.currentIndex)
                 )
             } else {
                 viewModel.goNext()
@@ -134,14 +143,20 @@ internal fun BrbStudyQuestionnairePanel(
         commands.forEach { command ->
             when (val action = parsePanelDebugCommand(command)) {
                 PanelDebugAction.Back -> goBack()
-                PanelDebugAction.Cancel -> onCancel(activeStage(), viewModel.currentIndex)
-                PanelDebugAction.Next -> if (canProceed(activeStage(), viewModel.answers)) goNext()
+                PanelDebugAction.Cancel ->
+                    onCancel(
+                        activeStage(),
+                        viewModel.currentIndex,
+                        viewModel.timingSnapshot(viewModel.currentIndex)
+                    )
+                PanelDebugAction.Next -> goNext()
                 PanelDebugAction.ReplayAudio -> replayAudio()
                 PanelDebugAction.Submit ->
                     onSubmit(
                         viewModel.answers.toJson(request, completedStage = activeStage()),
                         activeStage(),
-                        viewModel.currentIndex
+                        viewModel.currentIndex,
+                        viewModel.timingSnapshot(viewModel.currentIndex)
                     )
                 is PanelDebugAction.UpdateAnswers ->
                     viewModel.updateAnswers(action.transform(viewModel.answers))
@@ -163,7 +178,13 @@ internal fun BrbStudyQuestionnairePanel(
         nextLabel = if (isLast) "Submit" else "Next",
         onBack = ::goBack,
         onNext = ::goNext,
-        onCancel = { onCancel(activeStage(), viewModel.currentIndex) },
+        onCancel = {
+            onCancel(
+                activeStage(),
+                viewModel.currentIndex,
+                viewModel.timingSnapshot(viewModel.currentIndex)
+            )
+        },
         onReplayAudio = ::replayAudio
     ) {
         when (currentStage) {
@@ -633,6 +654,7 @@ internal class BrbQuestionnaireViewModel(
     private var boundStateKey: String? = null
     private var request: QuestionnaireRequest? = null
     private var draftStore: QuestionnaireDraftStore? = null
+    private var timingTracker: BrbTimingTracker? = null
     private var audioPlayer: QuestionnaireAudioPlayer? = null
 
     val currentIndex: Int
@@ -656,6 +678,8 @@ internal class BrbQuestionnaireViewModel(
         currentIndexState.intValue = restored?.screenIndex
             ?: request.screenSequence.indexOf(request.openStage).coerceAtLeast(0)
         answersState.value = restored?.answers ?: QuestionnaireAnswerState()
+        timingTracker = restored?.timingTracker
+            ?: BrbTimingTracker.start(request, currentIndexState.intValue)
         saveStateAndDraft()
     }
 
@@ -665,6 +689,7 @@ internal class BrbQuestionnaireViewModel(
         }
 
     fun updateAnswers(nextAnswers: QuestionnaireAnswerState) {
+        timingTracker?.recordInteraction(currentIndex)
         answersState.value = nextAnswers
         saveStateAndDraft()
     }
@@ -679,9 +704,25 @@ internal class BrbQuestionnaireViewModel(
 
     fun goTo(index: Int) {
         val sequence = request?.screenSequence ?: return
-        currentIndexState.intValue = index.coerceIn(sequence.indices)
+        val nextIndex = index.coerceIn(sequence.indices)
+        if (nextIndex != currentIndex) {
+            timingTracker?.moveToScreen(nextIndex)
+        }
+        currentIndexState.intValue = nextIndex
         saveStateAndDraft()
     }
+
+    fun recordValidationFailure() {
+        timingTracker?.recordValidationFailure(currentIndex)
+        saveStateAndDraft()
+    }
+
+    fun timingSnapshot(terminalScreenIndex: Int): QuestionnaireResultTiming =
+        timingTracker?.snapshot(terminalScreenIndex)
+            ?: BrbTimingTracker.start(
+                requireNotNull(request),
+                terminalScreenIndex
+            ).snapshot(terminalScreenIndex)
 
     override fun onCleared() {
         audioPlayer?.release()
@@ -694,11 +735,14 @@ internal class BrbQuestionnaireViewModel(
         savedStateHandle[SavedStateKey] = currentRequest.stateKey()
         savedStateHandle[SavedCurrentIndex] = currentIndex
         savedStateHandle[SavedAnswers] = answers.toDraftJson().toString()
+        savedStateHandle[SavedTiming] = timingTracker?.toDraftJson()?.toString()
         runCatching {
             draftStore?.write(
                 request = currentRequest,
                 screenIndex = currentIndex,
-                state = answers.toDraftJson()
+                state = JSONObject()
+                    .put("answers", answers.toDraftJson())
+                    .put("timing", timingTracker?.toDraftJson() ?: JSONObject.NULL)
             )
         }
     }
@@ -712,19 +756,27 @@ internal class BrbQuestionnaireViewModel(
             return null
         }
         val answersJson = savedStateHandle.get<String>(SavedAnswers) ?: return null
+        val timingJson = savedStateHandle.get<String>(SavedTiming)
         return runCatching {
             BrbPanelState(
                 screenIndex = screenIndex,
-                answers = QuestionnaireAnswerState.fromDraftJson(JSONObject(answersJson))
+                answers = QuestionnaireAnswerState.fromDraftJson(JSONObject(answersJson)),
+                timingTracker = timingJson?.let {
+                    BrbTimingTracker.fromDraftJson(JSONObject(it), request)
+                }
             )
         }.getOrNull()
     }
 
     private fun QuestionnaireDraftSnapshot.toBrbState(): BrbPanelState? =
         runCatching {
+            val answersJson = state.optJSONObject("answers") ?: state
             BrbPanelState(
                 screenIndex = screenIndex,
-                answers = QuestionnaireAnswerState.fromDraftJson(state)
+                answers = QuestionnaireAnswerState.fromDraftJson(answersJson),
+                timingTracker = state.optJSONObject("timing")?.let {
+                    BrbTimingTracker.fromDraftJson(it, requireNotNull(request))
+                }
             )
         }.getOrNull()
 
@@ -742,15 +794,206 @@ internal class BrbQuestionnaireViewModel(
 
     private data class BrbPanelState(
         val screenIndex: Int,
-        val answers: QuestionnaireAnswerState
+        val answers: QuestionnaireAnswerState,
+        val timingTracker: BrbTimingTracker?
     )
 
     private companion object {
         const val SavedStateKey = "brb_state_key"
         const val SavedCurrentIndex = "brb_current_index"
         const val SavedAnswers = "brb_answers"
+        const val SavedTiming = "brb_timing"
     }
 }
+
+private class BrbTimingTracker private constructor(
+    private val request: QuestionnaireRequest,
+    private val startedAt: Instant,
+    private val startedNanoTime: Long,
+    private val visits: MutableList<BrbScreenVisit>
+) {
+    fun moveToScreen(nextIndex: Int) {
+        val elapsedMs = elapsedMs()
+        visits.lastOrNull { it.leftElapsedMs == null }?.leftElapsedMs = elapsedMs
+        visits += BrbScreenVisit(
+            screenId = request.screenSequence[nextIndex],
+            ordinal = nextIndex,
+            enteredElapsedMs = elapsedMs
+        )
+    }
+
+    fun recordInteraction(currentIndex: Int) {
+        val visit = currentVisit(currentIndex) ?: return
+        val elapsedMs = elapsedMs()
+        if (visit.firstInteractionElapsedMs == null) {
+            visit.firstInteractionElapsedMs = elapsedMs
+        }
+        visit.interactionCount += 1
+    }
+
+    fun recordValidationFailure(currentIndex: Int) {
+        currentVisit(currentIndex)?.let {
+            it.validationFailures += 1
+        }
+    }
+
+    fun snapshot(terminalScreenIndex: Int): QuestionnaireResultTiming {
+        val submittedElapsedMs = elapsedMs()
+        val submittedAt = wallClockAt(submittedElapsedMs)
+        val screenTimings = visits.map { visit ->
+            val leftElapsedMs = visit.leftElapsedMs ?: submittedElapsedMs
+            QuestionnaireScreenTiming(
+                screenId = visit.screenId,
+                ordinal = visit.ordinal,
+                enteredAt = wallClockAt(visit.enteredElapsedMs),
+                enteredElapsedMs = visit.enteredElapsedMs,
+                firstInteractionAt = visit.firstInteractionElapsedMs?.let(::wallClockAt),
+                firstInteractionElapsedMs = visit.firstInteractionElapsedMs,
+                leftAt = wallClockAt(leftElapsedMs),
+                leftElapsedMs = leftElapsedMs,
+                durationMs = leftElapsedMs - visit.enteredElapsedMs,
+                interactionCount = visit.interactionCount,
+                validationFailures = visit.validationFailures
+            )
+        }.ifEmpty {
+            val fallbackIndex = terminalScreenIndex.coerceIn(request.screenSequence.indices)
+            listOf(
+                QuestionnaireScreenTiming(
+                    screenId = request.screenSequence[fallbackIndex],
+                    ordinal = fallbackIndex,
+                    enteredAt = startedAt,
+                    enteredElapsedMs = 0L,
+                    firstInteractionAt = null,
+                    firstInteractionElapsedMs = null,
+                    leftAt = submittedAt,
+                    leftElapsedMs = submittedElapsedMs,
+                    durationMs = submittedElapsedMs,
+                    interactionCount = 0,
+                    validationFailures = 0
+                )
+            )
+        }
+
+        return QuestionnaireResultTiming(
+            startedAt = startedAt,
+            submittedAt = submittedAt,
+            durationMs = submittedElapsedMs,
+            screens = screenTimings
+        )
+    }
+
+    fun toDraftJson(): JSONObject =
+        JSONObject()
+            .put("started_at", startedAt.toString())
+            .put("elapsed_ms", elapsedMs())
+            .put("screens", JSONArray(visits.map { it.toJson() }))
+
+    private fun currentVisit(currentIndex: Int): BrbScreenVisit? =
+        visits.lastOrNull { it.leftElapsedMs == null && it.ordinal == currentIndex }
+
+    private fun elapsedMs(): Long =
+        ((System.nanoTime() - startedNanoTime) / 1_000_000L).coerceAtLeast(0L)
+
+    private fun wallClockAt(elapsedMs: Long): Instant =
+        startedAt.plusMillis(elapsedMs.coerceAtLeast(0L))
+
+    companion object {
+        fun start(request: QuestionnaireRequest, initialScreenIndex: Int): BrbTimingTracker {
+            val now = System.nanoTime()
+            return BrbTimingTracker(
+                request = request,
+                startedAt = Instant.now(),
+                startedNanoTime = now,
+                visits = mutableListOf(
+                    BrbScreenVisit(
+                        screenId = request.screenSequence[initialScreenIndex],
+                        ordinal = initialScreenIndex,
+                        enteredElapsedMs = 0L
+                    )
+                )
+            )
+        }
+
+        fun fromDraftJson(
+            json: JSONObject,
+            request: QuestionnaireRequest
+        ): BrbTimingTracker? =
+            runCatching {
+                val visits = json.optJSONArray("screens")?.let { screens ->
+                    (0 until screens.length()).mapNotNull { index ->
+                        screens.optJSONObject(index)?.let { BrbScreenVisit.fromJson(it, request) }
+                    }.toMutableList()
+                } ?: mutableListOf()
+                if (visits.isEmpty()) {
+                    return@runCatching null
+                }
+
+                val elapsedMs = json.optLong("elapsed_ms", visits.maxElapsedMs())
+                BrbTimingTracker(
+                    request = request,
+                    startedAt = Instant.parse(json.getString("started_at")),
+                    startedNanoTime = System.nanoTime() - elapsedMs * 1_000_000L,
+                    visits = visits
+                )
+            }.getOrNull()
+    }
+}
+
+private data class BrbScreenVisit(
+    val screenId: String,
+    val ordinal: Int,
+    val enteredElapsedMs: Long,
+    var firstInteractionElapsedMs: Long? = null,
+    var leftElapsedMs: Long? = null,
+    var interactionCount: Int = 0,
+    var validationFailures: Int = 0
+) {
+    fun toJson(): JSONObject =
+        JSONObject()
+            .put("screen_id", screenId)
+            .put("ordinal", ordinal)
+            .put("entered_elapsed_ms", enteredElapsedMs)
+            .put("first_interaction_elapsed_ms", firstInteractionElapsedMs ?: JSONObject.NULL)
+            .put("left_elapsed_ms", leftElapsedMs ?: JSONObject.NULL)
+            .put("interaction_count", interactionCount)
+            .put("validation_failures", validationFailures)
+
+    companion object {
+        fun fromJson(json: JSONObject, request: QuestionnaireRequest): BrbScreenVisit? {
+            val ordinal = json.optInt("ordinal", -1)
+            if (ordinal !in request.screenSequence.indices) {
+                return null
+            }
+            return BrbScreenVisit(
+                screenId = request.screenSequence[ordinal],
+                ordinal = ordinal,
+                enteredElapsedMs = json.optLong("entered_elapsed_ms", 0L).coerceAtLeast(0L),
+                firstInteractionElapsedMs = json.optionalNonNegativeLong(
+                    "first_interaction_elapsed_ms"
+                ),
+                leftElapsedMs = json.optionalNonNegativeLong("left_elapsed_ms"),
+                interactionCount = json.optInt("interaction_count", 0).coerceAtLeast(0),
+                validationFailures = json.optInt("validation_failures", 0).coerceAtLeast(0)
+            )
+        }
+    }
+}
+
+private fun List<BrbScreenVisit>.maxElapsedMs(): Long =
+    maxOfOrNull { visit ->
+        listOfNotNull(
+            visit.enteredElapsedMs,
+            visit.firstInteractionElapsedMs,
+            visit.leftElapsedMs
+        ).maxOrNull() ?: 0L
+    } ?: 0L
+
+private fun JSONObject.optionalNonNegativeLong(name: String): Long? =
+    if (!has(name) || isNull(name)) {
+        null
+    } else {
+        optLong(name, 0L).coerceAtLeast(0L)
+    }
 
 private val BrbPostConditionAnswerStages = setOf(
     BrbQuestionnaireContract.StagePostConditionPictographic,

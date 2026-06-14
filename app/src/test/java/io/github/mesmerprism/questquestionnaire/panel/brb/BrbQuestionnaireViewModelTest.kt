@@ -64,6 +64,29 @@ class BrbQuestionnaireViewModelTest {
         assertEquals("no", restored.answers.priorExperience)
     }
 
+    @Test
+    fun timingSnapshotTracksScreenVisitsAndInteractions() {
+        val request = request()
+        val viewModel = BrbQuestionnaireViewModel(SavedStateHandle())
+        viewModel.bind(request, store())
+
+        viewModel.updateAnswers(viewModel.answers.copy(language = "ja-JP"))
+        viewModel.recordValidationFailure()
+        viewModel.goNext()
+        viewModel.updateAnswers(viewModel.answers.copy(participantCode = "participant-3"))
+
+        val timing = viewModel.timingSnapshot(viewModel.currentIndex)
+
+        assertEquals(2, timing.screens.size)
+        assertEquals(BrbQuestionnaireContract.StageLanguageSelect, timing.screens[0].screenId)
+        assertEquals(0, timing.screens[0].ordinal)
+        assertEquals(1, timing.screens[0].interactionCount)
+        assertEquals(1, timing.screens[0].validationFailures)
+        assertEquals(BrbQuestionnaireContract.StageDemographics, timing.screens[1].screenId)
+        assertEquals(1, timing.screens[1].interactionCount)
+        assertEquals(0, timing.screens[1].validationFailures)
+    }
+
     private fun store(): QuestionnaireDraftStore =
         QuestionnaireDraftStore(temporaryFolder.newFolder("questionnaire-drafts"))
 

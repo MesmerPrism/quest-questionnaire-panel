@@ -19,19 +19,22 @@ data class QuestionnaireRendererCallbacks(
 data class QuestionnaireRendererResult(
     val answers: JSONObject,
     val currentStage: String,
-    val screenIndex: Int
+    val screenIndex: Int,
+    val timing: QuestionnaireResultTiming? = null
 )
 
 data class QuestionnaireRendererTerminal(
     val currentStage: String,
-    val screenIndex: Int
+    val screenIndex: Int,
+    val timing: QuestionnaireResultTiming? = null
 )
 
 data class QuestionnaireRendererError(
     val code: String,
     val message: String,
     val currentStage: String,
-    val screenIndex: Int
+    val screenIndex: Int,
+    val timing: QuestionnaireResultTiming? = null
 )
 
 interface QuestionnaireRenderer {

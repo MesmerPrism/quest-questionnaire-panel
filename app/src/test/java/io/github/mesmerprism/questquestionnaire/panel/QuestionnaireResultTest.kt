@@ -66,6 +66,47 @@ class QuestionnaireResultTest {
         )
     }
 
+    @Test
+    fun completedResultCanIncludeTimingMetadata() {
+        val json = QuestionnaireResult.from(
+            request = request(),
+            status = QuestionnaireTerminalStatus.Completed,
+            answers = JSONObject().put("ok", true),
+            startedAt = StartedAt,
+            submittedAt = SubmittedAt,
+            timing = QuestionnaireResultTiming(
+                startedAt = StartedAt,
+                submittedAt = SubmittedAt,
+                durationMs = 42_000,
+                screens = listOf(
+                    QuestionnaireScreenTiming(
+                        screenId = QuestionnaireContract.StagePostConditionPictographic,
+                        ordinal = 0,
+                        enteredAt = StartedAt,
+                        enteredElapsedMs = 0,
+                        firstInteractionAt = StartedAt.plusSeconds(3),
+                        firstInteractionElapsedMs = 3_000,
+                        leftAt = SubmittedAt,
+                        leftElapsedMs = 42_000,
+                        durationMs = 42_000,
+                        interactionCount = 2,
+                        validationFailures = 1
+                    )
+                )
+            )
+        ).toJson()
+
+        val timing = json.getJSONObject("timing")
+        assertEquals(42_000L, timing.getLong("duration_ms"))
+        val screen = timing.getJSONArray("screens").getJSONObject(0)
+        assertEquals(
+            QuestionnaireContract.StagePostConditionPictographic,
+            screen.getString("screen_id")
+        )
+        assertEquals(2, screen.getInt("interaction_count"))
+        assertEquals(1, screen.getInt("validation_failures"))
+    }
+
     private fun request(): QuestionnaireRequest =
         QuestionnaireRequest(
             protocolVersion = QuestionnaireContract.ProtocolVersion,

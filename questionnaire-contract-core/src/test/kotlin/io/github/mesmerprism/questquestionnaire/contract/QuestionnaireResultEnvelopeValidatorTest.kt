@@ -1,6 +1,7 @@
 package io.github.mesmerprism.questquestionnaire.contract
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,6 +12,15 @@ class QuestionnaireResultEnvelopeValidatorTest {
         val validation = validateFixture("result.brb.completed.valid.json")
 
         assertValid(QuestionnaireTerminalStatus.Completed, validation)
+        val envelope = (validation as QuestionnaireResultValidation.Valid).envelope
+        assertNotNull(envelope.timing)
+        assertEquals(74000L, envelope.timing?.durationMs)
+        assertEquals(3, envelope.timing?.screens?.size)
+        assertEquals(
+            "post_condition:pictographic",
+            envelope.timing?.screens?.first()?.screenId
+        )
+        assertEquals(3, envelope.timing?.screens?.first()?.interactionCount)
     }
 
     @Test
@@ -54,6 +64,16 @@ class QuestionnaireResultEnvelopeValidatorTest {
         val validation = validateFixture("result.invalid.screen_sequence_mismatch.json")
 
         assertInvalid("screen_sequence_mismatch", validation)
+    }
+
+    @Test
+    fun rejectsInvalidTimingObjectWhenPresent() {
+        val json = org.json.JSONObject(fixture("result.brb.completed.valid.json"))
+        json.getJSONObject("timing").put("duration_ms", -1)
+
+        val validation = QuestionnaireResultEnvelopeValidator.validate(json.toString(), Expected)
+
+        assertInvalid("invalid_duration_ms", validation)
     }
 
     private fun validateFixture(name: String): QuestionnaireResultValidation =

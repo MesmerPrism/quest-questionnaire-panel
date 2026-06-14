@@ -78,13 +78,15 @@ class QuestionnaireActivity : ComponentActivity() {
                                 submitCompletedResult(
                                     answers = result.answers,
                                     currentStage = result.currentStage,
-                                    screenIndex = result.screenIndex
+                                    screenIndex = result.screenIndex,
+                                    timing = result.timing
                                 )
                             },
                             onCancelled = { terminal ->
                                 submitCancelledResult(
                                     currentStage = terminal.currentStage,
-                                    screenIndex = terminal.screenIndex
+                                    screenIndex = terminal.screenIndex,
+                                    timing = terminal.timing
                                 )
                             },
                             onError = { error ->
@@ -92,7 +94,8 @@ class QuestionnaireActivity : ComponentActivity() {
                                     code = error.code,
                                     message = error.message,
                                     currentStage = error.currentStage,
-                                    screenIndex = error.screenIndex
+                                    screenIndex = error.screenIndex,
+                                    timing = error.timing
                                 )
                             }
                         )
@@ -160,7 +163,8 @@ class QuestionnaireActivity : ComponentActivity() {
     private fun submitCompletedResult(
         answers: JSONObject,
         currentStage: String,
-        screenIndex: Int
+        screenIndex: Int,
+        timing: QuestionnaireResultTiming?
     ) {
         submitTerminalResult(
             QuestionnaireResult.from(
@@ -172,12 +176,17 @@ class QuestionnaireActivity : ComponentActivity() {
                     reason = "completed",
                     currentStage = currentStage,
                     screenIndex = screenIndex
-                )
+                ),
+                timing = timing
             )
         )
     }
 
-    private fun submitCancelledResult(currentStage: String, screenIndex: Int) {
+    private fun submitCancelledResult(
+        currentStage: String,
+        screenIndex: Int,
+        timing: QuestionnaireResultTiming?
+    ) {
         submitTerminalResult(
             QuestionnaireResult.from(
                 request = requireCurrentRequest() ?: return,
@@ -188,7 +197,8 @@ class QuestionnaireActivity : ComponentActivity() {
                     reason = "user_cancelled",
                     currentStage = currentStage,
                     screenIndex = screenIndex
-                )
+                ),
+                timing = timing
             )
         )
     }
@@ -197,7 +207,8 @@ class QuestionnaireActivity : ComponentActivity() {
         code: String,
         message: String,
         currentStage: String,
-        screenIndex: Int
+        screenIndex: Int,
+        timing: QuestionnaireResultTiming? = null
     ) {
         submitTerminalResult(
             QuestionnaireResult.from(
@@ -210,6 +221,7 @@ class QuestionnaireActivity : ComponentActivity() {
                     currentStage = currentStage,
                     screenIndex = screenIndex
                 ),
+                timing = timing,
                 error = QuestionnaireResultError(code = code, message = message)
             )
         )
