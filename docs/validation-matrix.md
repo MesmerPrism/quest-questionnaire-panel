@@ -2,7 +2,7 @@
 
 | Area | Test | Evidence |
 | --- | --- | --- |
-| Build | `:app:assembleDebug` succeeds. | Gradle output. |
+| Build | `:app:assembleMinimalDebug` and `:app:assembleLabUpdaterDebug` succeed. | Gradle output. |
 | Build | `:examples:native-caller:assembleDebug` succeeds. | Gradle output. |
 | Contract | Request parser accepts valid `quest.questionnaire.v1`. | Unit/instrumented test. |
 | Contract | Request parser rejects missing request id, nonce, stage, or result URI. | Unit/instrumented test. |

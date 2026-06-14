@@ -1,0 +1,42 @@
+{
+  "protocol_version": "quest.questionnaire.v1",
+  "schema": "quest.questionnaire.v1.result",
+  "request_id": "8d3f2634-5c03-4e98-9578-5dd3cde5301e",
+  "nonce": "e84e418ca0a6479a94973a0c",
+  "status": "completed",
+  "questionnaire": {
+    "id": "generic-questionnaire-v1",
+    "version": 1
+  },
+  "stage": "generic:intro",
+  "condition_number": null,
+  "screen_sequence": [
+    "generic:intro",
+    "generic:rating",
+    "generic:comment",
+    "generic:complete"
+  ],
+  "answers": {
+    "open_stage": "generic:intro",
+    "completed_stage": "generic:complete",
+    "screen_sequence": [
+      "generic:intro",
+      "generic:rating",
+      "generic:comment",
+      "generic:complete"
+    ],
+    "generic": {
+      "acknowledged": true,
+      "rating": 7,
+      "comment": "Demo result from a non-BRB questionnaire."
+    }
+  },
+  "started_at": "2026-06-14T10:15:00Z",
+  "submitted_at": "2026-06-14T10:16:00Z",
+  "terminal": {
+    "reason": "completed",
+    "current_stage": "generic:complete",
+    "screen_index": 3
+  },
+  "error": null
+}

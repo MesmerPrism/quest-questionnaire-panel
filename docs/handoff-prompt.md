@@ -28,8 +28,9 @@ Context:
 
 Start by checking the Gradle skeleton. Make the smallest code/build fixes
 needed for:
-1. gradle :app:assembleDebug
-2. gradle :examples:native-caller:assembleDebug
+1. gradle :app:assembleMinimalDebug
+2. gradle :app:assembleLabUpdaterDebug
+3. gradle :examples:native-caller:assembleDebug
 
 Then add focused parser/result validation tests or a small test harness if the
 repo setup supports it. Keep edits scoped to getting the panel and caller

@@ -24,6 +24,20 @@ class QuestionnaireResultEnvelopeValidatorTest {
     }
 
     @Test
+    fun acceptsGenericCompletedFixture() {
+        val validation = QuestionnaireResultEnvelopeValidator.validate(
+            fixture("result.generic.completed.valid.json"),
+            ExpectedGeneric
+        )
+
+        assertValid(QuestionnaireTerminalStatus.Completed, validation)
+        val envelope = (validation as QuestionnaireResultValidation.Valid).envelope
+        assertEquals("generic-questionnaire-v1", envelope.questionnaire.id)
+        assertEquals("generic:complete", envelope.terminal?.currentStage)
+        assertEquals(7, envelope.answers.getJSONObject("generic").getInt("rating"))
+    }
+
+    @Test
     fun acceptsCancelledFixture() {
         val validation = validateFixture("result.cancelled.valid.json")
 

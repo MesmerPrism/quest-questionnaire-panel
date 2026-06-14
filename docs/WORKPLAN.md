@@ -24,7 +24,7 @@ Acceptance:
 
 Deliverables:
 
-- Buildable `:app` debug APK.
+- Buildable `:app` minimal and lab-updater debug APKs.
 - Quest 2D panel manifest with exported launch activity and 2D category.
 - Request parser for `quest.questionnaire.v1`.
 - Result writer for caller-owned `content://` URI.
@@ -33,7 +33,7 @@ Deliverables:
 
 Acceptance:
 
-- `gradle :app:assembleDebug` succeeds.
+- `gradle :app:assembleMinimalDebug :app:assembleLabUpdaterDebug` succeeds.
 - Unit or instrumentation-level parser tests cover valid and invalid request
   JSON.
 - No participant data is written to logs, filenames, Intent extras, or public
@@ -128,7 +128,7 @@ Acceptance:
 
 ## Open Decisions
 
-- Final package names for public/internal builds.
+- Release signing and distribution policy for public/internal builds.
 - Whether activity-return `PendingIntent` is needed or broadcast completion is
   enough for BRB.
 - Retention/export policy for participant-sensitive result JSON.

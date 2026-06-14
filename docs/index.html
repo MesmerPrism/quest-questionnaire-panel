@@ -142,9 +142,15 @@
               </tr>
               <tr>
                 <td>Generic Unity package</td>
-                <td>Planned / next</td>
-                <td>Reusable Unity plugin</td>
-                <td>Plug-and-play path for Unity projects.</td>
+                <td>Initial wrapper in repo</td>
+                <td>Unity C# facade plus Android SDK bridge</td>
+                <td>Reusable caller path without Unity-side IPC duplication.</td>
+              </tr>
+              <tr>
+                <td>Generic panel renderer</td>
+                <td>Working demo</td>
+                <td>Registered non-BRB questionnaire renderer</td>
+                <td>The panel runtime is not BRB-only.</td>
               </tr>
               <tr>
                 <td>Other OpenXR / native apps</td>
@@ -314,6 +320,8 @@
             <ul class="link-list compact-links">
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/README.md">Android caller SDK notes</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin notes</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/examples/request.generic.valid.json">Generic request fixture</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/examples/result.generic.completed.valid.json">Generic result fixture</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/NativeCallerActivity.kt">Native Android caller example</a></li>
             </ul>
           </div>
@@ -390,10 +398,12 @@ startActivity(
             The launch Intent carries identity, request JSON, a writable result
             URI, and a callback. The callback is only a signal; answers stay in
             the result JSON. The canonical definitions live in the panel repo's
-            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireContract.kt">Kotlin contract</a>,
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/questionnaire-contract-core/src/main/kotlin/io/github/mesmerprism/questquestionnaire/contract/QuestQuestionnaireProtocol.kt">Kotlin contract core</a>,
             <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.request.schema.json">request schema</a>,
             and
             <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.result.schema.json">result schema</a>.
+            Compatibility rules are in
+            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/contract-versioning.md">contract versioning</a>.
           </p>
         </div>
 
@@ -572,15 +582,16 @@ startActivity(
               <li>Use pseudonymous participant and session references.</li>
               <li>Do not put names, emails, raw identifiers, or answers into request filenames, callback extras, logs, notifications, or public storage.</li>
               <li>The panel gets write access only to the caller-created result URI; the callback only signals completion.</li>
+              <li>Use the <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/research-data-safety.md">research data safety guide</a> before adding new fields or examples.</li>
             </ul>
           </article>
           <article>
             <h3>Timing metadata</h3>
             <p>
               Result v1 includes <code>started_at</code> and
-              <code>submitted_at</code>. A future research schema can add
-              per-screen timing such as visible time, first interaction time,
-              and interruption windows without changing the launch contract.
+              <code>submitted_at</code>, plus optional screen-level timing:
+              entered time, first answer-changing interaction, left time,
+              duration, interaction count, and validation-failure count.
             </p>
           </article>
         </div>
@@ -609,10 +620,15 @@ startActivity(
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">Panel README and setup</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">Handoff contract</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent extras and callback contract</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/questionnaire-contract-core/src/main/kotlin/io/github/mesmerprism/questquestionnaire/contract/QuestionnaireResultEnvelopeValidator.kt">Shared result envelope validator</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/src/main/java/io/github/mesmerprism/questquestionnaire/sdk/QuestQuestionnaireLauncher.kt">Android caller SDK launcher</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireLaunchValidator.kt">Launch validation</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireRequest.kt">Request model</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireResult.kt">Result model</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireActivity.kt">Panel activity and screen flow</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireActivity.kt">Panel activity and renderer host</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/DefaultQuestionnaireRendererRegistry.kt">Renderer registry</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/generic/GenericQuestionnaireRenderer.kt">Generic questionnaire renderer</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/brb/BrbQuestionnaireRenderer.kt">BRB renderer adapter</a></li>
             </ul>
           </article>
 
@@ -629,6 +645,8 @@ startActivity(
               <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnairePanelBridge.java">Android bridge from Unity to panel</a></li>
               <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultValidator.java">BRB result validator</a></li>
               <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/AndroidManifest.xml">BRB Android manifest declarations</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/Runtime/QuestQuestionnairePanel.cs">Reusable Unity C# facade</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/src/main/java/io/github/mesmerprism/questquestionnaire/unity/UnityQuestionnaireBridge.kt">Reusable Android Unity bridge</a></li>
             </ul>
           </article>
 
@@ -645,6 +663,8 @@ startActivity(
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/audio/README.md">Panel audio guide</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/audio/speech-asset-protocol.md">Speech asset protocol</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/self-update.md">Self-update notes</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/contract-versioning.md">Contract versioning</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/research-data-safety.md">Research data safety</a></li>
             </ul>
           </article>
         </div>
@@ -661,6 +681,18 @@ startActivity(
         </div>
 
         <div class="recipe-grid">
+          <article>
+            <h3>Build the public minimal panel</h3>
+            <p>The minimal flavor is the default recommendation for study deployments.</p>
+            <pre><code>.\gradlew.bat :app:assembleMinimalDebug</code></pre>
+          </article>
+
+          <article>
+            <h3>Build the lab updater panel</h3>
+            <p>The lab updater flavor keeps the internal update UI and install permissions.</p>
+            <pre><code>.\gradlew.bat :app:assembleLabUpdaterDebug</code></pre>
+          </article>
+
           <article>
             <h3>Run a Unity-side button command</h3>
             <p>Use this to prove the BRB Unity runtime is receiving command extras.</p>
@@ -814,6 +846,8 @@ startActivity(
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.request.schema.json">Request schema</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.result.schema.json">Result schema</a>
+        <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/contract-versioning.md">Contract versioning</a>
+        <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin</a>
         <a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">BRB Unity reference branch</a>
       </nav>
     </footer>

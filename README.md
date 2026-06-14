@@ -13,31 +13,30 @@ callers can share.
 ```text
 app/                    # Native Kotlin/Android Quest 2D panel app
 contract/               # Versioned JSON schemas and intent names
-android-caller-sdk/     # Future tiny Kotlin/AAR helper for Android callers
-unity-caller-plugin/    # Future Unity Android bridge wrapper
+questionnaire-contract-core/ # Pure Kotlin envelope parsing and validation
+brb-questionnaire-core/ # Pure Kotlin BRB stage constants and answer validation
+android-caller-sdk/     # Kotlin/AAR helper for Android callers
+unity-caller-plugin/    # Unity C# facade plus Android bridge wrapper
 examples/
   native-caller/        # Minimal Android caller/tester app
 docs/
   WORKPLAN.md
   handoff-contract.md
+  contract-versioning.md
+  research-data-safety.md
   validation-matrix.md
   handoff-prompt.md
 ```
 
-## MVP Scope
+## Current Scope
 
 1. Build the standalone Quest 2D questionnaire panel app.
 2. Support `quest.questionnaire.v1` request/result JSON.
-3. Implement the BRB-first stages:
-   - `demographics`
-   - `post_condition:pictographic`
-   - `post_condition:presence_questionnaire`
-   - `post_condition:lost_opportunity`
-   - `complete:export_summary`
-4. Build the minimal native caller tester that creates a caller-owned
-   `content://` result URI, launches the panel, receives a broadcast
-   `PendingIntent`, and reads the result JSON.
-5. Defer Unity integration until the native Quest communication path is proven.
+3. Keep contract parsing/validation in `questionnaire-contract-core`.
+4. Keep BRB stage constants and answer validation in `brb-questionnaire-core`.
+5. Provide `android-caller-sdk` for native Android and Unity bridge callers.
+6. Register BRB and generic questionnaire renderers behind the panel registry.
+7. Provide a Unity C# facade and Android bridge in `unity-caller-plugin`.
 
 ## Communication Pattern
 
@@ -63,11 +62,32 @@ caller app
 No ADB, public shared storage, Termux file drops, force-stop, package killing,
 or Meta menu navigation should be part of the product path.
 
+## Build Flavors
+
+The default public recommendation is the minimal questionnaire build. It has
+questionnaire IPC only and does not request internet or package-install
+permissions:
+
+```powershell
+.\gradlew.bat :app:assembleMinimalDebug
+```
+
+The lab updater build keeps the internal sideload update UI and install
+permissions:
+
+```powershell
+.\gradlew.bat :app:assembleLabUpdaterDebug
+```
+
+Use the same package name for both flavors so lab updater APKs can replace an
+installed panel APK when they are signed with the same certificate.
+
 ## Current Status
 
-The native panel app and minimal native caller tester build as debug APKs. The
-first smoke path proves the caller-owned `content://` result URI plus one-shot
-immutable broadcast `PendingIntent` completion contract.
+The native panel app, Android caller SDK, Unity bridge module, and minimal
+native caller tester build as debug artifacts. The smoke path proves the
+caller-owned `content://` result URI plus one-shot immutable broadcast
+`PendingIntent` completion contract.
 
 For off-store update behavior and fleet-operation caveats, see
 [`docs/self-update.md`](docs/self-update.md). The app-side updater uses

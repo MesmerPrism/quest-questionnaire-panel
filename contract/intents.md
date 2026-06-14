@@ -122,3 +122,25 @@ sequence:
 | Final | `final` |
 
 Cancelled and error results do not require completed-answer buckets.
+
+## Generic Demo Stage Names
+
+The panel also includes a minimal non-BRB renderer for integration tests and
+new-caller onboarding:
+
+```text
+generic:intro
+generic:rating
+generic:comment
+generic:complete
+```
+
+Recommended generic demo sequence:
+
+```text
+generic:intro -> generic:rating -> generic:comment -> generic:complete
+```
+
+The generic demo proves that the v1 envelope is not BRB-specific. Production
+questionnaires should use their own `schema_id`, stage names, renderer, and
+answer validator.

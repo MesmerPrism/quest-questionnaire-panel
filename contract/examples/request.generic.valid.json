@@ -1,0 +1,22 @@
+{
+  "protocol_version": "quest.questionnaire.v1",
+  "session_id": "generic-session-001",
+  "request_id": "8d3f2634-5c03-4e98-9578-5dd3cde5301e",
+  "nonce": "e84e418ca0a6479a94973a0c",
+  "study_id": "generic-demo",
+  "schema_id": "generic-questionnaire-v1",
+  "open_stage": "generic:intro",
+  "condition_number": null,
+  "screen_sequence": [
+    "generic:intro",
+    "generic:rating",
+    "generic:comment",
+    "generic:complete"
+  ],
+  "participant_ref": "P001",
+  "caller": {
+    "package": "example.xr.app",
+    "app_version": "debug",
+    "engine": "unknown"
+  }
+}

@@ -100,9 +100,9 @@ unity-caller-plugin/
 | 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | Complete |
 | 6 | Add ViewModel/draft recovery | Protect in-progress study sessions. | Complete |
 | 7 | Add per-screen timing metadata | High research value without changing IPC. | Complete |
-| 8 | Split minimal vs. updater build flavors | Cleaner permissions and trust story. | Planned |
-| 9 | Build Unity plugin on top of SDK | Avoid Unity-specific duplication. | Planned |
-| 10 | Add generic questionnaire demo | Prove the panel is not BRB-only. | Planned |
+| 8 | Split minimal vs. updater build flavors | Cleaner permissions and trust story. | Complete |
+| 9 | Build Unity plugin on top of SDK | Avoid Unity-specific duplication. | Complete |
+| 10 | Add generic questionnaire demo | Prove the panel is not BRB-only. | Complete |
 
 ## Implementation Slices
 
@@ -337,7 +337,7 @@ Notes:
 
 ### Slice 9: Minimal vs. Lab-Updater Build Flavors
 
-Status: Planned
+Status: Complete
 
 Deliverables:
 
@@ -352,9 +352,21 @@ Acceptance:
 - Lab updater build retains updater behavior.
 - Public docs state which flavor is the default recommendation.
 
+Notes:
+
+- Added a `distribution` flavor dimension with `minimal` and `labUpdater`
+  flavors.
+- The main manifest now exposes only the questionnaire IPC activity.
+- The `labUpdater` manifest owns `INTERNET`, `REQUEST_INSTALL_PACKAGES`, the
+  update launcher activity, and the update APK `FileProvider`.
+- Both flavors keep the same package name so lab-updater APKs can replace the
+  installed panel when signed with the same certificate.
+- Public docs now recommend `minimal` for study deployments and reserve
+  `labUpdater` for internal sideload update workflows.
+
 ### Slice 10: Unity Plugin And Generic Demo
 
-Status: Planned
+Status: Complete
 
 Deliverables:
 
@@ -368,7 +380,22 @@ Acceptance:
 - Generic demo proves the panel runtime is no longer BRB-only.
 - BRB remains the richer reference integration.
 
+Notes:
+
+- Added `:unity-caller-plugin`, an Android bridge module that depends on
+  `android-caller-sdk` and exposes a Unity-callable launch method.
+- Added `unity-caller-plugin/Runtime/QuestQuestionnairePanel.cs`, a Unity C#
+  facade with BRB and generic demo constants.
+- Added a registered `generic-questionnaire-v1` renderer with intro, rating,
+  comment, and completion stages.
+- Added generic request/result fixtures and contract-core tests that parse and
+  validate a non-BRB envelope.
+- Loosened the v1 request schema so stage names are questionnaire-owned
+  non-empty strings instead of a global BRB enum.
+
 ## Cross-Cutting Documents To Add Or Update
+
+Status: Complete
 
 - `docs/contract-versioning.md`
   - v1 compatibility rules.
@@ -414,7 +441,7 @@ Important distinction:
 
 ## Timing Metadata Target
 
-Future result example:
+Result example:
 
 ```json
 {
@@ -538,6 +565,24 @@ Field semantics:
   `:app:testDebugUnitTest`, `:examples:native-caller:testDebugUnitTest`,
   `:android-caller-sdk:assembleDebug`, `:app:assembleDebug`, and
   `:examples:native-caller:assembleDebug`.
+- Completed Slice 9 by adding `minimal` and `labUpdater` app flavors. Verified
+  the merged minimal manifest has no `INTERNET`, no
+  `REQUEST_INSTALL_PACKAGES`, no updater activity, and no update-file provider.
+  Verified the lab-updater manifest retains those updater surfaces.
+- Completed Slice 10 by adding `:unity-caller-plugin`, the Unity C# facade,
+  the Android Unity bridge, the generic questionnaire renderer, and generic
+  request/result fixtures.
+- Added `docs/contract-versioning.md` and `docs/research-data-safety.md`.
+  Updated README, contract docs, SDK docs, examples docs, self-update docs,
+  and the GitHub Pages onboarding guide to link the important implementation
+  surfaces.
+- Verified the completed iteration with `git diff --check`,
+  `:questionnaire-contract-core:test`, `:brb-questionnaire-core:test`,
+  `:app:testMinimalDebugUnitTest`, `:app:testLabUpdaterDebugUnitTest`,
+  `:examples:native-caller:testDebugUnitTest`,
+  `:android-caller-sdk:assembleDebug`, `:unity-caller-plugin:assembleDebug`,
+  `:app:assembleMinimalDebug`, `:app:assembleLabUpdaterDebug`, and
+  `:examples:native-caller:assembleDebug`.
 
 ## Decision Log
 
@@ -551,13 +596,15 @@ Add decisions here as they become real implementation constraints.
 | 2026-06-14 | Keep renderer selection in the default registry and keep `QuestionnaireActivity` renderer-agnostic. | Lets future questionnaire renderers plug in without changing Activity control flow. |
 | 2026-06-14 | Store panel drafts under app-private no-backup storage with hashed request-id/nonce filenames. | Protects in-progress answers while avoiding raw participant identifiers or answers in filenames and backups. |
 | 2026-06-14 | Keep panel timing to screen lifecycle and answer-changing interaction counts. | Adds research-useful timing while avoiding gaze, pose, controller, or raw interaction traces in results. |
+| 2026-06-14 | Use `minimal` as the default public app flavor and `labUpdater` for internal sideload update workflows. | Keeps the public build permission-light while preserving the lab updater path. |
+| 2026-06-14 | Keep both app flavors on the same package name. | Allows lab-updater APKs to replace an installed panel APK when signed with the same certificate. |
+| 2026-06-14 | Treat v1 stage names as questionnaire-owned strings in the envelope schema. | Allows BRB, generic demo, and future renderers to share the same protocol without a global stage enum. |
+| 2026-06-14 | Make the Unity bridge call `android-caller-sdk` rather than rebuilding the Intent contract in C#. | Keeps Unity integration thin and reduces contract drift. |
 
 ## Open Questions
 
 - Should `questionnaire-contract-core` use handwritten JSON parsing first, or
   introduce serialization/code generation later?
-- What is the default public flavor name: `minimalResearch`, `research`, or
-  `minimal`?
 - How much draft recovery should the panel own before the caller SDK can
   relaunch/resume the same request id?
 
@@ -566,7 +613,7 @@ Add decisions here as they become real implementation constraints.
 Before committing Android implementation changes:
 
 - `git diff --check`
-- `gradle :app:assembleDebug` when Gradle is available
+- `gradle :app:assembleMinimalDebug :app:assembleLabUpdaterDebug` when Gradle is available
 - `gradle :examples:native-caller:assembleDebug` when Gradle is available
 - Relevant unit tests for changed modules
 - No raw participant data, device serials, APKs, screenshots, logcat bundles,

@@ -40,17 +40,7 @@
     },
     "open_stage": {
       "type": "string",
-      "enum": [
-        "language_select",
-        "demographics",
-        "prior_experience",
-        "post_condition:pictographic",
-        "post_condition:presence_questionnaire",
-        "post_condition:lost_opportunity",
-        "final:end_confirmation",
-        "final:extra_presses_prompt",
-        "complete:export_summary"
-      ]
+      "minLength": 1
     },
     "condition_number": {
       "type": ["integer", "null"],
@@ -61,17 +51,7 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "enum": [
-          "language_select",
-          "demographics",
-          "prior_experience",
-          "post_condition:pictographic",
-          "post_condition:presence_questionnaire",
-          "post_condition:lost_opportunity",
-          "final:end_confirmation",
-          "final:extra_presses_prompt",
-          "complete:export_summary"
-        ]
+        "minLength": 1
       }
     },
     "participant_ref": {

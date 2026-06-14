@@ -1,6 +1,7 @@
 package io.github.mesmerprism.questquestionnaire.panel
 
 import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
+import io.github.mesmerprism.questquestionnaire.panel.generic.GenericQuestionnaireContract
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -20,10 +21,23 @@ class QuestionnaireRendererRegistryTest {
     }
 
     @Test
+    fun defaultRegistryFindsGenericRenderer() {
+        val renderer = DefaultQuestionnaireRendererRegistry.create().rendererFor(
+            request(
+                schemaId = GenericQuestionnaireContract.QuestionnaireId,
+                openStage = GenericQuestionnaireContract.StageIntro,
+                screenSequence = GenericQuestionnaireContract.DemoSequence
+            )
+        )
+
+        assertNotNull(renderer)
+    }
+
+    @Test
     fun defaultRegistryRejectsUnsupportedQuestionnaire() {
         val renderer = DefaultQuestionnaireRendererRegistry.create().rendererFor(
             request(
-                schemaId = "generic-questionnaire-v1",
+                schemaId = "unsupported-questionnaire-v1",
                 openStage = "screen_one",
                 screenSequence = listOf("screen_one")
             )
@@ -39,6 +53,19 @@ class QuestionnaireRendererRegistryTest {
                 schemaId = BrbQuestionnaireContract.QuestionnaireId,
                 openStage = "generic:screen",
                 screenSequence = listOf("generic:screen")
+            )
+        )
+
+        assertNull(renderer)
+    }
+
+    @Test
+    fun defaultRegistryRejectsGenericRequestWithUnsupportedStage() {
+        val renderer = DefaultQuestionnaireRendererRegistry.create().rendererFor(
+            request(
+                schemaId = GenericQuestionnaireContract.QuestionnaireId,
+                openStage = "generic:unsupported",
+                screenSequence = listOf("generic:unsupported")
             )
         )
 

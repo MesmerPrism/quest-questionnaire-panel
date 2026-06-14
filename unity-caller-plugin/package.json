@@ -1,0 +1,13 @@
+{
+  "name": "io.github.mesmerprism.quest-questionnaire-panel.unity-caller",
+  "version": "0.1.0",
+  "displayName": "Quest Questionnaire Panel Unity Caller",
+  "description": "Unity facade for launching the Quest Questionnaire Panel through the Android caller SDK.",
+  "unity": "2021.3",
+  "keywords": [
+    "quest",
+    "questionnaire",
+    "android",
+    "xr"
+  ]
+}

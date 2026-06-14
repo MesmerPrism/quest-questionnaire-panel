@@ -19,5 +19,18 @@ class QuestionnaireLaunchRequestTest {
         assertEquals("P042", request.participantRef)
         assertEquals("unity", request.caller?.engine)
     }
-}
 
+    @Test
+    fun parsesGenericRequestFixture() {
+        val request = QuestionnaireLaunchRequest.parse(fixture("request.generic.valid.json"))
+
+        assertEquals(QuestQuestionnaireProtocol.Version, request.protocolVersion)
+        assertEquals("generic-questionnaire-v1", request.schemaId)
+        assertEquals("generic:intro", request.openStage)
+        assertEquals(
+            listOf("generic:intro", "generic:rating", "generic:comment", "generic:complete"),
+            request.screenSequence
+        )
+        assertEquals("unknown", request.caller?.engine)
+    }
+}

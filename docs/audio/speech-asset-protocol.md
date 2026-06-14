@@ -79,7 +79,7 @@ Before claiming the integration is ready:
 1. Recalculate and review manifest hashes/durations.
 2. Confirm all referenced localized audio files exist.
 3. Add or update panel tests for new runtime markers or answer shapes.
-4. Build the APK with `.\gradlew.bat :app:assembleDebug`.
+4. Build the APK with `.\gradlew.bat :app:assembleMinimalDebug`.
 5. Run the smallest relevant headset gate. For questionnaire speech that starts
    from a questionnaire transition, use the debug panel smoke or a headset
    smoke that observes the cue marker.

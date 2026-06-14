@@ -61,17 +61,25 @@ confirm fresh heartbeats and `uid=2000(shell)` before update install.
 
 ## Build Configuration
 
-The panel app declares:
+The recommended public app flavor is `minimal`. It exposes the questionnaire
+IPC activity only and does not declare internet or package-install
+permissions:
+
+```powershell
+.\gradlew.bat :app:assembleMinimalDebug
+```
+
+The internal lab updater flavor declares:
 
 - `android.permission.INTERNET`
 - `android.permission.REQUEST_INSTALL_PACKAGES`
 - a 2D launcher activity for update checks
 - a private `FileProvider` for verified APK handoff to Android's installer
 
-Build an APK with an HTTPS update manifest URL:
+Build a lab updater APK with an HTTPS update manifest URL:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug `
+.\gradlew.bat :app:assembleLabUpdaterDebug `
   -PquestQuestionnaireUpdateManifestUrl=https://example.com/quest-questionnaire-panel/update.json
 ```
 
@@ -80,7 +88,7 @@ On non-Windows shells, use `./gradlew`.
 For lab update workflow tests, build a newer APK without editing source:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug `
+.\gradlew.bat :app:assembleLabUpdaterDebug `
   -PquestQuestionnaireVersionCode=2 `
   -PquestQuestionnaireVersionName=0.1.1-lab
 ```
@@ -118,13 +126,13 @@ version code, SHA-256, and APK archive metadata before starting the installer.
 Run parser tests:
 
 ```powershell
-.\gradlew.bat :app:testDebugUnitTest
+.\gradlew.bat :app:testLabUpdaterDebugUnitTest
 ```
 
-Build the app:
+Build both app flavors:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:assembleMinimalDebug :app:assembleLabUpdaterDebug
 ```
 
 Headset validation still needs a real signed newer APK and an HTTPS endpoint

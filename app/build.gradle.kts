@@ -45,6 +45,22 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("minimal") {
+            dimension = "distribution"
+            buildConfigField("String", "DISTRIBUTION_FLAVOR", "minimal".toBuildConfigString())
+        }
+        create("labUpdater") {
+            dimension = "distribution"
+            buildConfigField(
+                "String",
+                "DISTRIBUTION_FLAVOR",
+                "labUpdater".toBuildConfigString()
+            )
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

@@ -27,6 +27,23 @@ val prepared = launcher.prepare(
 launcher.launch(activity, prepared)
 ```
 
+For a non-BRB demo request, use:
+
+```kotlin
+QuestionnaireLaunchRequestSpec(
+    sessionId = "...",
+    studyId = "generic-demo",
+    questionnaireId = "generic-questionnaire-v1",
+    openStage = "generic:intro",
+    screenSequence = listOf(
+        "generic:intro",
+        "generic:rating",
+        "generic:comment",
+        "generic:complete"
+    )
+)
+```
+
 Callers must declare a narrow `FileProvider` for the result directory and a
 private broadcast receiver for the completion callback. A typical result path
 configuration is:
@@ -71,3 +88,6 @@ QuestionnaireLaunchRequestSpec(
     screenSequence = listOf("demographics")
 )
 ```
+
+See `../docs/contract-versioning.md` for compatibility rules and
+`../docs/research-data-safety.md` for participant-data boundaries.

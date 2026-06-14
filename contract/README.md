@@ -8,6 +8,8 @@ Contract files:
   URI grant shape.
 - `quest.questionnaire.v1.request.schema.json` describes launch request JSON.
 - `quest.questionnaire.v1.result.schema.json` describes result JSON.
+- `../docs/contract-versioning.md` documents v1 compatibility rules.
+- `../docs/research-data-safety.md` documents public-repo data safety rules.
 
 Caller-owned result URI is required for product flows. The result `content://`
 URI is carried as Intent data for the write grant and also in `result_uri` for
@@ -28,3 +30,8 @@ interaction events, or answer values.
 Completed BRB answer payloads are sequence-scoped. Initial, post-condition,
 and final launches require different answer buckets; callers should not assume
 every BRB result contains demographics, post-condition, and final answers.
+
+Stage names are questionnaire-owned. The v1 request envelope only requires
+non-empty stage strings and `open_stage` membership in `screen_sequence`; BRB
+stages are enforced by the BRB renderer and BRB answer validator. The generic
+demo fixtures show the same envelope with `generic:*` stages.
