@@ -97,7 +97,10 @@ data policy and schema.
 Safe public examples use fake ids, fake nonces, fake participant refs, and
 synthetic answers. Before committing, check for local paths, raw participant
 data, device serials, APKs, screenshots, log bundles, signing keys, and private
-evidence artifacts.
+evidence artifacts. The staged scanner also checks for common credential and
+private-controller leaks such as bearer tokens, API keys, client secrets,
+refresh tokens, ADB keys, Cloudflare/Tailscale tokens, and WireGuard private
+keys.
 
 Run the staged public-artifact check before committing documentation, examples,
 or lab automation output:

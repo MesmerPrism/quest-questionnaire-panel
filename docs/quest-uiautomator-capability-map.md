@@ -284,6 +284,20 @@ Observed with the development-only `examples:quest-ui-automation` module:
   reveal a distinct Quest quick-settings or notification surface in the current
   panel state; dumps remained dominated by the existing Metacam/settings/store
   windows. Treat those APIs as not yet proven on Quest.
+- A 2026-06-14 live `systemSurfaceReachability` default sweep confirmed that
+  `quickSettings` and `notifications` did not produce distinct structural
+  surfaces from the already-visible settings state. `androidSettings` did
+  return a changed reachable Settings surface. The Metacam sharing panel did
+  not change the merged XML counts, but the accessibility-window active root
+  changed to the Metacam panel profile, so active-window evidence is the more
+  useful witness when multiple Quest panels remain in the merged hierarchy.
+- A scoped 2026-06-14 Metacam reachability sweep confirmed that
+  `metacamPanel` and `metacamSettings` stayed structurally shallow, while
+  `metacamDeepSettings` changed the merged hierarchy and active root to a
+  settings profile with two scrollables. `metacamAdvancedSettings` kept the
+  deep merged hierarchy but switched the active root again after scrolling.
+  Treat deep/advanced Metacam passes as capture-settings probes, not general
+  system-menu discovery.
 - The Meta Quest scriptable testing provider is present as
   `content://com.oculus.rc`, implemented by
   `oculus.platform/oculus.internal.rc.RemoteControlProvider` on the tested
@@ -373,7 +387,7 @@ Wait/stability:
 | R-002 | Shell dump parity | Compare `uiautomator dump --compressed` and instrumentation XML | XML diff summary | Passive | Working host-side; coverage differs from instrumentation |
 | R-003 | Window map | Dump `UiAutomation.getWindows()` with display IDs, types, layers, bounds | JSONL | Passive | Working |
 | R-004 | Action map | Walk active/window roots and record each node's accessibility action list | JSONL | Passive | Working |
-| R-004b | System surface reachability | Run `systemSurfaceReachability` over current, quick-settings, notifications, Android settings, and Metacam entry points | JSONL structural counts, accessibility windows, redacted summary | Passive by default; deeper Metacam surfaces are scoped capture-settings probes | Implemented; live default/deeper sweep pending |
+| R-004b | System surface reachability | Run `systemSurfaceReachability` over current, quick-settings, notifications, Android settings, and Metacam entry points | JSONL structural counts, accessibility windows, redacted summary | Passive by default; deeper Metacam surfaces are scoped capture-settings probes | Live default and scoped Metacam sweeps passed on 2026-06-14 |
 | R-005 | Metacam launch | Launch sharing panel and dump candidates | XML, JSONL | Passive | Working |
 | R-006 | Recorder tile | Tap `screenrecording_button`, wait, relaunch, tap stop | JSONL, media file listing only | Active recording | Working |
 | S-001 | UiScrollable settings | Use resource-id `settings_recycler_view` with scroll/fling variants | Before/after XML | Low | Partial, unreliable |
@@ -385,9 +399,9 @@ Wait/stability:
 | M-001 | Camera settings | Navigate sharing panel -> settings dropdown -> more settings | XML, node DB | Low | Working |
 | M-002 | Advanced video settings | Search for frame rate, bitrate, stabilization, eye preference | XML, node DB | Passive | Found after scroll |
 | M-003 | Red dot setting | Locate red recording indicator toggle but do not toggle by default | XML, checked state | Passive | Found |
-| Q-001 | Quick settings | Use UIAutomator `openQuickSettings` and/or Home/Sharing path, dump nodes | XML, node DB | Low | API did not reveal Quest quick settings |
-| Q-002 | Notification shade | Try `openNotification`, dump nodes | XML, node DB | Low | API did not reveal distinct notification surface |
-| Q-003 | Android settings intents | Start `android.settings.SETTINGS` and Quest-specific settings activities found by package query | XML, node DB | Low | Generic settings intent opens Quest settings |
+| Q-001 | Quick settings | Use UIAutomator `openQuickSettings` and/or Home/Sharing path, dump nodes | XML, node DB | Low | Default reachability sweep did not reveal a distinct Quest quick-settings surface |
+| Q-002 | Notification shade | Try `openNotification`, dump nodes | XML, node DB | Low | Default reachability sweep did not reveal a distinct notification surface |
+| Q-003 | Android settings intents | Start `android.settings.SETTINGS` and Quest-specific settings activities found by package query | XML, node DB | Low | Generic settings intent opens/reaches Quest settings; default reachability sweep changed to Settings |
 | Q-004 | Permission dialogs | Use MediaProjection consent as known prompt and record selector/tap behavior | XML, JSONL | Consent UI | Working; target selection required before approval |
 | Q-005 | Scriptable testing services | Query supported Meta testing properties, read only unless explicitly changing | Command output | Passive for `GET_PROPERTY`; mutating for `SET_PROPERTY`/reset/setup | Working read-only; mutating methods documented but not run |
 | Q-006 | Settings side-nav map | Open Quest settings and click top-level side-nav entries by resource ID | XML, JSONL | Low, privacy-sensitive labels | Working for 16 sections |
@@ -417,7 +431,7 @@ known rollback/stop step.
 | `metacam.settings.deep` | Open deeper camera settings panel | Run `metacam.settings.basic`; click `com.oculus.metacam:id/camera_settings_menu_more_settings`; dump | Shows settings panel with red-dot, hide-controls, capture markers, aspect ratio | Working |
 | `quest.baseline.current_window` | Dump the current UI/accessibility baseline | `currentWindow` instrumentation scenario; summarize with `summarize_report.py` | Emits structural XML node counts, display IDs, clickable/scrollable counts, accessibility window counts, and action-node counts without raw text or paths | Working |
 | `quest.surface.surface_map_current` | Dump shell display/window state plus accessibility windows | `surfaceMap` with `surface=current`; summarize with `summarize_report.py` | Captures display/window shell command witnesses, an instrumentation hierarchy snapshot, accessibility windows, and a host-shell-dump hint | Working |
-| `quest.surface.reachability_probe` | Compare Android-backed Quest system surface entry points | Run `systemSurfaceReachability` with default `surfaces=current,quickSettings,notifications,androidSettings,metacamPanel`; summarize with `summarize_report.py`; use deeper Metacam surfaces only for scoped capture-settings passes | Emits redacted per-surface structural counts, display IDs, changed/empty status, errors, and matching accessibility-window summaries without raw UI text or package names | Implemented, live evidence pending |
+| `quest.surface.reachability_probe` | Compare Android-backed Quest system surface entry points | Run `systemSurfaceReachability` with default `surfaces=current,quickSettings,notifications,androidSettings,metacamPanel`; summarize with `summarize_report.py`; use deeper Metacam surfaces only for scoped capture-settings passes | Emits redacted per-surface structural counts, display IDs, changed/empty status, errors, and matching accessibility-window summaries without raw UI text or package names | Working; live default and scoped Metacam sweeps passed on 2026-06-14 |
 | `settings.scroll.uiscrollable` | Scroll settings recycler view | Find `com.oculus.panelapp.settings:id/settings_recycler_view`; call `UiScrollable.scrollForward` | Returned failure or no visible new content in first sweep | Needs variants |
 | `settings.scroll.uiobject2` | Scroll settings recycler view through AndroidX object API | Find `By.scrollable(true)` with resource `settings_recycler_view`; call `scroll(Direction.DOWN, 0.75f, 1000)` | Reveals `Format and quality`, `Bit rate`, `Frame rate`, `Image stabilization`, and `Eye perspective` | Working |
 | `settings.scroll.accessibility_action` | Scroll settings recycler view through raw accessibility action | Find scrollable node with resource `settings_recycler_view`; call `ACTION_SCROLL_FORWARD` | Reveals the advanced capture settings and returns true | Working |
@@ -447,7 +461,7 @@ known rollback/stop step.
 | `quest.settings.child.dropdown_option_summary` | Summarize opened selector options | Inspect `settings_child_surface.summary.settingsDropdownOptions` after a dropdown opens | Records clean option labels, row bounds, selected flags, checked flags, and default markers | Working |
 | `quest.settings.child.dropdown_option_dry_run` | Target a selector option without selecting it | Run `settingsChildPageProbe` with `childTargetRole=dropdown`, `optionTarget` or `optionTargets`, and default `allowOptionSelect=false` | Records the matched option row and returns `allowOptionSelect=false dry run`; verified for non-default camera capture options without changing settings | Working |
 | `quest.uiautomator.report_summary` | Summarize raw sweep reports for public notes | `python examples/quest-ui-automation/tools/summarize_report.py <report.jsonl> --format markdown` | Emits page counts, scroll endpoint status, allowlisted labels, dropdown option evidence, and redaction counts without raw paths or unknown labels | Working |
-| `quest.uiautomator.public_artifact_check` | Guard public commits from private lab artifacts | `python tools/check_public_artifacts.py` after staging | Rejects generated APKs, raw recordings/screenshots/logs, raw UI dump XML, signing material, local machine paths, and serial-shaped ADB output outside the curated media lane | Working |
+| `quest.uiautomator.public_artifact_check` | Guard public commits from private lab artifacts | `python tools/check_public_artifacts.py` after staging | Rejects generated APKs, raw recordings/screenshots/logs, raw UI dump XML, signing material, local machine paths, serial-shaped ADB output, and common credential/private-controller tokens outside the curated media lane | Working |
 | `quest.settings.child.privacy_device_permissions` | Open Privacy & safety -> Device permissions | `settingsChildPageProbe` target `privacy_safety:Device permissions` | Opens child page with hand/body tracking, location services, spatial data, enhanced spatial services, and deletion controls | Working, sensitive |
 | `quest.settings.child.privacy_app_permissions` | Open Privacy & safety -> App permissions | `settingsChildPageProbe` target `privacy_safety:App permissions` | Opens child page with permission categories including audio files, connected cameras, headset cameras, location, microphone, nearby devices, photos/videos | Working, sensitive |
 | `quest.settings.child.camera_selectors` | Try Camera selector rows | Broad-row target with coordinate, `UiObject2.click()`, and `ACTION_CLICK`; dropdown target with `childTargetRole=dropdown` | Broad rows activate without exposing options; compact dropdown targets expose bit-rate, frame-rate, stabilization, and eye-perspective options | Working via dropdown target |
@@ -510,7 +524,7 @@ The `examples:quest-ui-automation` test app should grow in small slices:
 16. Run `systemSurfaceReachability` over the default surface set and a scoped
     deeper Metacam surface set, summarize both reports, and update the
     quick-settings, notification, Android settings, and Metacam statuses with
-    current OS evidence.
+    current OS evidence. Done for the 2026-06-14 Quest OS state.
 
 ## Open Questions
 
@@ -535,9 +549,11 @@ The `examples:quest-ui-automation` test app should grow in small slices:
 - Can Meta Horizon MCP `ui_select` and `ui_tap` cover the same successful
   resource/text-driven paths as the local instrumentation app?
 - Which system settings panes are fully accessible by intent, helper API, or
-  explicit activity, and which still require Home/menu navigation? The next
-  default witness is `systemSurfaceReachability` over current, quick settings,
-  notifications, Android settings, and Metacam.
+  explicit activity, and which still require Home/menu navigation? Current
+  evidence: `android.settings.SETTINGS` and explicit Metacam activities are
+  useful; `UiDevice.openQuickSettings()` and `UiDevice.openNotification()` did
+  not expose distinct Quest surfaces in the 2026-06-14 default reachability
+  sweep.
 - Under which headset visibility/sleep states does the VRShell settings relay
   return a zero-node Settings surface, and which passive recovery step restores
   a visible accessibility tree without force-stopping packages?

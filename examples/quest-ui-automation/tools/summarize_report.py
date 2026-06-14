@@ -1067,6 +1067,11 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
         system_surfaces = summary["systemSurfaces"]
         if any(system_surfaces.values()):
             lines.append("### System Surface Reachability")
+            surface_accessibility = {
+                state["name"][len("system_surface_") :]: state
+                for state in summary["accessibilityStates"]
+                if state["name"].startswith("system_surface_")
+            }
             if system_surfaces["starts"]:
                 lines.append(markdown_table_row(["Surfaces", "Wait after surface ms"]))
                 lines.append(markdown_table_row(["---", "---:"]))
@@ -1087,13 +1092,17 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                             "Checked",
                             "Displays",
                             "Packages",
+                            "Active root nodes",
+                            "Active scrollables",
+                            "Windows",
                             "Changed",
                             "Empty",
                         ]
                     )
                 )
-                lines.append(markdown_table_row(["---:", "---", "---:", "---:", "---:", "---:", "---:", "---", "---:", "---", "---"]))
+                lines.append(markdown_table_row(["---:", "---", "---:", "---:", "---:", "---:", "---:", "---", "---:", "---:", "---:", "---:", "---", "---"]))
                 for attempt in system_surfaces["attempts"]:
+                    active_state = surface_accessibility.get(attempt["surface"], {})
                     lines.append(
                         markdown_table_row(
                             [
@@ -1106,6 +1115,9 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                                 attempt["checkedCount"],
                                 ", ".join(attempt["displayIds"]) if attempt["displayIds"] else "(none)",
                                 attempt["packageCount"],
+                                active_state.get("activeRootNodeCount", "(missing)"),
+                                active_state.get("activeRootScrollableCount", "(missing)"),
+                                active_state.get("windowCount", "(missing)"),
                                 "yes" if attempt["changedFromPrevious"] else "no",
                                 "yes" if attempt["empty"] else "no",
                             ]

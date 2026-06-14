@@ -73,6 +73,41 @@ TEXT_PATTERNS: list[tuple[str, str, re.Pattern[str]]] = [
         re.compile(r"-----BEGIN (?:RSA |DSA |EC |OPENSSH )?PRIVATE KEY-----"),
     ),
     (
+        "authorization-bearer",
+        "Bearer authorization token",
+        re.compile(r"(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+/\-]+=*"),
+    ),
+    (
+        "api-key",
+        "API key header or assignment",
+        re.compile(r"(?i)\bx-api-key\s*[:=]\s*\S+"),
+    ),
+    (
+        "client-secret",
+        "Client secret assignment",
+        re.compile(r"(?i)\bclient_secret\s*[:=]\s*\S+"),
+    ),
+    (
+        "refresh-token",
+        "Refresh token assignment",
+        re.compile(r"(?i)\brefresh_token\s*[:=]\s*\S+"),
+    ),
+    (
+        "tailscale-authkey",
+        "Tailscale auth key",
+        re.compile(r"(?i)\b(?:tailscale\s+authkey|tskey-(?:auth|client|api)-[A-Za-z0-9-]+)\b"),
+    ),
+    (
+        "cloudflare-tunnel-token",
+        "Cloudflare tunnel token",
+        re.compile(r"(?i)\bcloudflare(?:[_ -]?tunnel)?[_ -]?(?:token|secret)\s*[:=]\s*\S+"),
+    ),
+    (
+        "wireguard-private-key",
+        "WireGuard private key",
+        re.compile(r"(?i)\b(?:wireguard[_-]?private[_-]?key|PrivateKey)\s*[:=]\s*[A-Za-z0-9+/=]{20,}"),
+    ),
+    (
         "android-keystore-password",
         "Likely signing password field",
         re.compile(r"(?i)\b(?:store|key)Password\s*="),
@@ -158,12 +193,17 @@ def path_violations(path: str) -> list[Violation]:
 
     if lower.endswith((".jks", ".keystore", "keystore.properties")):
         violations.append(Violation(normalized, "signing key or signing config"))
+    if lower.endswith(("adbkey", "adbkey.pub")):
+        violations.append(Violation(normalized, "ADB authorization key"))
 
     return violations
 
 
 def text_violations(path: str) -> list[Violation]:
     normalized = repo_relative(path)
+    if normalized == "tools/check_public_artifacts.py":
+        return []
+
     extension = Path(normalized).suffix.lower()
     if extension in BINARY_EXTENSIONS or (extension == ".mp4" and is_curated_public_media(normalized)):
         return []

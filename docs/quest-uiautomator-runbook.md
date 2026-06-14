@@ -71,7 +71,8 @@ Pass evidence:
 - each requested surface emits either `system_surface_attempt` or
   `system_surface_error`;
 - each successful surface has a matching `accessibility_state` row;
-- the exporter renders a `System Surface Reachability` table;
+- the exporter renders a `System Surface Reachability` table with merged XML
+  counts plus active-root node, scrollable, and window counts;
 - the summary reports only counts, display IDs, changed/empty status, and
   error class presence, not raw UI text or package names.
 
@@ -80,6 +81,20 @@ Use deeper Metacam surfaces only in a scoped capture-settings pass:
 ```text
 surfaces=current,metacamPanel,metacamSettings,metacamDeepSettings,metacamAdvancedSettings
 ```
+
+Current 2026-06-14 reachability evidence:
+
+- the default sweep passed and emitted all requested surface rows;
+- `quickSettings` and `notifications` did not expose distinct Quest surfaces
+  from the already-visible Settings state;
+- `androidSettings` changed to/reached the Quest Settings surface;
+- shallow Metacam entries can keep identical merged XML counts because
+  background panels remain in the hierarchy, so compare the
+  `Accessibility Windows` active-root profile as well as the
+  `System Surface Reachability` table;
+- scoped Metacam deep settings changed the merged hierarchy and active root to
+  a settings profile with two scrollables, while advanced settings switched the
+  active root again after scrolling.
 
 ## Section Crawl Slot
 
