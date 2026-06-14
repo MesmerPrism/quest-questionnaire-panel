@@ -126,6 +126,10 @@ childTargetRole=row|dropdown
 maxNavScrolls=10
 maxContentScrolls=4
 dumpChildAccessibility=false|true
+optionTarget=<literal or regex:...>
+optionTargets=<label=option;section:label=option;...>
+allowOptionSelect=false|true
+optionClickMode=coordinate|uiObject2|accessibilityClick
 ```
 
 Labels are treated as literal text unless prefixed with `regex:`. The probe
@@ -162,6 +166,26 @@ camera dropdowns without selecting a different value.
 Each `settings_child_surface.summary` includes `settingsDropdownOptions` when a
 dropdown is open. The option rows include `texts`, bounds, `selected`,
 `checked`, and `hasDefaultMarker` fields.
+
+Run a guarded option-target dry run. This opens each dropdown, finds the named
+option row, records the option bounds/state, and refuses to click while
+`allowOptionSelect=false`:
+
+```powershell
+$instrument = "am instrument -w " +
+  "-e scenario settingsChildPageProbe " +
+  "-e childTargets 'camera:Bit rate,camera:Frame rate,camera:Image stabilization,camera:Eye perspective' " +
+  "-e childTargetRole dropdown " +
+  "-e clickModes coordinate " +
+  "-e optionTargets 'Bit rate=9 mbps;Frame rate=60 fps;Image stabilization=High;Eye perspective=Right eye' " +
+  "-e allowOptionSelect false " +
+  "-e maxContentScrolls 4 -e maxNavScrolls 10 " +
+  "io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner"
+adb shell $instrument
+```
+
+Only pass `allowOptionSelect=true` in a scoped mutation run where the current
+value, desired value, and rollback step are documented first.
 
 On the Quest 3S OS build tested on 2026-06-14, `adb shell input` did not list a
 `scroll` command or a `rotaryencoder` source. `shellScroll` is kept as a probe

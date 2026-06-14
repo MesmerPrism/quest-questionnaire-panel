@@ -184,6 +184,21 @@ Observed with the development-only `examples:quest-ui-automation` module:
   `context_menu_item`, using `item_title` text plus bounds, `selected`,
   `checked`, and `hasDefaultMarker` fields. A compact 2026-06-14 verification
   sweep produced clean option rows for all four camera dropdowns.
+- The child-page probe now supports guarded dropdown option targeting. Pass a
+  single `optionTarget` or a per-row `optionTargets` map to identify an option
+  by text after the dropdown opens. The default is a dry run:
+  `allowOptionSelect=false` records the option row, bounds, selected/checked
+  state, and refusal reason without clicking it. A 2026-06-14 sweep verified
+  dry-run matches for bit rate `9 mbps`, frame rate `60 fps`, image
+  stabilization `High`, and eye perspective `Right eye`; none were selected.
+- A full non-mutating section crawler pass reached endpoints for all known
+  top-level Quest Settings side-nav sections with object scrolling only.
+  Most sections fit on one main-content page. Multi-page sections observed in
+  the tested state were Camera (3 pages), Movement (3 pages), Experimental
+  (2 pages), and Notifications (6 pages). The focused Notifications rerun
+  reached a true no-move endpoint after five successful main-content scrolls.
+  Do not commit per-app notification names from raw local reports; summarize
+  that surface as categories plus per-app notification rows.
 - Help rows have side effects beyond an in-panel child page. `Help & Tips app`
   opened `com.oculus.helpcenter` in the tested action-mode sweep. `Support`
   also brought Help Center content into the UI dump and exposed SystemUX
@@ -286,6 +301,7 @@ Wait/stability:
 | Q-009 | Settings child-row action modes | Re-run allowlisted rows with `coordinate`, `uiObject2`, `accessibilityClick`, and `accessibilityExpand` | XML, JSONL action outcomes | Low to sensitive, allowlist only | Partial: camera rows still no selector; Help rows open external surfaces |
 | Q-010 | Settings dropdown targets | Target `dropdown_button`/`Spinner` controls with `childTargetRole=dropdown` | XML, JSONL option texts | Low, do not select options | Working for camera bit rate, frame rate, stabilization, eye perspective |
 | Q-011 | Dropdown option inspector | Record `context_menu_item` option text, bounds, selected, checked, and default-marker state | JSONL summary rows | Low, passive after open | Working for camera dropdowns |
+| Q-012 | Dropdown option dry-run guard | Target a named dropdown option and refuse selection unless `allowOptionSelect=true` | JSONL option row, bounds, selected/checked, guard reason | Low by default; mutation only when explicitly enabled | Working for camera capture dropdowns |
 
 ## Command Sequence Database
 
@@ -312,10 +328,13 @@ known rollback/stop step.
 | `quest.settings.section_crawler` | Crawl section content without toggles | Open each target with `settingsNavProbe` route; dump page; scroll main `settings_recycler_view`; repeat until no movement or `maxSectionScrolls` | Produces per-page visible labels, checked-node summaries, clickable-node summaries, XML dumps, and scroll outcomes | Working |
 | `quest.settings.section.camera_crawl` | Crawl Camera section content | `settingsSectionCrawler` target `camera` with object scrolling | Finds recorder indicator/hide controls/capture markers/aspect ratio, then mic audio/bit rate, then frame rate/image stabilization/eye perspective/video coding format | Working |
 | `quest.settings.section.experimental_crawl` | Crawl Experimental section content | `settingsSectionCrawler` target `experimental` with object scrolling | Finds reset/hidden controls/external mic/screen reader/adaptive brightness/temporal dimming, then positional time warp/lying down/Wi-Fi QR/seamless multitasking/surface keyboard | Working |
+| `quest.settings.section.full_crawl` | Crawl all known top-level Quest Settings sections | `settingsSectionCrawler` targets all known side-nav IDs with object scrolling and `mainCoordinateFallback=false` | Reaches no-move endpoints across all top-level sections. Multi-page sections observed: Camera, Movement, Experimental, and Notifications. | Working |
+| `quest.settings.section.notifications_crawl` | Crawl Notifications to its endpoint | `settingsSectionCrawler` target `notifications` with a higher scroll cap | Reaches six pages: global notification controls, notification position/device categories, and per-app notification rows. Raw app names are local evidence only and should not be committed. | Working, privacy-sensitive |
 | `quest.settings.child_probe` | Probe allowlisted child pages without toggles | Open a section, locate a literal/regex row label in main settings content, click a non-checkable same-row target, dump the result, press Back | Produces child-surface summaries and flags whether content differs from the clicked page | Working |
 | `quest.settings.child.action_modes` | Compare child-row activation routes | Run `settingsChildPageProbe` with `clickModes=coordinate,uiObject2,accessibilityClick,accessibilityExpand` against the same allowlisted rows | Separates coordinate-tap failures from live `UiObject2.click()` and raw accessibility-action behavior | Partial |
 | `quest.settings.child.dropdown_targets` | Open selector option popovers | Run `settingsChildPageProbe` with `childTargetRole=dropdown` and `clickModes=coordinate,uiObject2,accessibilityClick` for camera bit rate, frame rate, image stabilization, and eye perspective | Exposes `context_menu_list` options without selecting a value | Working |
 | `quest.settings.child.dropdown_option_summary` | Summarize opened selector options | Inspect `settings_child_surface.summary.settingsDropdownOptions` after a dropdown opens | Records clean option labels, row bounds, selected flags, checked flags, and default markers | Working |
+| `quest.settings.child.dropdown_option_dry_run` | Target a selector option without selecting it | Run `settingsChildPageProbe` with `childTargetRole=dropdown`, `optionTarget` or `optionTargets`, and default `allowOptionSelect=false` | Records the matched option row and returns `allowOptionSelect=false dry run`; verified for non-default camera capture options without changing settings | Working |
 | `quest.settings.child.privacy_device_permissions` | Open Privacy & safety -> Device permissions | `settingsChildPageProbe` target `privacy_safety:Device permissions` | Opens child page with hand/body tracking, location services, spatial data, enhanced spatial services, and deletion controls | Working, sensitive |
 | `quest.settings.child.privacy_app_permissions` | Open Privacy & safety -> App permissions | `settingsChildPageProbe` target `privacy_safety:App permissions` | Opens child page with permission categories including audio files, connected cameras, headset cameras, location, microphone, nearby devices, photos/videos | Working, sensitive |
 | `quest.settings.child.camera_selectors` | Try Camera selector rows | Broad-row target with coordinate, `UiObject2.click()`, and `ACTION_CLICK`; dropdown target with `childTargetRole=dropdown` | Broad rows activate without exposing options; compact dropdown targets expose bit-rate, frame-rate, stabilization, and eye-perspective options | Working via dropdown target |
@@ -350,9 +369,12 @@ The `examples:quest-ui-automation` test app should grow in small slices:
    selector surfaces. Done.
 8. Keep active mutation behind explicit extras such as `tapRegex`, `toggleRegex`,
    or `recordProbe=true`.
-9. Next useful slice: add an explicit option-selection dry-run/guard that can
-   target a specific option by text but refuses to click unless a mutation
-   extra such as `allowOptionSelect=true` is present.
+9. Add an explicit option-selection dry-run/guard that can target a specific
+   option by text but refuses to click unless a mutation extra such as
+   `allowOptionSelect=true` is present. Done.
+10. Next useful slice: add a section summary exporter that emits redacted,
+    low-cardinality findings directly from JSONL reports so raw private labels,
+    installed app names, and full XML paths do not need manual handling.
 
 ## Open Questions
 

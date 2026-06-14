@@ -43,9 +43,11 @@ import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -209,6 +211,10 @@ public final class QuestUiAutomationSweepTest {
                 args.getString("targetRole", "row")
         ));
         boolean dumpChildAccessibility = parseBoolean(args.getString("dumpChildAccessibility", "false"), false);
+        String optionTarget = args.getString("optionTarget", "");
+        Map<String, String> optionTargets = parseOptionTargets(args.getString("optionTargets", ""));
+        boolean allowOptionSelect = parseBoolean(args.getString("allowOptionSelect", "false"), false);
+        String optionClickMode = normalizeChildClickMode(args.getString("optionClickMode", "coordinate"));
         if (clickModes.isEmpty()) {
             clickModes.add("coordinate");
         }
@@ -230,6 +236,11 @@ public final class QuestUiAutomationSweepTest {
                 .put("clickModes", new JSONArray(clickModes))
                 .put("childTargetRole", childTargetRole)
                 .put("dumpChildAccessibility", dumpChildAccessibility)
+                .put("optionTarget", optionTarget)
+                .put("optionTargets", optionTargetsToJson(optionTargets))
+                .put("allowOptionSelect", allowOptionSelect)
+                .put("optionClickMode", optionClickMode)
+                .put("optionSafety", "Dropdown option targeting is a dry run unless allowOptionSelect=true.")
                 .put("safety", "Only matching non-checkable main-content rows are clicked; the probe dumps the child surface and presses Back."));
 
         for (ChildTargetSpec spec : targets) {
@@ -291,6 +302,39 @@ public final class QuestUiAutomationSweepTest {
                         .put("summary", childSummary));
                 if (dumpChildAccessibility) {
                     dumpAccessibilityState(instrumentation, report, "settings_child_after_" + nameSuffix);
+                }
+
+                String requestedOption = optionTargetForSpec(spec, optionTargets, optionTarget);
+                if ("dropdown".equals(childTargetRole) && !requestedOption.trim().isEmpty()) {
+                    JSONObject optionOutcome = handleSettingsDropdownOptionTarget(
+                            instrumentation,
+                            device,
+                            childSnapshot,
+                            requestedOption,
+                            allowOptionSelect,
+                            optionClickMode
+                    );
+                    report.event("settings_dropdown_option_target", new JSONObject()
+                            .put("section", spec.section)
+                            .put("label", spec.label)
+                            .put("childTargetRole", childTargetRole)
+                            .put("clickMode", clickMode)
+                            .put("outcome", optionOutcome));
+                    if (optionOutcome.optBoolean("clicked", false)) {
+                        device.waitForIdle(3000);
+                        Thread.sleep(parseInt(args.getString("postOptionClickWaitMs", "1000"), 1000));
+                        UiSnapshot afterOption = dumpAndClassify(
+                                device,
+                                report,
+                                "settings_child_after_option_" + nameSuffix,
+                                DEFAULT_CANDIDATE_PATTERN
+                        );
+                        report.event("settings_dropdown_option_after_click", new JSONObject()
+                                .put("section", spec.section)
+                                .put("label", spec.label)
+                                .put("optionTarget", requestedOption)
+                                .put("summary", settingsContentSummary(afterOption)));
+                    }
                 }
 
                 device.pressBack();
@@ -1966,6 +2010,62 @@ public final class QuestUiAutomationSweepTest {
         return items;
     }
 
+    private static Map<String, String> parseOptionTargets(String value) {
+        Map<String, String> targets = new LinkedHashMap<>();
+        if (value == null || value.trim().isEmpty()) {
+            return targets;
+        }
+        for (String raw : value.split(";")) {
+            String item = raw.trim();
+            if (item.isEmpty()) {
+                continue;
+            }
+            int separator = item.indexOf('=');
+            if (separator <= 0 || separator == item.length() - 1) {
+                continue;
+            }
+            String key = item.substring(0, separator).trim();
+            String option = item.substring(separator + 1).trim();
+            if (!key.isEmpty() && !option.isEmpty()) {
+                targets.put(key, option);
+            }
+        }
+        return targets;
+    }
+
+    private static JSONArray optionTargetsToJson(Map<String, String> optionTargets) throws JSONException {
+        JSONArray items = new JSONArray();
+        for (Map.Entry<String, String> entry : optionTargets.entrySet()) {
+            items.put(new JSONObject()
+                    .put("target", entry.getKey())
+                    .put("option", entry.getValue()));
+        }
+        return items;
+    }
+
+    private static String optionTargetForSpec(
+            ChildTargetSpec spec,
+            Map<String, String> optionTargets,
+            String fallback
+    ) {
+        String fullKey = spec.section + ":" + spec.label;
+        for (Map.Entry<String, String> entry : optionTargets.entrySet()) {
+            String key = entry.getKey();
+            if (key.equalsIgnoreCase(fullKey) || key.equalsIgnoreCase(spec.label)) {
+                return entry.getValue();
+            }
+        }
+        return fallback == null ? "" : fallback;
+    }
+
+    private static Pattern literalOrRegexPattern(String value) {
+        String target = value == null ? "" : value.trim();
+        if (target.startsWith("regex:")) {
+            return Pattern.compile(target.substring("regex:".length()), Pattern.CASE_INSENSITIVE);
+        }
+        return Pattern.compile(".*" + Pattern.quote(target) + ".*", Pattern.CASE_INSENSITIVE);
+    }
+
     private static Direction toDirection(String direction) {
         String normalized = direction == null ? "" : direction.toLowerCase(Locale.US);
         if ("up".equals(normalized) || "backward".equals(normalized)) {
@@ -2295,33 +2395,83 @@ public final class QuestUiAutomationSweepTest {
         return summaries;
     }
 
-    private static JSONArray settingsDropdownOptions(List<UiNode> nodes, int limit) throws JSONException {
-        JSONArray options = new JSONArray();
+    private static JSONObject handleSettingsDropdownOptionTarget(
+            Instrumentation instrumentation,
+            UiDevice device,
+            UiSnapshot snapshot,
+            String optionTarget,
+            boolean allowOptionSelect,
+            String optionClickMode
+    ) throws JSONException {
+        Pattern pattern = literalOrRegexPattern(optionTarget);
+        UiNode optionNode = findSettingsDropdownOptionNode(snapshot.nodes, pattern);
+        JSONObject outcome = new JSONObject()
+                .put("optionTarget", optionTarget)
+                .put("pattern", pattern.pattern())
+                .put("allowOptionSelect", allowOptionSelect)
+                .put("optionClickMode", optionClickMode)
+                .put("found", optionNode != null)
+                .put("clicked", false);
+        if (optionNode == null) {
+            return outcome.put("reason", "no matching context_menu_item option");
+        }
+        outcome.put("option", settingsDropdownOptionSummary(snapshot.nodes, optionNode));
+        if (!allowOptionSelect) {
+            return outcome.put("reason", "allowOptionSelect=false dry run");
+        }
+        JSONObject clickAction = clickSettingsChildTarget(instrumentation, device, optionNode, optionClickMode);
+        return outcome
+                .put("clicked", clickAction.optBoolean("clicked", false))
+                .put("clickAction", clickAction);
+    }
+
+    private static UiNode findSettingsDropdownOptionNode(List<UiNode> nodes, Pattern pattern) {
         for (UiNode optionNode : nodes) {
-            if (options.length() >= limit) {
-                break;
-            }
-            if (!isSettingsContentNode(optionNode) || optionNode.bounds == null) {
+            if (!isSettingsDropdownOptionNode(optionNode)) {
                 continue;
             }
-            if (!optionNode.resourceId.contains("context_menu_item")) {
+            if (pattern.matcher(settingsDropdownOptionSearchText(nodes, optionNode)).find()) {
+                return optionNode;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isSettingsDropdownOptionNode(UiNode node) {
+        return isSettingsContentNode(node)
+                && node.bounds != null
+                && node.resourceId.contains("context_menu_item");
+    }
+
+    private static String settingsDropdownOptionSearchText(List<UiNode> nodes, UiNode optionNode) {
+        StringBuilder builder = new StringBuilder(optionNode.searchText());
+        if (optionNode.bounds == null) {
+            return builder.toString();
+        }
+        for (UiNode rowNode : nodes) {
+            if (!isSettingsContentNode(rowNode) || rowNode.bounds == null) {
                 continue;
             }
-            JSONArray texts = new JSONArray();
-            boolean checked = optionNode.checked;
-            boolean selected = optionNode.selected;
-            boolean hasDefaultMarker = false;
-            Set<String> seenTexts = new LinkedHashSet<>();
+            if (!boundsCenterInside(rowNode.bounds, optionNode.bounds)) {
+                continue;
+            }
+            builder.append(' ').append(rowNode.searchText());
+        }
+        return builder.toString();
+    }
+
+    private static JSONObject settingsDropdownOptionSummary(List<UiNode> nodes, UiNode optionNode) throws JSONException {
+        JSONArray texts = new JSONArray();
+        boolean checked = optionNode.checked;
+        boolean selected = optionNode.selected;
+        boolean hasDefaultMarker = false;
+        Set<String> seenTexts = new LinkedHashSet<>();
+        if (optionNode.bounds != null) {
             for (UiNode rowNode : nodes) {
                 if (!isSettingsContentNode(rowNode) || rowNode.bounds == null) {
                     continue;
                 }
-                int centerY = rowNode.bounds.centerY();
-                if (centerY < optionNode.bounds.top || centerY > optionNode.bounds.bottom) {
-                    continue;
-                }
-                int centerX = rowNode.bounds.centerX();
-                if (centerX < optionNode.bounds.left || centerX > optionNode.bounds.right) {
+                if (!boundsCenterInside(rowNode.bounds, optionNode.bounds)) {
                     continue;
                 }
                 checked = checked || rowNode.checked;
@@ -2335,16 +2485,38 @@ public final class QuestUiAutomationSweepTest {
                     hasDefaultMarker = hasDefaultMarker || text.toLowerCase(Locale.US).contains("(default)");
                 }
             }
-            options.put(new JSONObject()
-                    .put("resourceId", optionNode.resourceId)
-                    .put("className", optionNode.className)
-                    .put("clickable", optionNode.clickable)
-                    .put("enabled", optionNode.enabled)
-                    .put("checked", checked)
-                    .put("selected", selected)
-                    .put("hasDefaultMarker", hasDefaultMarker)
-                    .put("texts", texts)
-                    .put("bounds", rectToJson(optionNode.bounds)));
+        }
+        return new JSONObject()
+                .put("resourceId", optionNode.resourceId)
+                .put("className", optionNode.className)
+                .put("clickable", optionNode.clickable)
+                .put("enabled", optionNode.enabled)
+                .put("checked", checked)
+                .put("selected", selected)
+                .put("hasDefaultMarker", hasDefaultMarker)
+                .put("texts", texts)
+                .put("bounds", optionNode.bounds == null ? JSONObject.NULL : rectToJson(optionNode.bounds));
+    }
+
+    private static boolean boundsCenterInside(Rect inner, Rect outer) {
+        int centerY = inner.centerY();
+        if (centerY < outer.top || centerY > outer.bottom) {
+            return false;
+        }
+        int centerX = inner.centerX();
+        return centerX >= outer.left && centerX <= outer.right;
+    }
+
+    private static JSONArray settingsDropdownOptions(List<UiNode> nodes, int limit) throws JSONException {
+        JSONArray options = new JSONArray();
+        for (UiNode optionNode : nodes) {
+            if (options.length() >= limit) {
+                break;
+            }
+            if (!isSettingsDropdownOptionNode(optionNode)) {
+                continue;
+            }
+            options.put(settingsDropdownOptionSummary(nodes, optionNode));
         }
         return options;
     }
