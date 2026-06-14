@@ -96,6 +96,20 @@ Observed with the development-only `examples:quest-ui-automation` module:
 - `dumpsys media_projection` stayed empty before, during, and after the built-in
   recorder probe, so the built-in recorder does not look like a normal
   app-visible MediaProjection session.
+- The automation example now includes a `mediaProjectionPrompt` probe built
+  around Android's documented `createScreenCaptureIntent()` flow. Android's
+  current MediaProjection guide states that apps obtain screen-capture
+  capability through this prompt/token path, and Android 14 behavior requires
+  fresh consent for each capture session:
+  <https://developer.android.com/media/grow/media-projection>.
+- On the tested Quest prompt, approval is a two-step UI flow. The first prompt
+  dump exposed one `entire_view` target and three generic `app_window` targets.
+  `Share` was present but disabled until a target was selected, while `Cancel`
+  was enabled immediately. Tapping `Cancel` returned `RESULT_CANCELED` with no
+  result data. Selecting `entire_view` enabled `Share`; tapping it returned
+  `RESULT_OK` with result data to the probe Activity. Because the probe does
+  not call `getMediaProjection()` or `createVirtualDisplay()`, `dumpsys
+  media_projection` stayed `null` after the run.
 - The Metacam settings path exposed mic-audio, camera view, aspect-ratio, red
   recording indicator, hide-controls, and capture-marker settings. Resolution,
   bitrate, frame-rate, and eye preference were not yet found through the first
@@ -347,7 +361,7 @@ Wait/stability:
 | Q-001 | Quick settings | Use UIAutomator `openQuickSettings` and/or Home/Sharing path, dump nodes | XML, node DB | Low | API did not reveal Quest quick settings |
 | Q-002 | Notification shade | Try `openNotification`, dump nodes | XML, node DB | Low | API did not reveal distinct notification surface |
 | Q-003 | Android settings intents | Start `android.settings.SETTINGS` and Quest-specific settings activities found by package query | XML, node DB | Low | Generic settings intent opens Quest settings |
-| Q-004 | Permission dialogs | Use MediaProjection consent as known prompt and record selector/tap behavior | XML, JSONL | Consent UI | Planned |
+| Q-004 | Permission dialogs | Use MediaProjection consent as known prompt and record selector/tap behavior | XML, JSONL | Consent UI | Working; target selection required before approval |
 | Q-005 | Scriptable testing services | Query supported Meta testing properties, read only unless explicitly changing | Command output | Passive for `GET_PROPERTY`; mutating for `SET_PROPERTY`/reset/setup | Working read-only; mutating methods documented but not run |
 | Q-006 | Settings side-nav map | Open Quest settings and click top-level side-nav entries by resource ID | XML, JSONL | Low, privacy-sensitive labels | Working for 16 sections |
 | Q-007 | Settings section crawler | Open settings sections and scroll main `settings_recycler_view` without toggles | XML, JSONL | Low, privacy-sensitive labels | Working for selected sections |
@@ -381,6 +395,8 @@ known rollback/stop step.
 | `settings.scroll.shell_swipe_display_43` | Probe a non-default Quest display ID | `input touchscreen -d 43 swipe 900 720 900 240 500` | Changed visible content, but the new nodes appeared to come from the Store/background panel, not the target settings list | Ambiguous |
 | `settings.scroll.shell_scroll` | Try Android shell wheel/rotary scroll | `input rotaryencoder -d 0 scroll --axis VSCROLL,3.0` | Fails on this Quest build: `rotaryencoder` is not an accepted source and `scroll` is not listed in `input` usage | Unsupported on current OS |
 | `settings.scroll.key_scroll` | Try keyboard/D-pad scroll events | `scrollProbe` with `strategy=keyScroll`, scoped `keyCode`, and before/after hierarchy dumps | `DPAD_DOWN` and `SPACE` changed visible state; `PAGE_DOWN` and `TAB` did not. Treat as focus/search/navigation behavior, not as a clean list scroll primitive. | Mapped, not reliable scroll |
+| `capture.media_projection.prompt_cancel` | Map the cancel path of the app-owned MediaProjection prompt | `mediaProjectionPrompt` with `temporaryAppOpMode=default`, `restoreAppOp=true`, and `tapChoice=cancel` | Finds the cancel control and returns `RESULT_CANCELED` with no result data | Working |
+| `capture.media_projection.prompt_share_entire` | Map the positive app-owned MediaProjection prompt path without creating a capture session | `mediaProjectionPrompt` with `selectionChoice=entire`, `tapChoice=share`, `temporaryAppOpMode=default`, and `restoreAppOp=true` | Finds target-selection options, shows approval disabled until `entire_view` is selected, taps enabled approval, and receives `RESULT_OK` with result data. No virtual display is created by the probe, so `dumpsys media_projection` stays `null`. | Working |
 | `quest.settings.open` | Open Meta Quest settings through Android settings intent | `am start -W -a android.settings.SETTINGS`; wait; dump | Opens `com.oculus.panelapp.settings` with side nav and scrollable settings grids | Working |
 | `quest.settings.nav.default_probe` | Map safe Quest settings sections | `settingsNavProbe` with `general,notifications,display_brightness,audio,camera,accessibility,developer,help` | Opens and dumps each section; no toggles | Working |
 | `quest.settings.nav.extended_probe` | Map remaining Quest settings side-nav sections | `settingsNavProbe` with `quest_link,action_button,space_setup,world_movement,movement_tracking,privacy_safety,passcode_security,experimental` | Opens and dumps each section; no toggles | Working, privacy-sensitive |

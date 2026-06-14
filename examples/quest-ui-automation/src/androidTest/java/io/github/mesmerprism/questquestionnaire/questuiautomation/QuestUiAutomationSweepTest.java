@@ -66,6 +66,10 @@ public final class QuestUiAutomationSweepTest {
                     "quality|indicator|settings|scroll|frame|rate|bit|stabilization|eye|view|aspect",
             Pattern.CASE_INSENSITIVE
     );
+    private static final Pattern MEDIA_PROJECTION_PROMPT_PATTERN = Pattern.compile(
+            "screen|record|capture|share|start now|start|allow|cancel",
+            Pattern.CASE_INSENSITIVE
+    );
 
     @Test
     public void runSweep() throws Exception {
@@ -97,6 +101,8 @@ public final class QuestUiAutomationSweepTest {
                 runSettingsSectionCrawler(instrumentation, device, report, args);
             } else if ("settingsChildPageProbe".equals(scenario)) {
                 runSettingsChildPageProbe(instrumentation, device, report, args);
+            } else if ("mediaProjectionPrompt".equals(scenario)) {
+                runMediaProjectionPromptProbe(instrumentation, device, report, args);
             } else if ("metacamPanel".equals(scenario)) {
                 runMetacamPanelSweep(device, report, args);
             } else if ("metacamRecordProbe".equals(scenario)) {
@@ -1427,6 +1433,315 @@ public final class QuestUiAutomationSweepTest {
             return ".*\\bHelp\\b.*";
         }
         return ".*" + Pattern.quote(target.replace('_', ' ')) + ".*";
+    }
+
+    private static void runMediaProjectionPromptProbe(
+            Instrumentation instrumentation,
+            UiDevice device,
+            Report report,
+            Bundle args
+    ) throws Exception {
+        Context targetContext = instrumentation.getTargetContext();
+        String packageName = targetContext.getPackageName();
+        String temporaryAppOpMode = args.getString("temporaryAppOpMode", "");
+        boolean restoreAppOp = parseBoolean(args.getString("restoreAppOp", "true"), true);
+        String selectionChoice = args.getString("selectionChoice", "none");
+        String tapChoice = args.getString("tapChoice", "cancel");
+        int waitForPromptMs = parseInt(args.getString("waitForPromptMs", "6000"), 6000);
+        int waitAfterTapMs = parseInt(args.getString("waitAfterTapMs", "2500"), 2500);
+        File resultFile = projectionPromptResultFile(targetContext);
+        if (resultFile.isFile() && !resultFile.delete()) {
+            report.event("media_projection_prompt_result_delete", new JSONObject().put("deleted", false));
+        }
+        File traceFile = projectionPromptTraceFile(targetContext);
+        if (traceFile.isFile() && !traceFile.delete()) {
+            report.event("media_projection_prompt_trace_delete", new JSONObject().put("deleted", false));
+        }
+
+        report.command("media_projection_before", shell(device, "dumpsys media_projection | sed -n '1,120p'"));
+        String appOpBefore = shell(device, "cmd appops get " + packageName + " PROJECT_MEDIA");
+        report.command("project_media_appop_before", appOpBefore);
+        String previousAppOpMode = appOpModeFromOutput(appOpBefore);
+        if (!temporaryAppOpMode.trim().isEmpty()) {
+            report.command(
+                    "project_media_appop_set",
+                    shell(device, "cmd appops set " + packageName + " PROJECT_MEDIA " + temporaryAppOpMode.trim())
+            );
+        }
+
+        try {
+            report.event("media_projection_prompt_start", new JSONObject()
+                    .put("temporaryAppOpMode", temporaryAppOpMode.trim())
+                    .put("previousAppOpMode", previousAppOpMode)
+                    .put("selectionChoice", selectionChoice)
+                    .put("tapChoice", tapChoice)
+                    .put("restoreAppOp", restoreAppOp));
+            report.command("media_projection_prompt_start_activity", shell(
+                    device,
+                    "am start -W -a " + ProjectionPromptActivity.ACTION_REQUEST_MEDIA_PROJECTION +
+                            " -n " + packageName + "/.ProjectionPromptActivity" +
+                            " --ez " + ProjectionPromptActivity.EXTRA_AUTO_REQUEST + " true" +
+                            " --ez " + ProjectionPromptActivity.EXTRA_FINISH_AFTER_RESULT + " true"
+            ));
+            device.wait(Until.hasObject(By.text(MEDIA_PROJECTION_PROMPT_PATTERN)), waitForPromptMs);
+            device.waitForIdle(3000);
+            Thread.sleep(1000);
+
+            UiSnapshot prompt = dumpAndClassify(
+                    device,
+                    report,
+                    "media_projection_prompt",
+                    MEDIA_PROJECTION_PROMPT_PATTERN
+            );
+            dumpAccessibilityState(instrumentation, report, "media_projection_prompt");
+            JSONArray buttons = projectionPromptButtons(prompt.nodes);
+            report.event("media_projection_prompt_buttons", new JSONObject()
+                    .put("buttonCount", buttons.length())
+                    .put("buttons", buttons));
+            JSONArray selections = projectionPromptSelectionOptions(prompt.nodes);
+            report.event("media_projection_prompt_selection_options", new JSONObject()
+                    .put("optionCount", selections.length())
+                    .put("options", selections));
+
+            UiNode selectionTarget = projectionPromptSelectionTarget(prompt.nodes, selectionChoice);
+            if (selectionTarget == null) {
+                report.event("media_projection_prompt_selection_tap", new JSONObject()
+                        .put("selectionChoice", selectionChoice)
+                        .put("tapped", false)
+                        .put("matchedRole", ""));
+            } else {
+                int x = selectionTarget.bounds.centerX();
+                int y = selectionTarget.bounds.centerY();
+                report.event("media_projection_prompt_selection_tap", new JSONObject()
+                        .put("selectionChoice", selectionChoice)
+                        .put("tapped", true)
+                        .put("matchedRole", projectionPromptSelectionRole(selectionTarget))
+                        .put("x", x)
+                        .put("y", y));
+                device.click(x, y);
+                device.waitForIdle(3000);
+                Thread.sleep(1000);
+                prompt = dumpAndClassify(
+                        device,
+                        report,
+                        "media_projection_prompt_after_selection",
+                        MEDIA_PROJECTION_PROMPT_PATTERN
+                );
+                dumpAccessibilityState(instrumentation, report, "media_projection_prompt_after_selection");
+                JSONArray afterSelectionButtons = projectionPromptButtons(prompt.nodes);
+                report.event("media_projection_prompt_buttons", new JSONObject()
+                        .put("buttonCount", afterSelectionButtons.length())
+                        .put("buttons", afterSelectionButtons));
+            }
+
+            UiNode tapTarget = projectionPromptTapTarget(prompt.nodes, tapChoice);
+            if (tapTarget == null || "none".equalsIgnoreCase(tapChoice.trim())) {
+                report.event("media_projection_prompt_tap", new JSONObject()
+                        .put("tapChoice", tapChoice)
+                        .put("tapped", false)
+                        .put("matchedRole", ""));
+            } else {
+                int x = tapTarget.bounds.centerX();
+                int y = tapTarget.bounds.centerY();
+                report.event("media_projection_prompt_tap", new JSONObject()
+                        .put("tapChoice", tapChoice)
+                        .put("tapped", true)
+                        .put("matchedRole", projectionPromptRole(tapTarget))
+                        .put("x", x)
+                        .put("y", y));
+                device.click(x, y);
+                device.waitForIdle(3000);
+                Thread.sleep(Math.max(waitAfterTapMs, 0));
+                dumpAndClassify(device, report, "media_projection_after_prompt_tap", MEDIA_PROJECTION_PROMPT_PATTERN);
+                dumpAccessibilityState(instrumentation, report, "media_projection_after_prompt_tap");
+            }
+
+            report.event("media_projection_prompt_result", readProjectionPromptResult(targetContext));
+            report.event("media_projection_prompt_trace", readProjectionPromptTrace(targetContext));
+            report.command("media_projection_after", shell(device, "dumpsys media_projection | sed -n '1,120p'"));
+        } finally {
+            if (!temporaryAppOpMode.trim().isEmpty() && restoreAppOp) {
+                String restoreMode = previousAppOpMode.isEmpty() ? "default" : previousAppOpMode;
+                report.command(
+                        "project_media_appop_restore",
+                        shell(device, "cmd appops set " + packageName + " PROJECT_MEDIA " + restoreMode)
+                );
+                report.event("media_projection_prompt_appop_restore", new JSONObject()
+                        .put("restoredMode", restoreMode));
+            }
+        }
+    }
+
+    private static File projectionPromptResultFile(Context context) {
+        return new File(context.getFilesDir(), ProjectionPromptActivity.RESULT_FILE_NAME);
+    }
+
+    private static File projectionPromptTraceFile(Context context) {
+        return new File(context.getFilesDir(), ProjectionPromptActivity.TRACE_FILE_NAME);
+    }
+
+    private static JSONObject readProjectionPromptResult(Context context) throws JSONException, IOException {
+        File resultFile = projectionPromptResultFile(context);
+        JSONObject summary = new JSONObject().put("hasResultFile", resultFile.isFile());
+        if (!resultFile.isFile()) {
+            return summary;
+        }
+        JSONObject raw = new JSONObject(new String(Files.readAllBytes(resultFile.toPath()), StandardCharsets.UTF_8));
+        summary.put("resultCode", raw.optInt("resultCode", 0))
+                .put("resultOk", raw.optBoolean("resultOk", false))
+                .put("resultCanceled", raw.optBoolean("resultCanceled", false))
+                .put("hasData", raw.optBoolean("hasData", false))
+                .put("dataExtraCount", raw.optInt("dataExtraCount", 0))
+                .put("hasError", raw.has("error"));
+        return summary;
+    }
+
+    private static JSONObject readProjectionPromptTrace(Context context) throws JSONException, IOException {
+        File traceFile = projectionPromptTraceFile(context);
+        JSONObject summary = new JSONObject().put("hasTraceFile", traceFile.isFile());
+        JSONArray events = new JSONArray();
+        if (traceFile.isFile()) {
+            List<String> lines = Files.readAllLines(traceFile.toPath(), StandardCharsets.UTF_8);
+            for (String line : lines) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+                JSONObject row = new JSONObject(line);
+                events.put(row.optString("event", ""));
+            }
+        }
+        return summary.put("eventCount", events.length()).put("events", events);
+    }
+
+    private static JSONArray projectionPromptButtons(List<UiNode> nodes) throws JSONException {
+        JSONArray buttons = new JSONArray();
+        for (UiNode node : nodes) {
+            String role = projectionPromptRole(node);
+            if ("other".equals(role) || !node.clickable || node.bounds == null) {
+                continue;
+            }
+            buttons.put(new JSONObject()
+                    .put("role", role)
+                    .put("enabled", node.enabled)
+                    .put("clickable", node.clickable)
+                    .put("className", node.className)
+                    .put("bounds", rectToJson(node.bounds)));
+        }
+        return buttons;
+    }
+
+    private static JSONArray projectionPromptSelectionOptions(List<UiNode> nodes) throws JSONException {
+        JSONArray options = new JSONArray();
+        for (UiNode node : nodes) {
+            String role = projectionPromptSelectionRole(node);
+            if ("other".equals(role) || !node.enabled || !node.clickable || node.bounds == null) {
+                continue;
+            }
+            options.put(new JSONObject()
+                    .put("role", role)
+                    .put("enabled", node.enabled)
+                    .put("clickable", node.clickable)
+                    .put("className", node.className)
+                    .put("bounds", rectToJson(node.bounds)));
+        }
+        return options;
+    }
+
+    private static UiNode projectionPromptTapTarget(List<UiNode> nodes, String tapChoice) {
+        String normalizedChoice = tapChoice == null ? "" : tapChoice.trim().toLowerCase(Locale.US);
+        if (normalizedChoice.isEmpty() || "none".equals(normalizedChoice)) {
+            return null;
+        }
+        for (UiNode node : nodes) {
+            if (!node.enabled || !node.clickable || node.bounds == null) {
+                continue;
+            }
+            String role = projectionPromptRole(node);
+            if ("first".equals(normalizedChoice) && !"other".equals(role)) {
+                return node;
+            }
+            if (("cancel".equals(normalizedChoice) || "deny".equals(normalizedChoice)) && "cancel".equals(role)) {
+                return node;
+            }
+            if (("share".equals(normalizedChoice)
+                    || "approve".equals(normalizedChoice)
+                    || "allow".equals(normalizedChoice)
+                    || "start".equals(normalizedChoice)) && "approve".equals(role)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private static UiNode projectionPromptSelectionTarget(List<UiNode> nodes, String selectionChoice) {
+        String normalizedChoice = selectionChoice == null ? "" : selectionChoice.trim().toLowerCase(Locale.US);
+        if (normalizedChoice.isEmpty() || "none".equals(normalizedChoice)) {
+            return null;
+        }
+        for (UiNode node : nodes) {
+            if (!node.enabled || !node.clickable || node.bounds == null) {
+                continue;
+            }
+            String role = projectionPromptSelectionRole(node);
+            if ("first".equals(normalizedChoice) && !"other".equals(role)) {
+                return node;
+            }
+            if (("entire".equals(normalizedChoice) || "entire_view".equals(normalizedChoice))
+                    && "entire_view".equals(role)) {
+                return node;
+            }
+            if (("window".equals(normalizedChoice)
+                    || "app".equals(normalizedChoice)
+                    || "app_window".equals(normalizedChoice)) && "app_window".equals(role)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private static String projectionPromptRole(UiNode node) {
+        String search = node.searchText().toLowerCase(Locale.US);
+        if (search.contains("cancel")) {
+            return "cancel";
+        }
+        if (search.contains("share")
+                || search.contains("start now")
+                || search.contains("start")
+                || search.contains("allow")) {
+            return "approve";
+        }
+        return "other";
+    }
+
+    private static String projectionPromptSelectionRole(UiNode node) {
+        String search = node.searchText().toLowerCase(Locale.US);
+        if (search.contains("entire view")) {
+            return "entire_view";
+        }
+        if (node.clickable
+                && node.className.toLowerCase(Locale.US).contains("linearlayout")
+                && !node.contentDescription.isEmpty()) {
+            return "app_window";
+        }
+        return "other";
+    }
+
+    private static String appOpModeFromOutput(String output) {
+        if (output == null) {
+            return "default";
+        }
+        String marker = "PROJECT_MEDIA:";
+        int markerIndex = output.indexOf(marker);
+        if (markerIndex < 0) {
+            return "default";
+        }
+        String tail = output.substring(markerIndex + marker.length()).trim();
+        if (tail.isEmpty()) {
+            return "default";
+        }
+        int separator = tail.indexOf(';');
+        String mode = separator >= 0 ? tail.substring(0, separator).trim() : tail.split("\\s+")[0].trim();
+        return mode.isEmpty() ? "default" : mode;
     }
 
     private static void runMetacamRecordProbe(UiDevice device, Report report, Bundle args) throws Exception {

@@ -290,6 +290,16 @@ def summarize_events(
     scroll_probe_start: dict[str, Any] | None = None
     scroll_probe_strategies: list[dict[str, Any]] = []
     scroll_probe_deltas: list[dict[str, Any]] = []
+    media_projection_prompt: dict[str, list[dict[str, Any]]] = {
+        "starts": [],
+        "buttons": [],
+        "selectionOptions": [],
+        "selectionTaps": [],
+        "taps": [],
+        "results": [],
+        "traces": [],
+        "appOpRestores": [],
+    }
     child_page_surfaces: list[dict[str, Any]] = []
     dropdown_targets: list[dict[str, Any]] = []
     dropdown_surfaces: list[dict[str, Any]] = []
@@ -403,6 +413,101 @@ def summarize_events(
                     "afterNodeCount": int_value(data.get("afterNodeCount")),
                     "visibleTextChanged": before_hash != after_hash,
                     "newVisibleTextCount": len(data.get("newVisibleTexts", []) or []),
+                }
+            )
+
+        elif event_type == "media_projection_prompt_start":
+            media_projection_prompt["starts"].append(
+                {
+                    "temporaryAppOpMode": normalize_text(data.get("temporaryAppOpMode")) or "(unchanged)",
+                    "previousAppOpMode": normalize_text(data.get("previousAppOpMode")) or "default",
+                    "selectionChoice": normalize_text(data.get("selectionChoice")),
+                    "tapChoice": normalize_text(data.get("tapChoice")),
+                    "restoreAppOp": bool(data.get("restoreAppOp", False)),
+                }
+            )
+
+        elif event_type == "media_projection_prompt_buttons":
+            roles: Counter[str] = Counter()
+            enabled_roles: Counter[str] = Counter()
+            disabled_roles: Counter[str] = Counter()
+            for button in data.get("buttons", []) or []:
+                role = normalize_text(button.get("role")) or "unknown"
+                roles[role] += 1
+                if button.get("enabled", False):
+                    enabled_roles[role] += 1
+                else:
+                    disabled_roles[role] += 1
+            media_projection_prompt["buttons"].append(
+                {
+                    "buttonCount": int_value(data.get("buttonCount")),
+                    "roles": dict(sorted(roles.items())),
+                    "enabledRoles": dict(sorted(enabled_roles.items())),
+                    "disabledRoles": dict(sorted(disabled_roles.items())),
+                }
+            )
+
+        elif event_type == "media_projection_prompt_selection_options":
+            roles: Counter[str] = Counter()
+            for option in data.get("options", []) or []:
+                role = normalize_text(option.get("role")) or "unknown"
+                roles[role] += 1
+            media_projection_prompt["selectionOptions"].append(
+                {
+                    "optionCount": int_value(data.get("optionCount")),
+                    "roles": dict(sorted(roles.items())),
+                }
+            )
+
+        elif event_type == "media_projection_prompt_selection_tap":
+            media_projection_prompt["selectionTaps"].append(
+                {
+                    "selectionChoice": normalize_text(data.get("selectionChoice")),
+                    "tapped": bool(data.get("tapped", False)),
+                    "matchedRole": normalize_text(data.get("matchedRole")),
+                }
+            )
+
+        elif event_type == "media_projection_prompt_tap":
+            media_projection_prompt["taps"].append(
+                {
+                    "tapChoice": normalize_text(data.get("tapChoice")),
+                    "tapped": bool(data.get("tapped", False)),
+                    "matchedRole": normalize_text(data.get("matchedRole")),
+                }
+            )
+
+        elif event_type == "media_projection_prompt_result":
+            media_projection_prompt["results"].append(
+                {
+                    "hasResultFile": bool(data.get("hasResultFile", False)),
+                    "resultCode": int_value(data.get("resultCode")),
+                    "resultOk": bool(data.get("resultOk", False)),
+                    "resultCanceled": bool(data.get("resultCanceled", False)),
+                    "hasData": bool(data.get("hasData", False)),
+                    "dataExtraCount": int_value(data.get("dataExtraCount")),
+                    "hasError": bool(data.get("hasError", False)),
+                }
+            )
+
+        elif event_type == "media_projection_prompt_trace":
+            raw_events = [
+                normalize_text(value)
+                for value in data.get("events", []) or []
+                if normalize_text(value)
+            ]
+            media_projection_prompt["traces"].append(
+                {
+                    "hasTraceFile": bool(data.get("hasTraceFile", False)),
+                    "eventCount": int_value(data.get("eventCount")),
+                    "events": raw_events,
+                }
+            )
+
+        elif event_type == "media_projection_prompt_appop_restore":
+            media_projection_prompt["appOpRestores"].append(
+                {
+                    "restoredMode": normalize_text(data.get("restoredMode")) or "default",
                 }
             )
 
@@ -583,6 +688,7 @@ def summarize_events(
         "scrollProbeStart": scroll_probe_start,
         "scrollProbeStrategies": scroll_probe_strategies,
         "scrollProbeDeltas": scroll_probe_deltas,
+        "mediaProjectionPrompt": media_projection_prompt,
         "settingsSections": section_summaries,
         "routeInventory": [
             {
@@ -603,6 +709,7 @@ def summarize_events(
             "rawXml": "Raw XML paths and full UI dumps are never emitted.",
             "surfaceMaps": "Surface-map summaries omit package names, raw node text, window titles, XML paths, and shell command output.",
             "scrollProbes": "Scroll-probe summaries omit raw visible text and command output; only counts, keys, strategy names, and changed/not-changed status are emitted.",
+            "mediaProjectionPrompt": "MediaProjection prompt summaries omit raw prompt text, package names, token/resultData contents, command output, and coordinates; only button roles and result-state booleans are emitted.",
             "childProbeDefaults": "Generated childTargets include public-safe child_page routes in allowed risk buckets and exclude default-blocked labels.",
         },
     }
@@ -754,6 +861,107 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                             ]
                         )
                     )
+                lines.append("")
+
+        media_prompt = summary["mediaProjectionPrompt"]
+        if any(media_prompt.values()):
+            lines.append("### MediaProjection Prompt")
+            if media_prompt["starts"]:
+                lines.append(markdown_table_row(["Temporary app-op", "Previous app-op", "Selection", "Tap choice", "Restore app-op"]))
+                lines.append(markdown_table_row(["---", "---", "---", "---", "---"]))
+                for start in media_prompt["starts"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                start["temporaryAppOpMode"],
+                                start["previousAppOpMode"],
+                                start["selectionChoice"] or "(none)",
+                                start["tapChoice"],
+                                "yes" if start["restoreAppOp"] else "no",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if media_prompt["selectionOptions"]:
+                lines.append(markdown_table_row(["Selection options", "Roles"]))
+                lines.append(markdown_table_row(["---:", "---"]))
+                for options in media_prompt["selectionOptions"]:
+                    roles = ", ".join(f"{role}:{count}" for role, count in options["roles"].items())
+                    lines.append(markdown_table_row([options["optionCount"], roles or "(none)"]))
+                lines.append("")
+            if media_prompt["selectionTaps"]:
+                lines.append(markdown_table_row(["Selection choice", "Tapped", "Matched role"]))
+                lines.append(markdown_table_row(["---", "---", "---"]))
+                for tap in media_prompt["selectionTaps"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                tap["selectionChoice"] or "(none)",
+                                "yes" if tap["tapped"] else "no",
+                                tap["matchedRole"] or "(none)",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if media_prompt["buttons"]:
+                lines.append(markdown_table_row(["Buttons", "Roles", "Enabled roles", "Disabled roles"]))
+                lines.append(markdown_table_row(["---:", "---", "---", "---"]))
+                for buttons in media_prompt["buttons"]:
+                    roles = ", ".join(f"{role}:{count}" for role, count in buttons["roles"].items())
+                    enabled_roles = ", ".join(f"{role}:{count}" for role, count in buttons["enabledRoles"].items())
+                    disabled_roles = ", ".join(f"{role}:{count}" for role, count in buttons["disabledRoles"].items())
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                buttons["buttonCount"],
+                                roles or "(none)",
+                                enabled_roles or "(none)",
+                                disabled_roles or "(none)",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if media_prompt["taps"]:
+                lines.append(markdown_table_row(["Tap choice", "Tapped", "Matched role"]))
+                lines.append(markdown_table_row(["---", "---", "---"]))
+                for tap in media_prompt["taps"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                tap["tapChoice"],
+                                "yes" if tap["tapped"] else "no",
+                                tap["matchedRole"] or "(none)",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if media_prompt["results"]:
+                lines.append(markdown_table_row(["Result file", "OK", "Canceled", "Has data", "Data extras", "Error"]))
+                lines.append(markdown_table_row(["---", "---", "---", "---", "---:", "---"]))
+                for result in media_prompt["results"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                "yes" if result["hasResultFile"] else "no",
+                                "yes" if result["resultOk"] else "no",
+                                "yes" if result["resultCanceled"] else "no",
+                                "yes" if result["hasData"] else "no",
+                                result["dataExtraCount"],
+                                "yes" if result["hasError"] else "no",
+                            ]
+                        )
+                    )
+                lines.append("")
+            if media_prompt["traces"]:
+                lines.append(markdown_table_row(["Trace file", "Events"]))
+                lines.append(markdown_table_row(["---", "---"]))
+                for trace in media_prompt["traces"]:
+                    events = ", ".join(trace["events"]) if trace["events"] else f"{trace['eventCount']} event(s)"
+                    lines.append(markdown_table_row(["yes" if trace["hasTraceFile"] else "no", events]))
+                lines.append("")
+            if media_prompt["appOpRestores"]:
+                restored = ", ".join(restore["restoredMode"] for restore in media_prompt["appOpRestores"])
+                lines.append(f"- Restored app-op modes: {restored}")
                 lines.append("")
 
         sections = summary["settingsSections"]

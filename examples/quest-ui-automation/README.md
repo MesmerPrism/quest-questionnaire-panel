@@ -84,6 +84,33 @@ adb shell am instrument -w `
   io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
+Run a MediaProjection consent-prompt probe. The cancel path records the prompt
+and returns without granting result data:
+
+```powershell
+adb shell am instrument -w `
+  -e scenario mediaProjectionPrompt `
+  -e temporaryAppOpMode default `
+  -e restoreAppOp true `
+  -e tapChoice cancel `
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The positive path selects the full-view target first, then taps Share. The
+probe Activity records whether `onActivityResult` returned `RESULT_OK` and
+result data, but it does not call `getMediaProjection()` or create a virtual
+display:
+
+```powershell
+adb shell am instrument -w `
+  -e scenario mediaProjectionPrompt `
+  -e temporaryAppOpMode default `
+  -e restoreAppOp true `
+  -e selectionChoice entire `
+  -e tapChoice share `
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+```
+
 Useful scroll-probe extras:
 
 ```text
@@ -117,6 +144,21 @@ mainCoordinateFallback=false|true
 Keep `mainCoordinateFallback=false` unless you intentionally want to test
 coordinate swipes inside the main settings content area. The default crawler
 uses object scrolling and does not toggle controls.
+
+Useful MediaProjection prompt extras:
+
+```text
+temporaryAppOpMode=default|allow|ignore
+restoreAppOp=true|false
+selectionChoice=none|entire|app|first
+tapChoice=none|cancel|share|first
+waitForPromptMs=<milliseconds>
+waitAfterTapMs=<milliseconds>
+```
+
+Use `temporaryAppOpMode=default` when you need to force the visible consent
+prompt after a development pregrant. With `restoreAppOp=true`, the probe
+restores the prior app-op mode after the run.
 
 Each crawler page emits a `settings_section_route_inventory` event. It
 classifies exposed route-like controls as `child_page`, `dropdown`, `button`,
@@ -272,6 +314,11 @@ Focused key-scroll sweeps on 2026-06-14 showed `KEYCODE_DPAD_DOWN` and
 `KEYCODE_SPACE` can change focus/search state, while `KEYCODE_PAGE_DOWN` and
 `KEYCODE_TAB` did not change the visible hash. Prefer `uiObject2` or
 `accessibilityAction` for actual settings-list scrolling.
+
+For `mediaProjectionPrompt` reports, the exporter emits selection roles,
+enabled/disabled approval-button state, tap roles, result-state booleans, and
+Activity lifecycle event names. It omits raw prompt text, package/window names,
+coordinates, token contents, and shell command output.
 
 Active tapping is disabled by default. To test whether a visible Android button
 can be pressed through UIAutomator, pass a specific regex and a small tap limit:

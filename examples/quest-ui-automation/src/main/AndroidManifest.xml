@@ -2,5 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:allowBackup="false"
-        android:label="Quest UI Automation" />
+        android:label="Quest UI Automation">
+        <activity
+            android:name=".ProjectionPromptActivity"
+            android:exported="true"
+            android:label="Projection Prompt Probe" />
+    </application>
 </manifest>
