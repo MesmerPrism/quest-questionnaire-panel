@@ -97,7 +97,7 @@ unity-caller-plugin/
 | 2 | Extract `android-caller-sdk` | Unlock native callers and make the Unity wrapper smaller. | Initial SDK complete |
 | 3 | Refactor terminal result writing | Make `cancelled` and `error` outcomes scientifically usable. | Complete |
 | 4 | Make validation stage/schema-aware | Required for generic reuse beyond BRB. | Complete |
-| 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | Planned |
+| 5 | Introduce renderer registry and move BRB behind it | Separate generic panel runtime from first questionnaire. | In progress |
 | 6 | Add ViewModel/draft recovery | Protect in-progress study sessions. | Planned |
 | 7 | Add per-screen timing metadata | High research value without changing IPC. | Planned |
 | 8 | Split minimal vs. updater build flavors | Cleaner permissions and trust story. | Planned |
@@ -237,7 +237,7 @@ Notes:
 
 ### Slice 6: Renderer Registry And BRB Package
 
-Status: Planned
+Status: In progress
 
 Deliverables:
 
@@ -255,6 +255,20 @@ Acceptance:
   the registered BRB renderer.
 - A second renderer can be added without modifying `QuestionnaireActivity`
   control flow.
+
+Notes:
+
+- Added `QuestionnaireRenderer`, `QuestionnaireRendererFactory`, and
+  `QuestionnaireRendererRegistry`.
+- Added a BRB renderer factory that accepts only BRB schema/stage sequences.
+- `QuestionnaireActivity` now resolves renderers through the registry and
+  writes an `unsupported_questionnaire` error result for valid launches that
+  no renderer can handle.
+- Launch request parsing no longer hard-codes BRB-supported stages; stage
+  support is owned by renderer factories.
+- Remaining work for completion: physically move the BRB composable screens,
+  audio routing, debug commands, and answer state out of
+  `QuestionnaireActivity.kt` into the BRB renderer package.
 
 ### Slice 7: ViewModel And Draft Recovery
 
@@ -461,6 +475,10 @@ Field semantics:
   payloads are shown as separate sequence-scoped shapes.
 - Verified Slice 5 with `:brb-questionnaire-core:test`,
   `:app:testDebugUnitTest`, and `:examples:native-caller:testDebugUnitTest`.
+- Started Slice 6 by adding the panel renderer registry abstraction and BRB
+  renderer factory. `QuestionnaireActivity` now hosts a selected renderer
+  instead of calling the BRB panel directly, and generic launch parsing accepts
+  non-BRB stage names for future renderer factories.
 
 ## Decision Log
 

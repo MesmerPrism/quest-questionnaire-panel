@@ -49,16 +49,10 @@ data class QuestionnaireRequest(
             requireMatchingExtra("request_nonce", nonceExtra, nonce)
 
             val openStage = json.requiredString("open_stage")
-            if (openStage !in QuestionnaireContract.SupportedStages) {
-                throw QuestionnaireRequestException("unsupported_stage")
-            }
 
             val screenSequence = json.requiredStringArray("screen_sequence")
             if (screenSequence.isEmpty()) {
                 throw QuestionnaireRequestException("missing_screen_sequence")
-            }
-            if (screenSequence.any { it !in QuestionnaireContract.SupportedStages }) {
-                throw QuestionnaireRequestException("unsupported_stage")
             }
             if (openStage !in screenSequence) {
                 throw QuestionnaireRequestException("stage_not_in_sequence")

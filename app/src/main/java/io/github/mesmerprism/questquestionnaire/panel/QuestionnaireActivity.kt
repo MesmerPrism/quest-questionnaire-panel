@@ -51,6 +51,7 @@ class QuestionnaireActivity : ComponentActivity() {
     private var returnToCaller: PendingIntent? = null
     private var startedAt: Instant = Instant.now()
     private val terminalResultWriter = TerminalResultWriter()
+    private val rendererRegistry = DefaultQuestionnaireRendererRegistry.create()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,42 +75,73 @@ class QuestionnaireActivity : ComponentActivity() {
     }
 
     private fun showQuestionnaire(launch: LaunchContext) {
+        val renderer = rendererRegistry.rendererFor(launch.request)
+        if (renderer == null) {
+            submitErrorResult(
+                code = "unsupported_questionnaire",
+                message = "Panel has no renderer for the requested questionnaire.",
+                currentStage = launch.request.openStage,
+                screenIndex = launch.initialScreenIndex
+            )
+            return
+        }
+
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    BrbStudyQuestionnairePanel(
+                    renderer.Render(
                         request = launch.request,
-                        autoSubmit = BuildConfig.DEBUG &&
-                            intent.getBooleanExtra(
-                                QuestionnaireContract.ExtraDebugAutoSubmit,
-                                false
-                            ),
-                        debugCommandScript = if (BuildConfig.DEBUG) {
-                            intent.getStringExtra(
-                                QuestionnaireContract.ExtraDebugCommandScript
-                            )
-                        } else {
-                            null
-                        },
-                        debugCommandIntervalMs = if (BuildConfig.DEBUG) {
-                            intent.getIntExtra(
-                                QuestionnaireContract.ExtraDebugCommandIntervalMs,
-                                350
-                            )
-                        } else {
-                            350
-                        },
-                        onSubmit = { answers, currentStage, screenIndex ->
-                            submitCompletedResult(answers, currentStage, screenIndex)
-                        },
-                        onCancel = { currentStage, screenIndex ->
-                            submitCancelledResult(currentStage, screenIndex)
-                        }
+                        config = rendererConfig(),
+                        callbacks = QuestionnaireRendererCallbacks(
+                            onCompleted = { result ->
+                                submitCompletedResult(
+                                    answers = result.answers,
+                                    currentStage = result.currentStage,
+                                    screenIndex = result.screenIndex
+                                )
+                            },
+                            onCancelled = { terminal ->
+                                submitCancelledResult(
+                                    currentStage = terminal.currentStage,
+                                    screenIndex = terminal.screenIndex
+                                )
+                            },
+                            onError = { error ->
+                                submitErrorResult(
+                                    code = error.code,
+                                    message = error.message,
+                                    currentStage = error.currentStage,
+                                    screenIndex = error.screenIndex
+                                )
+                            }
+                        )
                     )
                 }
             }
         }
     }
+
+    private fun rendererConfig(): QuestionnaireRendererConfig =
+        QuestionnaireRendererConfig(
+            autoSubmit = BuildConfig.DEBUG &&
+                intent.getBooleanExtra(
+                    QuestionnaireContract.ExtraDebugAutoSubmit,
+                    false
+                ),
+            debugCommandScript = if (BuildConfig.DEBUG) {
+                intent.getStringExtra(QuestionnaireContract.ExtraDebugCommandScript)
+            } else {
+                null
+            },
+            debugCommandIntervalMs = if (BuildConfig.DEBUG) {
+                intent.getIntExtra(
+                    QuestionnaireContract.ExtraDebugCommandIntervalMs,
+                    350
+                )
+            } else {
+                350
+            }
+        )
 
     private fun readLaunchContext(): LaunchContext? {
         val uri = intent.parcelableExtra<Uri>(QuestionnaireContract.ExtraResultUri)
@@ -307,7 +339,7 @@ class QuestionnaireActivity : ComponentActivity() {
 }
 
 @Composable
-private fun BrbStudyQuestionnairePanel(
+internal fun BrbStudyQuestionnairePanel(
     request: QuestionnaireRequest,
     autoSubmit: Boolean,
     debugCommandScript: String?,

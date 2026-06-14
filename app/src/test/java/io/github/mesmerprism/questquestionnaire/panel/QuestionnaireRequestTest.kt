@@ -1,5 +1,6 @@
 package io.github.mesmerprism.questquestionnaire.panel
 
+import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -44,9 +45,9 @@ class QuestionnaireRequestTest {
 
     @Test
     fun parsesInitialStudySequence() {
-        val sequence = QuestionnaireContract.InitialStudySequence
+        val sequence = BrbQuestionnaireContract.InitialStudySequence
         val json = JSONObject(validRequestJson()).apply {
-            put("open_stage", QuestionnaireContract.StageLanguageSelect)
+            put("open_stage", BrbQuestionnaireContract.StageLanguageSelect)
             put("screen_sequence", JSONArray(sequence))
         }
 
@@ -57,7 +58,7 @@ class QuestionnaireRequestTest {
             nonceExtra = Nonce
         )
 
-        assertEquals(QuestionnaireContract.StageLanguageSelect, request.openStage)
+        assertEquals(BrbQuestionnaireContract.StageLanguageSelect, request.openStage)
         assertEquals(sequence, request.screenSequence)
     }
 
@@ -76,22 +77,23 @@ class QuestionnaireRequestTest {
     }
 
     @Test
-    fun rejectsUnsupportedStage() {
+    fun parsesUnsupportedStageForRendererDecision() {
         val json = JSONObject(validRequestJson()).apply {
             put("open_stage", "unknown_stage")
             put("screen_sequence", JSONArray(listOf("unknown_stage")))
+            put("schema_id", "generic-questionnaire-v1")
         }
 
-        val exception = assertThrows(QuestionnaireRequestException::class.java) {
-            QuestionnaireRequest.parse(
-                requestJson = json.toString(),
-                sessionIdExtra = SessionId,
-                requestIdExtra = RequestId,
-                nonceExtra = Nonce
-            )
-        }
+        val request = QuestionnaireRequest.parse(
+            requestJson = json.toString(),
+            sessionIdExtra = SessionId,
+            requestIdExtra = RequestId,
+            nonceExtra = Nonce
+        )
 
-        assertEquals("unsupported_stage", exception.code)
+        assertEquals("generic-questionnaire-v1", request.schemaId)
+        assertEquals("unknown_stage", request.openStage)
+        assertEquals(listOf("unknown_stage"), request.screenSequence)
     }
 
     @Test
