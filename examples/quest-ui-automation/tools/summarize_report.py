@@ -48,6 +48,11 @@ GLOBAL_SAFE_LABELS = {
     "Reset all to default",
 }
 
+DEFAULT_CHILD_PROBE_EXCLUDED_LABELS = {
+    "Cloud backup",
+    "Software update",
+}
+
 TARGET_SAFE_LABELS = {
     "quest_link": {
         "Link",
@@ -259,11 +264,19 @@ def option_texts(option: dict[str, Any]) -> list[str]:
     return texts
 
 
-def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) -> dict[str, Any]:
+def summarize_events(
+    lines: Iterable[str],
+    source_name: str,
+    max_labels: int,
+    child_probe_risks: set[str],
+    excluded_child_labels: set[str],
+) -> dict[str, Any]:
     event_counts: Counter[str] = Counter()
     sections: OrderedDict[str, dict[str, Any]] = OrderedDict()
     section_scrolls: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
     route_inventory: OrderedDict[str, dict[str, Any]] = OrderedDict()
+    child_probe_targets: OrderedDict[str, dict[str, str]] = OrderedDict()
+    child_page_surfaces: list[dict[str, Any]] = []
     dropdown_targets: list[dict[str, Any]] = []
     dropdown_surfaces: list[dict[str, Any]] = []
     parse_errors = []
@@ -351,6 +364,22 @@ def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) ->
                     labels_seen.add(label)
                 if redacted:
                     inventory["redactedLabelCount"] += 1
+                if (
+                    route_type == "child_page"
+                    and risk in child_probe_risks
+                    and label
+                    and label not in excluded_child_labels
+                ):
+                    child_key = f"{target}:{label}"
+                    child_probe_targets.setdefault(
+                        child_key,
+                        {
+                            "section": target,
+                            "label": label,
+                            "risk": risk,
+                            "childTarget": child_key,
+                        },
+                    )
 
         elif event_type == "settings_dropdown_option_target":
             outcome = data.get("outcome") or {}
@@ -370,6 +399,8 @@ def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) ->
             )
 
         elif event_type == "settings_child_surface":
+            section = normalize_text(data.get("section"))
+            label = normalize_text(data.get("label"))
             summary = data.get("summary") or {}
             options = []
             for option in summary.get("settingsDropdownOptions", []) or []:
@@ -386,11 +417,33 @@ def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) ->
             if options:
                 dropdown_surfaces.append(
                     {
-                        "section": normalize_text(data.get("section")),
-                        "label": normalize_text(data.get("label")),
+                        "section": section,
+                        "label": label,
                         "clickMode": normalize_text(data.get("clickMode")),
                         "optionCount": len(options),
                         "options": options,
+                    }
+                )
+            else:
+                safe_labels = []
+                redacted_count = 0
+                seen_labels = set()
+                for raw_text in summary.get("settingsContentTexts", []) or []:
+                    public_text, redacted = public_label(raw_text, section)
+                    if public_text and public_text not in seen_labels and len(safe_labels) < max_labels:
+                        safe_labels.append(public_text)
+                        seen_labels.add(public_text)
+                    if redacted:
+                        redacted_count += 1
+                child_page_surfaces.append(
+                    {
+                        "section": section,
+                        "label": label,
+                        "clickMode": normalize_text(data.get("clickMode")),
+                        "differsFromClickedPage": bool(data.get("differsFromClickedPage", False)),
+                        "visibleTextHash": normalize_text(summary.get("visibleTextHash")),
+                        "safeLabels": safe_labels,
+                        "redactedTextCount": redacted_count,
                     }
                 )
 
@@ -421,6 +474,8 @@ def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) ->
             }
             for inventory in route_inventory.values()
         ],
+        "plannedChildProbeTargets": list(child_probe_targets.values()),
+        "childPageSurfaces": child_page_surfaces,
         "dropdownOptionTargets": dropdown_targets,
         "dropdownSurfaces": dropdown_surfaces,
         "redactionPolicy": {
@@ -428,6 +483,7 @@ def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) ->
             "labels": "Only allowlisted low-cardinality settings labels are emitted.",
             "notifications": "Unknown notification labels, including installed app names, are counted but not emitted.",
             "rawXml": "Raw XML paths and full UI dumps are never emitted.",
+            "childProbeDefaults": "Generated childTargets include public-safe child_page routes in allowed risk buckets and exclude default-blocked labels.",
         },
     }
 
@@ -496,6 +552,53 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                 )
             lines.append("")
 
+        if summary["plannedChildProbeTargets"]:
+            child_targets = ",".join(target["childTarget"] for target in summary["plannedChildProbeTargets"])
+            lines.append("### Planned Child-Page Probe Targets")
+            lines.append("")
+            lines.append(
+                "Default filter: `routeType=child_page`, public-safe label, allowed risk bucket, "
+                "and not a default-blocked label."
+            )
+            lines.append("")
+            lines.append("```text")
+            lines.append(child_targets)
+            lines.append("```")
+            lines.append("")
+            lines.append(markdown_table_row(["Section", "Label", "Risk"]))
+            lines.append(markdown_table_row(["---", "---", "---"]))
+            for target in summary["plannedChildProbeTargets"]:
+                lines.append(
+                    markdown_table_row(
+                        [
+                            TARGET_TITLES.get(target["section"], target["section"]),
+                            target["label"],
+                            target["risk"],
+                        ]
+                    )
+                )
+            lines.append("")
+
+        if summary["childPageSurfaces"]:
+            lines.append("### Child Page Surfaces")
+            lines.append(markdown_table_row(["Section", "Label", "Click mode", "Changed", "Safe labels", "Redacted labels"]))
+            lines.append(markdown_table_row(["---", "---", "---", "---", "---", "---:"]))
+            for surface in summary["childPageSurfaces"]:
+                labels = ", ".join(surface["safeLabels"]) if surface["safeLabels"] else "(none)"
+                lines.append(
+                    markdown_table_row(
+                        [
+                            TARGET_TITLES.get(surface["section"], surface["section"]),
+                            surface["label"],
+                            surface["clickMode"],
+                            "yes" if surface["differsFromClickedPage"] else "not proven",
+                            labels,
+                            surface["redactedTextCount"],
+                        ]
+                    )
+                )
+            lines.append("")
+
         if summary["dropdownOptionTargets"]:
             lines.append("### Dropdown Option Targets")
             lines.append(markdown_table_row(["Section", "Label", "Requested option", "Found", "Clicked", "Reason"]))
@@ -543,6 +646,14 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_child_targets(summaries: list[dict[str, Any]]) -> str:
+    targets = OrderedDict()
+    for summary in summaries:
+        for target in summary["plannedChildProbeTargets"]:
+            targets.setdefault(target["childTarget"], True)
+    return ",".join(targets.keys()) + ("\n" if targets else "")
+
+
 def open_lines(path: str) -> tuple[str, Iterable[str]]:
     if path == "-":
         return "stdin", sys.stdin
@@ -556,16 +667,37 @@ def open_lines(path: str) -> tuple[str, Iterable[str]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", nargs="*", help="Path(s) to report.jsonl. Use '-' or omit for stdin.")
-    parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    parser.add_argument("--format", choices=("markdown", "json", "child-targets"), default="markdown")
     parser.add_argument("--max-labels", type=int, default=18)
+    parser.add_argument(
+        "--child-risk",
+        action="append",
+        default=None,
+        help="Risk bucket allowed in generated childTargets. Defaults to open_dump_only. Repeat to include more.",
+    )
+    parser.add_argument(
+        "--include-default-blocked-child-labels",
+        action="store_true",
+        help="Include default-blocked labels such as Software update and Cloud backup in generated childTargets.",
+    )
     args = parser.parse_args()
 
+    child_probe_risks = set(args.child_risk or ["open_dump_only"])
+    excluded_child_labels = set() if args.include_default_blocked_child_labels else DEFAULT_CHILD_PROBE_EXCLUDED_LABELS
     report_paths = args.reports or ["-"]
     summaries = []
     for report_path in report_paths:
         source_name, lines = open_lines(report_path)
         try:
-            summaries.append(summarize_events(lines, source_name, max(args.max_labels, 1)))
+            summaries.append(
+                summarize_events(
+                    lines,
+                    source_name,
+                    max(args.max_labels, 1),
+                    child_probe_risks,
+                    excluded_child_labels,
+                )
+            )
         finally:
             close = getattr(lines, "close", None)
             if callable(close) and lines is not sys.stdin:
@@ -573,6 +705,8 @@ def main() -> int:
 
     if args.format == "json":
         print(json.dumps({"reports": summaries}, indent=2, sort_keys=True))
+    elif args.format == "child-targets":
+        print(render_child_targets(summaries), end="")
     else:
         print(render_markdown(summaries), end="")
     return 0

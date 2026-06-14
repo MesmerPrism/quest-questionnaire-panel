@@ -213,6 +213,14 @@ Observed with the development-only `examples:quest-ui-automation` module:
   and Help exposed 3 `child_page` candidates marked `external_surface`. The
   exporter summarized the route inventory with safe labels and redaction counts
   without emitting raw XML paths or unknown labels.
+- The report exporter can now convert route inventory into a comma-separated
+  `settingsChildPageProbe` target list with `--format child-targets`. The
+  default planner keeps only public-safe `child_page` routes in the
+  `open_dump_only` bucket and excludes default-blocked General rows such as
+  Software update and Cloud backup. A 2026-06-14 constrained General-section
+  probe opened Quick controls, Storage, and Ongoing activities with coordinate
+  row clicks, compact dumps, and Back return; all three reached distinct child
+  content and the public summary emitted only safe labels plus redaction counts.
 - Help rows have side effects beyond an in-panel child page. `Help & Tips app`
   opened `com.oculus.helpcenter` in the tested action-mode sweep. `Support`
   also brought Help Center content into the UI dump and exposed SystemUX
@@ -347,6 +355,7 @@ known rollback/stop step.
 | `quest.settings.section.full_crawl` | Crawl all known top-level Quest Settings sections | `settingsSectionCrawler` targets all known side-nav IDs with object scrolling and `mainCoordinateFallback=false` | Reaches no-move endpoints across all top-level sections. Multi-page sections observed: Camera, Movement, Experimental, and Notifications. | Working |
 | `quest.settings.section.notifications_crawl` | Crawl Notifications to its endpoint | `settingsSectionCrawler` target `notifications` with a higher scroll cap | Reaches six pages: global notification controls, notification position/device categories, and per-app notification rows. Raw app names are local evidence only and should not be committed. | Working, privacy-sensitive |
 | `quest.settings.section.route_inventory` | Inventory safe route candidates on settings pages | Run `settingsSectionCrawler`; read `settings_section_route_inventory` events or summarize with `summarize_report.py` | Classifies route-like controls as `child_page`, `dropdown`, `button`, or `dropdown_option`, with conservative risk buckets and recommended follow-up probe type. Verified focused sweep found General child pages, Camera dropdowns, Privacy child pages, and Help external child pages. | Working |
+| `quest.settings.child.route_plan_probe` | Generate and run low-risk child probes from route inventory | Run `summarize_report.py <section-report> --format child-targets`; pass the result to `settingsChildPageProbe` with `childTargetRole=row`, `clickModes=coordinate`, compact dumps, and bounded content/nav scrolls | Converts passive route inventory into a focused child-page sweep. Default General-section plan opened Quick controls, Storage, and Ongoing activities and reported distinct child surfaces without public raw labels. | Working |
 | `quest.settings.child_probe` | Probe allowlisted child pages without toggles | Open a section, locate a literal/regex row label in main settings content, click a non-checkable same-row target, dump the result, press Back | Produces child-surface summaries and flags whether content differs from the clicked page | Working |
 | `quest.settings.child.action_modes` | Compare child-row activation routes | Run `settingsChildPageProbe` with `clickModes=coordinate,uiObject2,accessibilityClick,accessibilityExpand` against the same allowlisted rows | Separates coordinate-tap failures from live `UiObject2.click()` and raw accessibility-action behavior | Partial |
 | `quest.settings.child.dropdown_targets` | Open selector option popovers | Run `settingsChildPageProbe` with `childTargetRole=dropdown` and `clickModes=coordinate,uiObject2,accessibilityClick` for camera bit rate, frame rate, image stabilization, and eye perspective | Exposes `context_menu_list` options without selecting a value | Working |
@@ -399,7 +408,9 @@ The `examples:quest-ui-automation` test app should grow in small slices:
 12. Next useful slice: use the route inventory to drive a constrained
     allowlisted child-page probe over low-risk routes, keeping privacy,
     security, Help/external, reset, and button routes open/dump-only until
-    explicitly scoped.
+    explicitly scoped. Done for default General-section child targets.
+13. Next useful slice: expand the generated child-target planner across more
+    low-risk sections as the safe-label allowlist grows.
 
 ## Open Questions
 

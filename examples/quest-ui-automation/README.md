@@ -227,6 +227,35 @@ python examples\quest-ui-automation\tools\summarize_report.py `
 ```
 
 Use `--format json` when another script should ingest the public-safe summary.
+Use `--format child-targets` on a route-inventory report to generate a
+comma-separated `childTargets` list for a follow-up `settingsChildPageProbe`.
+The default planner includes public-safe `child_page` routes with
+`open_dump_only` risk and excludes default-blocked rows such as Software update
+and Cloud backup. Repeat `--child-risk <risk>` to include another risk bucket;
+pass `--include-default-blocked-child-labels` only for a scoped lab run.
+
+Route-inventory-to-child-probe flow:
+
+```powershell
+$targets = python examples\quest-ui-automation\tools\summarize_report.py `
+  .\artifacts\quest-uiautomator\section-crawl-report.jsonl `
+  --format child-targets
+
+adb shell am instrument -w `
+  -e scenario settingsChildPageProbe `
+  -e childTargets "$targets" `
+  -e childTargetRole row `
+  -e clickModes coordinate `
+  -e maxContentScrolls 2 `
+  -e maxNavScrolls 10 `
+  -e dumpChildAccessibility false `
+  io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The 2026-06-14 focused General-section route plan produced Quick controls,
+Storage, and Ongoing activities as default child targets. A compact
+`settingsChildPageProbe` opened each page and returned, and the exporter
+summarized the child surfaces with safe labels plus redaction counts.
 
 Active tapping is disabled by default. To test whether a visible Android button
 can be pressed through UIAutomator, pass a specific regex and a small tap limit:
