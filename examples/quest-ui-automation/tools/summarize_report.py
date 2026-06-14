@@ -263,6 +263,7 @@ def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) ->
     event_counts: Counter[str] = Counter()
     sections: OrderedDict[str, dict[str, Any]] = OrderedDict()
     section_scrolls: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+    route_inventory: OrderedDict[str, dict[str, Any]] = OrderedDict()
     dropdown_targets: list[dict[str, Any]] = []
     dropdown_surfaces: list[dict[str, Any]] = []
     parse_errors = []
@@ -316,6 +317,40 @@ def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) ->
                     "coordinateSwiped": bool(data.get("coordinateSwiped", False)),
                 }
             )
+
+        elif event_type == "settings_section_route_inventory":
+            target = normalize_text(data.get("target"))
+            inventory = route_inventory.setdefault(
+                target,
+                {
+                    "target": target,
+                    "title": TARGET_TITLES.get(target, target),
+                    "pages": 0,
+                    "candidateCount": 0,
+                    "countsByType": Counter(),
+                    "countsByRisk": Counter(),
+                    "safeLabels": [],
+                    "redactedLabelCount": 0,
+                },
+            )
+            inventory["pages"] += 1
+            inventory["candidateCount"] += int(data.get("candidateCount") or 0)
+            for route_type, count in (data.get("countsByType") or {}).items():
+                inventory["countsByType"][normalize_text(route_type)] += int(count or 0)
+            labels_seen = set(inventory["safeLabels"])
+            for candidate in data.get("candidates", []) or []:
+                risk = normalize_text(candidate.get("risk"))
+                route_type = normalize_text(candidate.get("routeType"))
+                if risk:
+                    inventory["countsByRisk"][risk] += 1
+                if route_type and route_type not in inventory["countsByType"]:
+                    inventory["countsByType"][route_type] += 0
+                label, redacted = public_label(candidate.get("label"), target)
+                if label and label not in labels_seen and len(inventory["safeLabels"]) < max_labels:
+                    inventory["safeLabels"].append(label)
+                    labels_seen.add(label)
+                if redacted:
+                    inventory["redactedLabelCount"] += 1
 
         elif event_type == "settings_dropdown_option_target":
             outcome = data.get("outcome") or {}
@@ -378,6 +413,14 @@ def summarize_events(lines: Iterable[str], source_name: str, max_labels: int) ->
         "eventCounts": dict(sorted(event_counts.items())),
         "parseErrors": parse_errors,
         "settingsSections": section_summaries,
+        "routeInventory": [
+            {
+                **inventory,
+                "countsByType": dict(sorted(inventory["countsByType"].items())),
+                "countsByRisk": dict(sorted(inventory["countsByRisk"].items())),
+            }
+            for inventory in route_inventory.values()
+        ],
         "dropdownOptionTargets": dropdown_targets,
         "dropdownSurfaces": dropdown_surfaces,
         "redactionPolicy": {
@@ -421,6 +464,33 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
                             "yes" if section["endpointReached"] else "not proven",
                             labels,
                             section["redactedTextCount"],
+                        ]
+                    )
+                )
+            lines.append("")
+
+        if summary["routeInventory"]:
+            lines.append("### Route Inventory")
+            lines.append(markdown_table_row(["Target", "Pages", "Candidates", "Types", "Risks", "Safe labels", "Redacted labels"]))
+            lines.append(markdown_table_row(["---", "---:", "---:", "---", "---", "---", "---:"]))
+            for inventory in summary["routeInventory"]:
+                type_counts = ", ".join(
+                    f"{route_type}: {count}" for route_type, count in inventory["countsByType"].items()
+                )
+                risk_counts = ", ".join(
+                    f"{risk}: {count}" for risk, count in inventory["countsByRisk"].items()
+                )
+                labels = ", ".join(inventory["safeLabels"]) if inventory["safeLabels"] else "(none)"
+                lines.append(
+                    markdown_table_row(
+                        [
+                            inventory["title"],
+                            inventory["pages"],
+                            inventory["candidateCount"],
+                            type_counts or "(none)",
+                            risk_counts or "(none)",
+                            labels,
+                            inventory["redactedLabelCount"],
                         ]
                     )
                 )

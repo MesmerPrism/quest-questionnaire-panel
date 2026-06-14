@@ -60,7 +60,8 @@ adb shell am instrument -w `
 
 Run a non-mutating Quest Settings section crawler. This uses the same side-nav
 routes, then scrolls the main settings content recycler and records each page's
-visible labels, checked nodes, clickable nodes, and XML dump:
+visible labels, checked nodes, clickable nodes, route inventory candidates, and
+XML dump:
 
 ```powershell
 adb shell am instrument -w `
@@ -116,6 +117,14 @@ mainCoordinateFallback=false|true
 Keep `mainCoordinateFallback=false` unless you intentionally want to test
 coordinate swipes inside the main settings content area. The default crawler
 uses object scrolling and does not toggle controls.
+
+Each crawler page emits a `settings_section_route_inventory` event. It
+classifies exposed route-like controls as `child_page`, `dropdown`, `button`,
+or `dropdown_option`, records the nearby row texts and compact node evidence,
+and assigns a conservative risk bucket such as `open_dump_only`,
+`sensitive_open_dump_only`, `open_selector_only`, `possible_mutation`,
+`mutation_or_security_sensitive`, or `external_surface`. The event is passive;
+it does not click the candidates.
 
 Useful child-page extras:
 

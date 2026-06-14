@@ -205,6 +205,14 @@ Observed with the development-only `examples:quest-ui-automation` module:
   labels, dropdown option rows, and redaction counts while omitting raw XML
   paths, local paths, package/resource IDs, and unknown labels such as installed
   app names.
+- Section crawler pages now emit a passive `settings_section_route_inventory`
+  event. A 2026-06-14 focused sweep verified the cleaned classifier against
+  General, Camera, Privacy & safety, and Help: General exposed 8 `child_page`
+  candidates, Camera exposed 10 `dropdown` candidates across 3 pages, Privacy &
+  safety exposed 8 `child_page` candidates marked `sensitive_open_dump_only`,
+  and Help exposed 3 `child_page` candidates marked `external_surface`. The
+  exporter summarized the route inventory with safe labels and redaction counts
+  without emitting raw XML paths or unknown labels.
 - Help rows have side effects beyond an in-panel child page. `Help & Tips app`
   opened `com.oculus.helpcenter` in the tested action-mode sweep. `Support`
   also brought Help Center content into the UI dump and exposed SystemUX
@@ -309,6 +317,7 @@ Wait/stability:
 | Q-011 | Dropdown option inspector | Record `context_menu_item` option text, bounds, selected, checked, and default-marker state | JSONL summary rows | Low, passive after open | Working for camera dropdowns |
 | Q-012 | Dropdown option dry-run guard | Target a named dropdown option and refuse selection unless `allowOptionSelect=true` | JSONL option row, bounds, selected/checked, guard reason | Low by default; mutation only when explicitly enabled | Working for camera capture dropdowns |
 | Q-013 | Redacted report summary exporter | Convert raw JSONL sweep reports into public-safe Markdown/JSON summaries | Summary table, redaction counts, event counts | Passive host-side | Working for section crawler and dropdown reports |
+| Q-014 | Settings route inventory | Classify route-like controls exposed on section crawler pages without clicking them | JSONL route candidates, risk buckets, redacted exporter summary | Passive; raw reports may contain sensitive labels | Working for child-page/dropdown routes in focused section sweep |
 
 ## Command Sequence Database
 
@@ -337,6 +346,7 @@ known rollback/stop step.
 | `quest.settings.section.experimental_crawl` | Crawl Experimental section content | `settingsSectionCrawler` target `experimental` with object scrolling | Finds reset/hidden controls/external mic/screen reader/adaptive brightness/temporal dimming, then positional time warp/lying down/Wi-Fi QR/seamless multitasking/surface keyboard | Working |
 | `quest.settings.section.full_crawl` | Crawl all known top-level Quest Settings sections | `settingsSectionCrawler` targets all known side-nav IDs with object scrolling and `mainCoordinateFallback=false` | Reaches no-move endpoints across all top-level sections. Multi-page sections observed: Camera, Movement, Experimental, and Notifications. | Working |
 | `quest.settings.section.notifications_crawl` | Crawl Notifications to its endpoint | `settingsSectionCrawler` target `notifications` with a higher scroll cap | Reaches six pages: global notification controls, notification position/device categories, and per-app notification rows. Raw app names are local evidence only and should not be committed. | Working, privacy-sensitive |
+| `quest.settings.section.route_inventory` | Inventory safe route candidates on settings pages | Run `settingsSectionCrawler`; read `settings_section_route_inventory` events or summarize with `summarize_report.py` | Classifies route-like controls as `child_page`, `dropdown`, `button`, or `dropdown_option`, with conservative risk buckets and recommended follow-up probe type. Verified focused sweep found General child pages, Camera dropdowns, Privacy child pages, and Help external child pages. | Working |
 | `quest.settings.child_probe` | Probe allowlisted child pages without toggles | Open a section, locate a literal/regex row label in main settings content, click a non-checkable same-row target, dump the result, press Back | Produces child-surface summaries and flags whether content differs from the clicked page | Working |
 | `quest.settings.child.action_modes` | Compare child-row activation routes | Run `settingsChildPageProbe` with `clickModes=coordinate,uiObject2,accessibilityClick,accessibilityExpand` against the same allowlisted rows | Separates coordinate-tap failures from live `UiObject2.click()` and raw accessibility-action behavior | Partial |
 | `quest.settings.child.dropdown_targets` | Open selector option popovers | Run `settingsChildPageProbe` with `childTargetRole=dropdown` and `clickModes=coordinate,uiObject2,accessibilityClick` for camera bit rate, frame rate, image stabilization, and eye perspective | Exposes `context_menu_list` options without selecting a value | Working |
@@ -385,7 +395,11 @@ The `examples:quest-ui-automation` test app should grow in small slices:
     names, and full XML paths do not need manual handling. Done.
 11. Next useful slice: add an on-device or host-side route inventory for
     Quest Settings child pages that are safe to open but not mutate, using the
-    exporter as the default path from raw report to public notes.
+    exporter as the default path from raw report to public notes. Done.
+12. Next useful slice: use the route inventory to drive a constrained
+    allowlisted child-page probe over low-risk routes, keeping privacy,
+    security, Help/external, reset, and button routes open/dump-only until
+    explicitly scoped.
 
 ## Open Questions
 

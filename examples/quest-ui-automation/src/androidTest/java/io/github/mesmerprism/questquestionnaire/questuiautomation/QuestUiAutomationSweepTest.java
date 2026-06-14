@@ -423,6 +423,7 @@ public final class QuestUiAutomationSweepTest {
                     .put("settingsContentTexts", settingsContentTexts(snapshot.nodes, 80))
                     .put("settingsContentCheckedNodes", settingsContentCheckedNodeSummaries(snapshot.nodes, 40))
                     .put("settingsContentClickableNodes", settingsContentClickableNodeSummaries(snapshot.nodes, 80)));
+            report.event("settings_section_route_inventory", settingsRouteInventory(snapshot.nodes, target, pageIndex, 120));
             previousHash = hash;
 
             if (pageIndex == maxSectionScrolls) {
@@ -2393,6 +2394,221 @@ public final class QuestUiAutomationSweepTest {
                     .put("bounds", node.bounds == null ? JSONObject.NULL : rectToJson(node.bounds)));
         }
         return summaries;
+    }
+
+    private static JSONObject settingsRouteInventory(
+            List<UiNode> nodes,
+            String target,
+            int pageIndex,
+            int limit
+    ) throws JSONException {
+        JSONArray candidates = new JSONArray();
+        JSONObject countsByType = new JSONObject();
+        Set<String> seen = new LinkedHashSet<>();
+        for (UiNode node : nodes) {
+            if (candidates.length() >= limit) {
+                break;
+            }
+            String routeType = settingsRouteType(nodes, node);
+            if (routeType.isEmpty()) {
+                continue;
+            }
+            JSONArray rowTexts = settingsRouteRowTexts(nodes, node, 8);
+            String label = firstRouteLabel(rowTexts, node);
+            String value = settingsRouteValue(node, label);
+            String key = routeType + "|" + label + "|" + value + "|" + node.resourceId + "|" +
+                    (node.bounds == null ? "" : node.bounds.flattenToString());
+            if (!seen.add(key)) {
+                continue;
+            }
+            countsByType.put(routeType, countsByType.optInt(routeType, 0) + 1);
+            candidates.put(new JSONObject()
+                    .put("target", target)
+                    .put("pageIndex", pageIndex)
+                    .put("routeType", routeType)
+                    .put("label", label)
+                    .put("value", value)
+                    .put("risk", settingsRouteRisk(target, label, routeType))
+                    .put("recommendedProbe", settingsRouteRecommendedProbe(routeType))
+                    .put("rowTexts", rowTexts)
+                    .put("node", compactRouteNode(node)));
+        }
+        return new JSONObject()
+                .put("target", target)
+                .put("pageIndex", pageIndex)
+                .put("candidateCount", candidates.length())
+                .put("countsByType", countsByType)
+                .put("candidates", candidates);
+    }
+
+    private static String settingsRouteType(List<UiNode> nodes, UiNode node) {
+        if (!isSettingsContentNode(node) || node.bounds == null || !node.enabled || !node.clickable) {
+            return "";
+        }
+        if (node.checkable || node.checked) {
+            return "";
+        }
+        String resource = nullToEmpty(node.resourceId);
+        String className = nullToEmpty(node.className);
+        String search = node.searchText().toLowerCase(Locale.US);
+        if (search.contains("toggle")) {
+            return "";
+        }
+        if (resource.contains("context_menu_item")) {
+            return "dropdown_option";
+        }
+        if (resource.contains("navigation_container")
+                || node.contentDescription.toLowerCase(Locale.US).contains("navigate to next screen")) {
+            return "child_page";
+        }
+        if (resource.contains("dropdown_button") || className.contains("Spinner")) {
+            return "dropdown";
+        }
+        if (resource.contains("button_container") || className.contains("Button")) {
+            return "button";
+        }
+        if (resource.contains("settings_list_item") && sameRowHasRouteControl(nodes, node.bounds)) {
+            return "";
+        }
+        return "";
+    }
+
+    private static boolean sameRowHasRouteControl(List<UiNode> nodes, Rect rowBounds) {
+        for (UiNode node : nodes) {
+            if (!isSettingsContentNode(node) || node.bounds == null || node.bounds == rowBounds) {
+                continue;
+            }
+            if (!sameRow(rowBounds, node.bounds)) {
+                continue;
+            }
+            String resource = nullToEmpty(node.resourceId);
+            String className = nullToEmpty(node.className);
+            if (resource.contains("navigation_container")
+                    || resource.contains("dropdown_button")
+                    || resource.contains("button_container")
+                    || className.contains("Spinner")
+                    || className.contains("Button")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static JSONArray settingsRouteRowTexts(List<UiNode> nodes, UiNode routeNode, int limit) {
+        JSONArray texts = new JSONArray();
+        Set<String> seen = new LinkedHashSet<>();
+        if (routeNode.bounds == null) {
+            return texts;
+        }
+        for (UiNode node : nodes) {
+            if (texts.length() >= limit) {
+                break;
+            }
+            if (!isSettingsContentNode(node) || node.bounds == null || !sameRow(routeNode.bounds, node.bounds)) {
+                continue;
+            }
+            String text = firstNonEmpty(node.text, node.contentDescription, "");
+            if (!isRouteInventoryText(text) || !seen.add(text)) {
+                continue;
+            }
+            texts.put(text);
+        }
+        return texts;
+    }
+
+    private static boolean sameRow(Rect first, Rect second) {
+        int firstCenterY = first.centerY();
+        int secondCenterY = second.centerY();
+        if (secondCenterY >= first.top && secondCenterY <= first.bottom) {
+            return true;
+        }
+        if (firstCenterY >= second.top && firstCenterY <= second.bottom) {
+            return true;
+        }
+        return Math.abs(firstCenterY - secondCenterY) <= 48;
+    }
+
+    private static boolean isRouteInventoryText(String value) {
+        String text = value == null ? "" : value.trim();
+        if (text.isEmpty()) {
+            return false;
+        }
+        if (text.startsWith("com.") || text.startsWith("android:") || text.contains(":id/")) {
+            return false;
+        }
+        return !text.matches("^[0-9\\s%:._/-]+$");
+    }
+
+    private static String firstRouteLabel(JSONArray rowTexts, UiNode node) {
+        for (int index = 0; index < rowTexts.length(); index += 1) {
+            String text = rowTexts.optString(index, "");
+            if (isRouteInventoryText(text) && !text.equals(node.text) && !text.equals(node.contentDescription)) {
+                return text;
+            }
+        }
+        for (int index = 0; index < rowTexts.length(); index += 1) {
+            String text = rowTexts.optString(index, "");
+            if (isRouteInventoryText(text)) {
+                return text;
+            }
+        }
+        return firstNonEmpty(node.text, node.contentDescription, node.resourceId);
+    }
+
+    private static String settingsRouteValue(UiNode node, String label) {
+        String text = firstNonEmpty(node.text, node.contentDescription, "");
+        if (text.equals(label)) {
+            return "";
+        }
+        return text;
+    }
+
+    private static String settingsRouteRisk(String target, String label, String routeType) {
+        String normalizedTarget = target == null ? "" : target.toLowerCase(Locale.US);
+        String normalizedLabel = label == null ? "" : label.toLowerCase(Locale.US);
+        if (normalizedLabel.contains("reset")
+                || normalizedLabel.contains("delete")
+                || normalizedLabel.contains("create")
+                || normalizedLabel.contains("passcode")) {
+            return "mutation_or_security_sensitive";
+        }
+        if ("button".equals(routeType)) {
+            return "possible_mutation";
+        }
+        if ("dropdown".equals(routeType) || "dropdown_option".equals(routeType)) {
+            return "open_selector_only";
+        }
+        if ("help".equals(normalizedTarget)) {
+            return "external_surface";
+        }
+        if ("privacy_safety".equals(normalizedTarget)
+                || "passcode_security".equals(normalizedTarget)
+                || "developer".equals(normalizedTarget)) {
+            return "sensitive_open_dump_only";
+        }
+        return "open_dump_only";
+    }
+
+    private static String settingsRouteRecommendedProbe(String routeType) {
+        if ("dropdown".equals(routeType) || "dropdown_option".equals(routeType)) {
+            return "settingsChildPageProbe childTargetRole=dropdown";
+        }
+        if ("child_page".equals(routeType)) {
+            return "settingsChildPageProbe childTargetRole=row";
+        }
+        return "manual allowlist required";
+    }
+
+    private static JSONObject compactRouteNode(UiNode node) throws JSONException {
+        return new JSONObject()
+                .put("text", node.text)
+                .put("resourceId", node.resourceId)
+                .put("className", node.className)
+                .put("contentDescription", node.contentDescription)
+                .put("clickable", node.clickable)
+                .put("checkable", node.checkable)
+                .put("checked", node.checked)
+                .put("bounds", node.bounds == null ? JSONObject.NULL : rectToJson(node.bounds));
     }
 
     private static JSONObject handleSettingsDropdownOptionTarget(
