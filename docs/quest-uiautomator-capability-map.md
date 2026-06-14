@@ -252,6 +252,14 @@ Observed with the development-only `examples:quest-ui-automation` module:
   `disable_autosleep`. An unknown method returned a structured failure bundle
   rather than changing state. Mutating methods from the official docs were not
   run in this pass.
+- The `currentWindow` and `surfaceMap` scenarios now have a redacted exporter
+  path for baseline/window/action-map evidence. A 2026-06-14 passive current
+  sweep recorded 308 XML nodes, 68 clickable nodes, 2 scrollable nodes, and 5
+  display IDs in the instrumentation hierarchy. The accessibility window map
+  found 6 application windows on display 0; the active root had 101 nodes, 1
+  scrollable, and action lists on 101 nodes. A host-side compressed
+  `uiautomator dump` wrote and parsed successfully with 57 XML nodes, confirming
+  the shell route works but has different coverage from instrumentation.
 
 ## Capability Taxonomy
 
@@ -314,10 +322,10 @@ Wait/stability:
 
 | ID | Area | Command or scenario | Evidence | Risk | Status |
 | --- | --- | --- | --- | --- | --- |
-| R-001 | Baseline | `currentWindow` dump of current headset state | XML, JSONL, focus | Passive | Planned |
-| R-002 | Shell dump parity | Compare `uiautomator dump --compressed` and instrumentation XML | XML diff summary | Passive | Planned |
-| R-003 | Window map | Dump `UiAutomation.getWindows()` with display IDs, types, layers, bounds | JSONL | Passive | Planned |
-| R-004 | Action map | Walk active/window roots and record each node's accessibility action list | JSONL | Passive | Planned |
+| R-001 | Baseline | `currentWindow` dump of current headset state | XML, JSONL, focus | Passive | Working |
+| R-002 | Shell dump parity | Compare `uiautomator dump --compressed` and instrumentation XML | XML diff summary | Passive | Working host-side; coverage differs from instrumentation |
+| R-003 | Window map | Dump `UiAutomation.getWindows()` with display IDs, types, layers, bounds | JSONL | Passive | Working |
+| R-004 | Action map | Walk active/window roots and record each node's accessibility action list | JSONL | Passive | Working |
 | R-005 | Metacam launch | Launch sharing panel and dump candidates | XML, JSONL | Passive | Working |
 | R-006 | Recorder tile | Tap `screenrecording_button`, wait, relaunch, tap stop | JSONL, media file listing only | Active recording | Working |
 | S-001 | UiScrollable settings | Use resource-id `settings_recycler_view` with scroll/fling variants | Before/after XML | Low | Partial, unreliable |
@@ -356,6 +364,8 @@ known rollback/stop step.
 | `metacam.record.start_stop` | Exercise built-in recording through visible UI | Run `metacam.open`; click `com.oculus.metacam:id/screenrecording_button`; wait; run `metacam.open`; click same resource ID | Starts and stops built-in recorder; creates headset video file | Working, active |
 | `metacam.settings.basic` | Open first-level camera settings menu | Run `metacam.open`; click `com.oculus.metacam:id/camera_settings_dropdown_button`; dump | Reveals settings such as mic audio, view, aspect ratio, more settings | Working |
 | `metacam.settings.deep` | Open deeper camera settings panel | Run `metacam.settings.basic`; click `com.oculus.metacam:id/camera_settings_menu_more_settings`; dump | Shows settings panel with red-dot, hide-controls, capture markers, aspect ratio | Working |
+| `quest.baseline.current_window` | Dump the current UI/accessibility baseline | `currentWindow` instrumentation scenario; summarize with `summarize_report.py` | Emits structural XML node counts, display IDs, clickable/scrollable counts, accessibility window counts, and action-node counts without raw text or paths | Working |
+| `quest.surface.surface_map_current` | Dump shell display/window state plus accessibility windows | `surfaceMap` with `surface=current`; summarize with `summarize_report.py` | Captures display/window shell command witnesses, an instrumentation hierarchy snapshot, accessibility windows, and a host-shell-dump hint | Working |
 | `settings.scroll.uiscrollable` | Scroll settings recycler view | Find `com.oculus.panelapp.settings:id/settings_recycler_view`; call `UiScrollable.scrollForward` | Returned failure or no visible new content in first sweep | Needs variants |
 | `settings.scroll.uiobject2` | Scroll settings recycler view through AndroidX object API | Find `By.scrollable(true)` with resource `settings_recycler_view`; call `scroll(Direction.DOWN, 0.75f, 1000)` | Reveals `Format and quality`, `Bit rate`, `Frame rate`, `Image stabilization`, and `Eye perspective` | Working |
 | `settings.scroll.accessibility_action` | Scroll settings recycler view through raw accessibility action | Find scrollable node with resource `settings_recycler_view`; call `ACTION_SCROLL_FORWARD` | Reveals the advanced capture settings and returns true | Working |

@@ -259,6 +259,12 @@ Travel mode, Vision, Mobility, Hearing, and Spatial audio for windows. Compact
 `settingsChildPageProbe` runs opened each page and returned, and the exporter
 summarized the child surfaces with safe labels plus redaction counts.
 
+The exporter also summarizes `currentWindow` and `surfaceMap` reports. For
+those baseline sweeps it emits structural counts only: XML node counts,
+clickable/scrollable counts, display IDs, package counts, accessibility window
+counts, and action-node counts. It does not emit package names, raw UI text,
+window titles, XML paths, or shell command output.
+
 Active tapping is disabled by default. To test whether a visible Android button
 can be pressed through UIAutomator, pass a specific regex and a small tap limit:
 

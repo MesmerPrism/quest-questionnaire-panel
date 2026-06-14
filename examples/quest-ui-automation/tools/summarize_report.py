@@ -264,6 +264,13 @@ def option_texts(option: dict[str, Any]) -> list[str]:
     return texts
 
 
+def int_value(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def summarize_events(
     lines: Iterable[str],
     source_name: str,
@@ -276,6 +283,10 @@ def summarize_events(
     section_scrolls: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
     route_inventory: OrderedDict[str, dict[str, Any]] = OrderedDict()
     child_probe_targets: OrderedDict[str, dict[str, str]] = OrderedDict()
+    ui_dumps: list[dict[str, Any]] = []
+    surface_snapshots: list[dict[str, Any]] = []
+    accessibility_states: list[dict[str, Any]] = []
+    shell_dump_hints: list[dict[str, Any]] = []
     child_page_surfaces: list[dict[str, Any]] = []
     dropdown_targets: list[dict[str, Any]] = []
     dropdown_surfaces: list[dict[str, Any]] = []
@@ -295,7 +306,70 @@ def summarize_events(
         data = event.get("data") or {}
         event_counts[event_type] += 1
 
-        if event_type == "settings_section_page":
+        if event_type == "ui_dump":
+            ui_dumps.append(
+                {
+                    "name": normalize_text(data.get("name")),
+                    "nodeCount": int_value(data.get("nodeCount")),
+                    "clickableCount": int_value(data.get("clickableCount")),
+                    "enabledCount": int_value(data.get("enabledCount")),
+                    "scrollableCount": int_value(data.get("scrollableCount")),
+                    "checkedCount": int_value(data.get("checkedCount")),
+                    "candidateCount": int_value(data.get("candidateCount")),
+                    "displayIds": sorted(normalize_text(value) for value in data.get("displayIds", []) or []),
+                    "packageCount": len(data.get("packages", []) or []),
+                }
+            )
+
+        elif event_type == "surface_map_snapshot":
+            surface_snapshots.append(
+                {
+                    "surface": normalize_text(data.get("surface")),
+                    "nodeCount": int_value(data.get("nodeCount")),
+                }
+            )
+
+        elif event_type == "shell_uiautomator_dump_external":
+            shell_dump_hints.append(
+                {
+                    "hasCommand": bool(data.get("command")),
+                    "hasPath": bool(data.get("path")),
+                    "note": normalize_text(data.get("note")),
+                }
+            )
+
+        elif event_type == "accessibility_state":
+            active_root = data.get("activeRoot") or {}
+            windows = []
+            for window in data.get("windows", []) or []:
+                windows.append(
+                    {
+                        "index": int_value(window.get("index"), -1),
+                        "type": normalize_text(window.get("type")),
+                        "layer": int_value(window.get("layer"), -1),
+                        "active": bool(window.get("active", False)),
+                        "focused": bool(window.get("focused", False)),
+                        "accessibilityFocused": bool(window.get("accessibilityFocused", False)),
+                        "displayId": int_value(window.get("displayId"), -1),
+                        "nodeCount": int_value(window.get("nodeCount")),
+                        "scrollableCount": int_value(window.get("scrollableCount")),
+                        "actionNodeCount": int_value(window.get("actionNodeCount")),
+                        "nodesCapped": bool(window.get("nodesCapped", False)),
+                    }
+                )
+            accessibility_states.append(
+                {
+                    "name": normalize_text(data.get("name")),
+                    "windowCount": int_value(data.get("windowCount")),
+                    "activeRootNodeCount": int_value(active_root.get("nodeCount")),
+                    "activeRootScrollableCount": int_value(active_root.get("scrollableCount")),
+                    "activeRootActionNodeCount": int_value(active_root.get("actionNodeCount")),
+                    "activeRootNodesCapped": bool(active_root.get("nodesCapped", False)),
+                    "windows": windows,
+                }
+            )
+
+        elif event_type == "settings_section_page":
             target = normalize_text(data.get("target"))
             section = sections.setdefault(
                 target,
@@ -465,6 +539,10 @@ def summarize_events(
         "source": source_name,
         "eventCounts": dict(sorted(event_counts.items())),
         "parseErrors": parse_errors,
+        "uiDumps": ui_dumps,
+        "surfaceSnapshots": surface_snapshots,
+        "accessibilityStates": accessibility_states,
+        "shellDumpHints": shell_dump_hints,
         "settingsSections": section_summaries,
         "routeInventory": [
             {
@@ -483,6 +561,7 @@ def summarize_events(
             "labels": "Only allowlisted low-cardinality settings labels are emitted.",
             "notifications": "Unknown notification labels, including installed app names, are counted but not emitted.",
             "rawXml": "Raw XML paths and full UI dumps are never emitted.",
+            "surfaceMaps": "Surface-map summaries omit package names, raw node text, window titles, XML paths, and shell command output.",
             "childProbeDefaults": "Generated childTargets include public-safe child_page routes in allowed risk buckets and exclude default-blocked labels.",
         },
     }
@@ -502,6 +581,93 @@ def render_markdown(summaries: list[dict[str, Any]]) -> str:
         lines.append(f"- Parse errors: {len(summary['parseErrors'])}")
         lines.append("- Redaction: raw XML paths, local paths, package/resource IDs, and non-allowlisted labels are omitted.")
         lines.append("")
+
+        if summary["uiDumps"]:
+            lines.append("### UI Dumps")
+            lines.append(markdown_table_row(["Name", "Nodes", "Clickable", "Enabled", "Scrollable", "Checked", "Candidates", "Displays", "Packages"]))
+            lines.append(markdown_table_row(["---", "---:", "---:", "---:", "---:", "---:", "---:", "---", "---:"]))
+            for dump in summary["uiDumps"]:
+                lines.append(
+                    markdown_table_row(
+                        [
+                            dump["name"],
+                            dump["nodeCount"],
+                            dump["clickableCount"],
+                            dump["enabledCount"],
+                            dump["scrollableCount"],
+                            dump["checkedCount"],
+                            dump["candidateCount"],
+                            ", ".join(dump["displayIds"]) if dump["displayIds"] else "(none)",
+                            dump["packageCount"],
+                        ]
+                    )
+                )
+            lines.append("")
+
+        if summary["surfaceSnapshots"]:
+            lines.append("### Surface Map Snapshots")
+            lines.append(markdown_table_row(["Surface", "Nodes"]))
+            lines.append(markdown_table_row(["---", "---:"]))
+            for snapshot in summary["surfaceSnapshots"]:
+                lines.append(markdown_table_row([snapshot["surface"], snapshot["nodeCount"]]))
+            lines.append("")
+
+        if summary["accessibilityStates"]:
+            lines.append("### Accessibility Windows")
+            lines.append(markdown_table_row(["Name", "Windows", "Active root nodes", "Active scrollables", "Active action nodes", "Capped"]))
+            lines.append(markdown_table_row(["---", "---:", "---:", "---:", "---:", "---"]))
+            for state in summary["accessibilityStates"]:
+                lines.append(
+                    markdown_table_row(
+                        [
+                            state["name"],
+                            state["windowCount"],
+                            state["activeRootNodeCount"],
+                            state["activeRootScrollableCount"],
+                            state["activeRootActionNodeCount"],
+                            "yes" if state["activeRootNodesCapped"] else "no",
+                        ]
+                    )
+                )
+            lines.append("")
+            lines.append(markdown_table_row(["Name", "Index", "Type", "Layer", "Display", "Active", "Focused", "Nodes", "Scrollables", "Action nodes", "Capped"]))
+            lines.append(markdown_table_row(["---", "---:", "---", "---:", "---:", "---", "---", "---:", "---:", "---:", "---"]))
+            for state in summary["accessibilityStates"]:
+                for window in state["windows"]:
+                    lines.append(
+                        markdown_table_row(
+                            [
+                                state["name"],
+                                window["index"],
+                                window["type"],
+                                window["layer"],
+                                window["displayId"],
+                                "yes" if window["active"] else "no",
+                                "yes" if window["focused"] else "no",
+                                window["nodeCount"],
+                                window["scrollableCount"],
+                                window["actionNodeCount"],
+                                "yes" if window["nodesCapped"] else "no",
+                            ]
+                        )
+                    )
+            lines.append("")
+
+        if summary["shellDumpHints"]:
+            lines.append("### Shell Dump Hints")
+            lines.append(markdown_table_row(["External command provided", "External path provided", "Note"]))
+            lines.append(markdown_table_row(["---", "---", "---"]))
+            for hint in summary["shellDumpHints"]:
+                lines.append(
+                    markdown_table_row(
+                        [
+                            "yes" if hint["hasCommand"] else "no",
+                            "yes" if hint["hasPath"] else "no",
+                            hint["note"],
+                        ]
+                    )
+                )
+            lines.append("")
 
         sections = summary["settingsSections"]
         if sections:
