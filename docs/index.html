@@ -23,6 +23,7 @@
         <a href="#implementation">Deep dive</a>
         <a href="#commands">Commands</a>
         <a href="#capture">Capture</a>
+        <a href="#renders">Panel renders</a>
         <a href="#demos">Demos</a>
       </nav>
     </header>
@@ -844,6 +845,154 @@ startActivity(
               <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/demo-capture-workflow.md">BRB demo capture workflow</a>.
             </p>
           </article>
+        </div>
+      </section>
+
+      <section id="renders" class="section" aria-labelledby="renders-title">
+        <div class="section-heading">
+          <h2 id="renders-title">Quest Panel Renderings</h2>
+          <p>
+            These host-rendered Compose frames use the Quest 3S panel surface
+            verified on device: 1350 x 900 pixels at 200dpi. They are layout
+            references for review, docs, and future panel changes, not raw
+            headset screenshots.
+          </p>
+        </div>
+
+        <h3 class="render-subheading">BRB questionnaire sequence</h3>
+        <div class="render-grid">
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-01-language-select.png">
+              <img src="media/panel-renders/brb-01-language-select.png" alt="BRB questionnaire language selection page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Language selection</strong>
+              <span>Initial stage entry page.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-02-demographics.png">
+              <img src="media/panel-renders/brb-02-demographics.png" alt="BRB questionnaire demographics page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Demographics</strong>
+              <span>Age, gender, education, and employment fields.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-03-prior-experience.png">
+              <img src="media/panel-renders/brb-03-prior-experience.png" alt="BRB questionnaire prior experience page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Prior experience</strong>
+              <span>VR, gaming, and presurvey context.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-04-post-pictographic.png">
+              <img src="media/panel-renders/brb-04-post-pictographic.png" alt="BRB questionnaire pictographic response page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Pictographic response</strong>
+              <span>Post-condition body-state scale.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-05-post-presence.png">
+              <img src="media/panel-renders/brb-05-post-presence.png" alt="BRB questionnaire presence rating page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Presence ratings</strong>
+              <span>Post-condition XR presence and perception items.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-06-lost-opportunity.png">
+              <img src="media/panel-renders/brb-06-lost-opportunity.png" alt="BRB questionnaire lost opportunity page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Lost opportunity</strong>
+              <span>Condition reflection and open response.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-07-final-confirmation.png">
+              <img src="media/panel-renders/brb-07-final-confirmation.png" alt="BRB questionnaire final confirmation page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Final confirmation</strong>
+              <span>End-of-study confirmation step.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-08-extra-presses-prompt.png">
+              <img src="media/panel-renders/brb-08-extra-presses-prompt.png" alt="BRB questionnaire extra presses prompt rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Extra presses prompt</strong>
+              <span>Follow-up page for optional additional presses.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/brb-09-export-summary.png">
+              <img src="media/panel-renders/brb-09-export-summary.png" alt="BRB questionnaire export summary page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Export summary</strong>
+              <span>Result and completion summary state.</span>
+            </figcaption>
+          </figure>
+        </div>
+
+        <h3 class="render-subheading">Reusable panel fixture</h3>
+        <div class="render-grid render-grid-compact">
+          <figure class="render-card">
+            <a href="media/panel-renders/generic-01-intro.png">
+              <img src="media/panel-renders/generic-01-intro.png" alt="Generic questionnaire intro page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Generic intro</strong>
+              <span>Baseline contract fixture.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/generic-02-rating.png">
+              <img src="media/panel-renders/generic-02-rating.png" alt="Generic questionnaire rating page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Generic rating</strong>
+              <span>Single-page rating state.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/generic-03-comment.png">
+              <img src="media/panel-renders/generic-03-comment.png" alt="Generic questionnaire comment page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Generic comment</strong>
+              <span>Open response state.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="render-card">
+            <a href="media/panel-renders/generic-04-complete.png">
+              <img src="media/panel-renders/generic-04-complete.png" alt="Generic questionnaire complete page rendered at Quest panel size" loading="lazy" />
+            </a>
+            <figcaption>
+              <strong>Generic complete</strong>
+              <span>Completion fixture.</span>
+            </figcaption>
+          </figure>
         </div>
       </section>
 

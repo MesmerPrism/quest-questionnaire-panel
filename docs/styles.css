@@ -77,7 +77,8 @@ a {
 
 .site-header nav {
   display: flex;
-  gap: 22px;
+  flex-wrap: wrap;
+  gap: 18px;
   align-items: center;
   justify-content: flex-end;
 }
@@ -208,6 +209,7 @@ h3 {
 .recipe-grid,
 .example-pair,
 .demo-grid,
+.render-grid,
 .reuse-layout,
 .source-map,
 .reader-grid,
@@ -257,6 +259,7 @@ h3 {
 .recipe-grid > *,
 .example-pair > *,
 .demo-grid > *,
+.render-grid > *,
 .reuse-layout > *,
 .source-map > *,
 .reader-grid > *,
@@ -270,6 +273,7 @@ h3 {
 .example-pair article,
 .note-block,
 .demo-card,
+.render-card,
 .link-panel,
 .source-map article,
 .reader-grid article,
@@ -313,6 +317,58 @@ h3 {
 .integrity-grid p:last-child,
 .architecture-diagram p:last-child {
   margin-bottom: 0;
+}
+
+.render-subheading {
+  margin: 0 0 16px;
+}
+
+.render-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 34px;
+}
+
+.render-grid:last-child {
+  margin-bottom: 0;
+}
+
+.render-grid-compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.render-card {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.render-card a,
+.render-card img {
+  display: block;
+}
+
+.render-card img {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  background: var(--surface-soft);
+  object-fit: cover;
+}
+
+.render-card figcaption {
+  padding: 14px 16px 16px;
+}
+
+.render-card strong,
+.render-card span {
+  display: block;
+}
+
+.render-card span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .architecture-diagram > span {
@@ -525,7 +581,9 @@ code {
   .flow-diagram,
   .source-map,
   .reader-grid,
-  .integrity-grid {
+  .integrity-grid,
+  .render-grid,
+  .render-grid-compact {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -544,6 +602,8 @@ code {
   .ownership-grid,
   .example-pair,
   .demo-grid,
+  .render-grid,
+  .render-grid-compact,
   .reuse-layout,
   .architecture-diagram {
     grid-template-columns: 1fr;
@@ -602,12 +662,13 @@ code {
   .example-pair article,
   .note-block,
   .link-panel,
-  .source-map article,
-  .reader-grid article,
-  .integrity-grid article,
-  .code-panel,
-  .architecture-diagram > div,
-  .flow-diagram li {
+    .source-map article,
+    .reader-grid article,
+    .integrity-grid article,
+    .code-panel,
+    .architecture-diagram > div,
+    .flow-diagram li,
+    .render-card figcaption {
     padding: 16px;
   }
 

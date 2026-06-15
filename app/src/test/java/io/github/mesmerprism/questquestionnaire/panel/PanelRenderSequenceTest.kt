@@ -31,12 +31,12 @@ class PanelRenderSequenceTest {
     @get:Rule
     val paparazzi = Paparazzi(
         deviceConfig = DeviceConfig.PIXEL_5.copy(
-            screenWidth = 1080,
-            screenHeight = 720,
-            xdpi = 160,
-            ydpi = 160,
+            screenWidth = 1350,
+            screenHeight = 900,
+            xdpi = 200,
+            ydpi = 200,
             orientation = ScreenOrientation.LANDSCAPE,
-            density = Density.MEDIUM,
+            density = Density.create(200),
             softButtons = false
         ),
         showSystemUi = false,
@@ -274,7 +274,11 @@ class PanelRenderSequenceTest {
             sessionId = "render-session",
             requestId = "render-$openStage",
             nonce = "rendernonce000001",
-            studyId = "render-demo",
+            studyId = if (schemaId == BrbQuestionnaireContract.QuestionnaireId) {
+                "brb"
+            } else {
+                "render-demo"
+            },
             schemaId = schemaId,
             openStage = openStage,
             conditionNumber = conditionNumber,

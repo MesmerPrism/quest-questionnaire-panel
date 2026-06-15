@@ -117,10 +117,14 @@ python tools\check_public_artifacts.py --all
 
 ## Curated Public Media
 
-The only committed recording lane is `docs/media/*.mp4`, which is used by the
-GitHub Pages onboarding guide. Before adding or replacing a clip there, confirm:
+The committed public media lanes are `docs/media/*.mp4` for reviewed onboarding
+clips and `docs/media/panel-renders/*.png` for generated host-side panel UI
+renders used by the GitHub Pages guide. Before adding or replacing media there,
+confirm:
 
 - the clip is intentionally public onboarding media, not raw lab evidence;
+- render PNGs were generated from the host-side panel renderer, not copied from
+  ADB screenshots or headset capture output;
 - it contains no participant data, device serials, private app lists, account
   names, raw logs, or local machine paths;
 - it was reviewed as a final cropped/exported clip, not copied directly from a

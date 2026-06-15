@@ -23,6 +23,8 @@ __pycache__/
 # Curated public GitHub Pages media
 !docs/media/
 !docs/media/*.mp4
+!docs/media/panel-renders/
+!docs/media/panel-renders/*.png
 
 # IDE and OS
 .idea/

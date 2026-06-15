@@ -208,7 +208,8 @@ Pass evidence:
   defaults again;
 - any headset video listing remains local evidence only;
 - the raw one-take MP4 stays outside this repo;
-- only reviewed, cut clips under `docs/media/*.mp4` can be committed.
+- only reviewed, cut clips under `docs/media/*.mp4` and generated panel renders
+  under `docs/media/panel-renders/*.png` can be committed.
 
 Current 2026-06-14 evidence:
 

@@ -167,7 +167,11 @@ def explicit_paths(paths: list[str]) -> list[str]:
 
 
 def is_curated_public_media(path: str) -> bool:
-    return bool(re.fullmatch(r"docs/media/[^/]+\.mp4", repo_relative(path), re.IGNORECASE))
+    normalized = repo_relative(path)
+    return bool(
+        re.fullmatch(r"docs/media/[^/]+\.mp4", normalized, re.IGNORECASE)
+        or re.fullmatch(r"docs/media/panel-renders/[^/]+\.png", normalized, re.IGNORECASE)
+    )
 
 
 def path_violations(path: str) -> list[Violation]:
@@ -176,7 +180,7 @@ def path_violations(path: str) -> list[Violation]:
     violations: list[Violation] = []
 
     extension = Path(normalized).suffix.lower()
-    if extension == ".mp4" and is_curated_public_media(normalized):
+    if is_curated_public_media(normalized):
         return violations
     if extension in BLOCKED_EXTENSIONS:
         violations.append(Violation(normalized, BLOCKED_EXTENSIONS[extension]))
@@ -205,7 +209,7 @@ def text_violations(path: str) -> list[Violation]:
         return []
 
     extension = Path(normalized).suffix.lower()
-    if extension in BINARY_EXTENSIONS or (extension == ".mp4" and is_curated_public_media(normalized)):
+    if extension in BINARY_EXTENSIONS or is_curated_public_media(normalized):
         return []
 
     file_path = Path(path)
@@ -263,7 +267,8 @@ def main(argv: list[str]) -> int:
             print(f"  - {violation.render()}", file=sys.stderr)
         print(
             "\nKeep raw evidence under ignored local directories. "
-            "Only curated public media belongs under docs/media/*.mp4.",
+            "Only curated public media belongs under docs/media/*.mp4 or "
+            "docs/media/panel-renders/*.png.",
             file=sys.stderr,
         )
         return 1
