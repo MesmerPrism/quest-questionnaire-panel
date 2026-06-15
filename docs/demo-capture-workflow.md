@@ -12,9 +12,8 @@ built-in recorder.
 - GitHub Pages entry point: `docs/index.html`.
 - Current curated clips: `docs/media/brb-blink.mp4`,
   `docs/media/brb-press.mp4`, and `docs/media/panel-menu.mp4`.
-- BRB Unity reference branch:
-  `MesmerPrism/the-big-red-button-institute` branch
-  `codex/brb-questionnaire-panel-bridge`.
+- BRB Unity maintained branch:
+  `MesmerPrism/the-big-red-button-institute` branch `main`.
 - BRB CLI triggers are Android Intent extras on the Unity activity:
   `brb.runtimeCommand`, `brb.runtimeCommandScript`,
   `brb.questionnaireTrigger`, and `brb.questionnaireCommandScript`.

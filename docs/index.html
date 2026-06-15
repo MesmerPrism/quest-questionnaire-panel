@@ -38,7 +38,7 @@
             It shows 2D questionnaire screens, collects answers, writes a JSON
             result back to the app that launched it, and then closes itself.
             The
-            <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">Big Red Button Unity project</a>
+            <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">Big Red Button Unity project</a>
             is the first caller, but the contract is meant to work for other
             native, Unity, or OpenXR apps too.
           </p>
@@ -58,7 +58,7 @@
           </div>
           <div>
             <span>First caller</span>
-            <strong><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">Big Red Button Unity study app</a></strong>
+            <strong><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">Big Red Button Unity study app</a></strong>
           </div>
           <div>
             <span>Result path</span>
@@ -182,7 +182,7 @@
               session, and any app-specific logic. In the BRB case, that means
               Unity owns the room, the button, condition audio, press counting,
               and final physical interaction through the
-              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity launcher</a>.
+              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity launcher</a>.
             </p>
           </article>
 
@@ -219,7 +219,7 @@
             drives the panel by choosing the questionnaire stage, creating the
             request, and validating the returned JSON. The current reference is
             the pushed BRB branch
-            <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge"><code>codex/brb-questionnaire-panel-bridge</code></a>.
+            <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main"><code>main</code></a>.
           </p>
         </div>
 
@@ -227,11 +227,11 @@
           <div>
             <h3>BRB Unity app owns</h3>
             <ul>
-              <li>The <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scenes/SampleScene.unity">3D Big Red Button scene</a> and press animation.</li>
-              <li>Condition sessions, condition instruction audio, and timing through <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/VR/QuestVrInputManager.cs">QuestVrInputManager</a>.</li>
-              <li>Button press counting and final physical interaction through <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/BigRedButtonWorldPressCounter.cs">BigRedButtonWorldPressCounter</a>.</li>
+              <li>The <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scenes/SampleScene.unity">3D Big Red Button scene</a> and press animation.</li>
+              <li>Condition sessions, condition instruction audio, and timing through <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/VR/QuestVrInputManager.cs">QuestVrInputManager</a>.</li>
+              <li>Button press counting and final physical interaction through <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/BigRedButtonWorldPressCounter.cs">BigRedButtonWorldPressCounter</a>.</li>
               <li>The session map that links a panel request to the study run.</li>
-              <li>The result URI, callback receiver, and <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultValidator.java">result validation</a>.</li>
+              <li>The result URI, callback receiver, and <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireResultValidator.java">result validation</a>.</li>
             </ul>
           </div>
           <div>
@@ -283,10 +283,10 @@
         <div class="link-panel">
           <h3>BRB integration source</h3>
           <ul class="link-list">
-            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Documentation/New-Agent-Integration-Brief.md">New-agent integration brief</a></li>
-            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireContract.java">BRB Android questionnaire constants and stage names</a></li>
-            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnairePanelBridge.java">BRB Android bridge that launches the panel</a></li>
-            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity C# launcher that chooses questionnaire routes</a></li>
+            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Documentation/New-Agent-Integration-Brief.md">New-agent integration brief</a></li>
+            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireContract.java">BRB Android questionnaire constants and stage names</a></li>
+            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnairePanelBridge.java">BRB Android bridge that launches the panel</a></li>
+            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity C# launcher that chooses questionnaire routes</a></li>
           </ul>
         </div>
       </section>
@@ -338,10 +338,10 @@
             </p>
             <p>
               For a concrete Unity caller, read BRB's
-              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultProvider.java">result provider</a>,
-              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultStore.java">result store</a>,
+              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireResultProvider.java">result provider</a>,
+              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireResultStore.java">result store</a>,
               and
-              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireReturnReceiver.java">return receiver</a>.
+              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireReturnReceiver.java">return receiver</a>.
             </p>
           </div>
         </div>
@@ -384,7 +384,7 @@
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/README.md">Android caller SDK</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/NativeCallerActivity.kt">Native caller example</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">BRB Unity reference branch</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">BRB Unity main branch</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/validation-matrix.md">Validation matrix</a></li>
             </ul>
           </article>
@@ -666,7 +666,7 @@ startActivity(
             Start with the plain-language flow above, then use these source
             links when you need the exact implementation. Panel links point to
             <code>main</code>; BRB links point to the pushed
-            <code>codex/brb-questionnaire-panel-bridge</code> branch.
+            <code>main</code> branch.
           </p>
         </div>
 
@@ -701,12 +701,12 @@ startActivity(
               delegating questionnaire screens to the panel.
             </p>
             <ul class="link-list">
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Documentation/New-Agent-Integration-Brief.md">BRB integration brief</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity questionnaire launcher</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireContract.java">BRB Java contract constants</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnairePanelBridge.java">Android bridge from Unity to panel</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/QuestionnaireResultValidator.java">BRB result validator</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/codex/brb-questionnaire-panel-bridge/Assets/Plugins/Android/AndroidManifest.xml">BRB Android manifest declarations</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Documentation/New-Agent-Integration-Brief.md">BRB integration brief</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity questionnaire launcher</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireContract.java">BRB Java contract constants</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnairePanelBridge.java">Android bridge from Unity to panel</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireResultValidator.java">BRB result validator</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/AndroidManifest.xml">BRB Android manifest declarations</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/Runtime/QuestQuestionnairePanel.cs">Reusable Unity C# facade</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/src/main/java/io/github/mesmerprism/questquestionnaire/unity/UnityQuestionnaireBridge.kt">Reusable Android Unity bridge</a></li>
             </ul>
@@ -941,7 +941,7 @@ startActivity(
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.result.schema.json">Result schema</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/contract-versioning.md">Contract versioning</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin</a>
-        <a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/codex/brb-questionnaire-panel-bridge">BRB Unity reference branch</a>
+        <a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">BRB Unity main branch</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/CONTRIBUTING.md">Contribution guide</a>
         <a href="https://github.com/MesmerPrism/quest-questionnaire-panel/issues">Issues</a>
       </nav>
