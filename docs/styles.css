@@ -42,7 +42,8 @@ a {
 
 .inline-link,
 .summary-list a,
-.link-list a {
+.link-list a,
+.path-card {
   color: var(--green);
   font-weight: 700;
   text-decoration: underline;
@@ -55,7 +56,9 @@ a {
 .summary-list a:focus-visible,
 .summary-list a:hover,
 .link-list a:focus-visible,
-.link-list a:hover {
+.link-list a:hover,
+.path-card:focus-visible,
+.path-card:hover {
   color: var(--red);
   outline: none;
 }
@@ -159,6 +162,45 @@ h3 {
   color: var(--ink);
 }
 
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.button-link {
+  display: inline-flex;
+  min-height: 40px;
+  padding: 9px 13px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.button-link.primary {
+  border-color: var(--red);
+  background: var(--red);
+  color: #ffffff;
+}
+
+.button-link:focus-visible,
+.button-link:hover {
+  border-color: var(--red);
+  color: var(--red);
+  outline: none;
+}
+
+.button-link.primary:focus-visible,
+.button-link.primary:hover {
+  background: #9f1c27;
+  color: #ffffff;
+}
+
 .summary-list {
   display: grid;
   border: 1px solid var(--line);
@@ -186,6 +228,42 @@ h3 {
   margin-top: 4px;
 }
 
+.toc {
+  margin: -18px 0 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.toc summary,
+.runbook-details summary,
+.render-disclosure summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.toc details,
+.runbook-details,
+.render-disclosure {
+  padding: 16px 18px;
+}
+
+.toc a {
+  display: inline-block;
+  margin: 10px 18px 0 0;
+  color: var(--green);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.toc a:focus-visible,
+.toc a:hover {
+  color: var(--red);
+  outline: none;
+}
+
 .section {
   padding: 48px 0;
   border-top: 1px solid var(--line);
@@ -205,6 +283,9 @@ h3 {
 }
 
 .guide-grid,
+.path-grid,
+.quickstart-grid,
+.boundary-grid,
 .ownership-grid,
 .recipe-grid,
 .example-pair,
@@ -221,6 +302,16 @@ h3 {
 
 .guide-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.path-grid,
+.quickstart-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.boundary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
 }
 
 .ownership-grid,
@@ -255,6 +346,9 @@ h3 {
 }
 
 .guide-grid > *,
+.path-grid > *,
+.quickstart-grid > *,
+.boundary-grid > *,
 .ownership-grid > *,
 .recipe-grid > *,
 .example-pair > *,
@@ -269,6 +363,9 @@ h3 {
 }
 
 .guide-grid article,
+.path-card,
+.quickstart-grid article,
+.boundary-grid article,
 .recipe-grid article,
 .example-pair article,
 .note-block,
@@ -286,6 +383,9 @@ h3 {
 }
 
 .guide-grid article,
+.path-card,
+.quickstart-grid article,
+.boundary-grid article,
 .recipe-grid article,
 .example-pair article,
 .note-block,
@@ -299,6 +399,9 @@ h3 {
 }
 
 .guide-grid p,
+.path-card p,
+.quickstart-grid p,
+.boundary-grid p,
 .recipe-grid p,
 .note-block p,
 .demo-card p,
@@ -310,6 +413,9 @@ h3 {
 }
 
 .guide-grid p:last-child,
+.path-card p:last-child,
+.quickstart-grid p:last-child,
+.boundary-grid p:last-child,
 .recipe-grid p:last-child,
 .note-block p:last-child,
 .source-map p:last-child,
@@ -317,6 +423,57 @@ h3 {
 .integrity-grid p:last-child,
 .architecture-diagram p:last-child {
   margin-bottom: 0;
+}
+
+.path-card {
+  display: block;
+  color: var(--ink);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.path-card h3 {
+  color: var(--ink);
+}
+
+.diagram-caption {
+  margin: 14px 0 0;
+  color: var(--muted);
+}
+
+.runbook-details,
+.render-disclosure {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.runbook-details[open] summary,
+.render-disclosure[open] summary {
+  margin-bottom: 14px;
+}
+
+.runbook-details > p,
+.render-disclosure > p {
+  color: var(--muted);
+}
+
+.source-map details {
+  margin-top: 14px;
+}
+
+.source-map summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.source-map details .link-list {
+  margin-top: 12px;
+}
+
+.safety-callout {
+  margin-bottom: 22px;
 }
 
 .render-subheading {
@@ -450,6 +607,12 @@ table {
   border-collapse: collapse;
 }
 
+caption {
+  padding: 12px 16px;
+  color: var(--muted);
+  text-align: left;
+}
+
 th,
 td {
   padding: 14px 16px;
@@ -577,6 +740,8 @@ code {
 
 @media (max-width: 1040px) {
   .guide-grid,
+  .path-grid,
+  .quickstart-grid,
   .recipe-grid,
   .flow-diagram,
   .source-map,
@@ -599,6 +764,7 @@ code {
 @media (max-width: 920px) {
   .intro,
   .section-heading,
+  .boundary-grid,
   .ownership-grid,
   .example-pair,
   .demo-grid,
@@ -649,6 +815,9 @@ code {
   }
 
   .guide-grid,
+  .path-grid,
+  .quickstart-grid,
+  .boundary-grid,
   .recipe-grid,
   .flow-diagram,
   .source-map,
@@ -658,17 +827,20 @@ code {
   }
 
   .guide-grid article,
+  .path-card,
+  .quickstart-grid article,
+  .boundary-grid article,
   .recipe-grid article,
   .example-pair article,
   .note-block,
   .link-panel,
-    .source-map article,
-    .reader-grid article,
-    .integrity-grid article,
-    .code-panel,
-    .architecture-diagram > div,
-    .flow-diagram li,
-    .render-card figcaption {
+  .source-map article,
+  .reader-grid article,
+  .integrity-grid article,
+  .code-panel,
+  .architecture-diagram > div,
+  .flow-diagram li,
+  .render-card figcaption {
     padding: 16px;
   }
 

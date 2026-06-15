@@ -14,17 +14,10 @@
     <header class="site-header">
       <nav aria-label="Primary navigation">
         <a href="#overview">Overview</a>
-        <a href="#status">Status</a>
-        <a href="#brb">BRB integration</a>
-        <a href="#reuse">Use it elsewhere</a>
-        <a href="#contribute">Contribute</a>
+        <a href="#reuse">Use it</a>
         <a href="#contract">Contract</a>
-        <a href="#integrity">Recovery</a>
-        <a href="#implementation">Deep dive</a>
-        <a href="#commands">Commands</a>
-        <a href="#capture">Capture</a>
-        <a href="#renders">Panel renders</a>
         <a href="#demos">Demos</a>
+        <a href="#contribute">Contribute</a>
       </nav>
     </header>
 
@@ -34,14 +27,11 @@
           <p class="project-name">Quest Questionnaire Panel</p>
           <h1 id="page-title">A reusable 2D questionnaire panel for XR studies on Meta Quest / Horizon OS.</h1>
           <p class="lede">
-            This project is a
-            <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">Quest-compatible native Android panel app</a>.
-            It shows 2D questionnaire screens, collects answers, writes a JSON
-            result back to the app that launched it, and then closes itself.
-            The
-            <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">Big Red Button Unity project</a>
-            is the first caller, but the contract is meant to work for other
-            native, Unity, or OpenXR apps too.
+            A Unity, native Android, or OpenXR-style study app launches this
+            Quest-compatible native Android panel with a JSON request. The
+            participant answers in a Quest-friendly 2D UI, the panel writes a
+            structured JSON result to the caller-owned URI, and the caller
+            validates the result before resuming.
           </p>
           <p class="why-copy">
             XR studies often need questionnaires before, between, or after
@@ -51,21 +41,82 @@
             the participant answers in a Quest-friendly 2D UI, and the XR app
             resumes with structured data.
           </p>
+          <p class="why-copy">
+            Unity is the first demonstrated caller. The reusable interface is
+            the Android request/result contract.
+          </p>
+          <div class="cta-row" aria-label="Primary actions">
+            <a class="button-link primary" href="#demos">Watch the flow</a>
+            <a class="button-link" href="#unity-path">Use from Unity</a>
+            <a class="button-link" href="#android-path">Use from Android</a>
+            <a class="button-link" href="#contract">View contract</a>
+          </div>
         </div>
-        <div class="summary-list" aria-label="Project summary">
+        <div class="summary-list status-summary" aria-label="Project summary">
           <div>
-            <span>Panel project</span>
+            <span>Working</span>
             <strong><a href="https://github.com/MesmerPrism/quest-questionnaire-panel">Native Quest 2D questionnaire app</a></strong>
           </div>
           <div>
-            <span>First caller</span>
+            <span>Working reference</span>
             <strong><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">Big Red Button Unity study app</a></strong>
           </div>
           <div>
-            <span>Result path</span>
+            <span>Reusable contract</span>
             <strong><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">caller-owned content URI plus callback</a></strong>
           </div>
+          <div>
+            <span>Last reviewed</span>
+            <strong>main commit 44276b7</strong>
+          </div>
         </div>
+      </section>
+
+      <nav class="toc" aria-label="On this page">
+        <details>
+          <summary>On this page</summary>
+          <a href="#handoff">Five-step handoff</a>
+          <a href="#status">What this solves</a>
+          <a href="#choose-path">Choose your path</a>
+          <a href="#demos">Visual demo</a>
+          <a href="#reuse">Use it from your app</a>
+          <a href="#contract">Contract</a>
+          <a href="#integrity">Recovery and privacy</a>
+          <a href="#implementation">Implementation map</a>
+        </details>
+      </nav>
+
+      <section id="handoff" class="section flow-section" aria-labelledby="flow-title">
+        <div class="section-heading">
+          <h2 id="flow-title">Five-Step Handoff</h2>
+          <p>
+            This is the whole product shape: one foreground caller, one native
+            panel moment, and one validated result before the caller resumes.
+          </p>
+        </div>
+
+        <ol class="flow-diagram">
+          <li>
+            <strong>Caller prepares request</strong>
+            <span>Persist pending state, create request id, nonce, and private result file.</span>
+          </li>
+          <li>
+            <strong>Caller launches panel</strong>
+            <span>Use an explicit component, request JSON, and write-granted result URI.</span>
+          </li>
+          <li>
+            <strong>Panel collects answers</strong>
+            <span>Render only the requested stage sequence in the native 2D UI.</span>
+          </li>
+          <li>
+            <strong>Panel writes result</strong>
+            <span>Write JSON, close the stream, send the caller callback, then finish.</span>
+          </li>
+          <li>
+            <strong>Caller validates</strong>
+            <span>Check protocol, request id, nonce, schema, status, stage, and answer shape.</span>
+          </li>
+        </ol>
       </section>
 
       <section id="status" class="section" aria-labelledby="status-title">
@@ -85,6 +136,7 @@
               timing, condition order, and participant session logic in the
               experiment app.
             </p>
+            <p><a class="inline-link" href="#integrity">Go to recovery and study integrity</a></p>
           </article>
           <article>
             <h3>For Unity developers</h3>
@@ -93,6 +145,7 @@
               stage as request JSON, and read a validated result summary when
               the panel closes.
             </p>
+            <p><a class="inline-link" href="#unity-path">Go to Unity integration</a></p>
           </article>
           <article>
             <h3>For Android and OpenXR developers</h3>
@@ -100,6 +153,7 @@
               Use the Intent contract directly: request JSON in, result JSON
               out through a caller-owned <code>content://</code> URI.
             </p>
+            <p><a class="inline-link" href="#android-path">Go to Android contract</a></p>
           </article>
         </div>
 
@@ -119,9 +173,36 @@
             <p>Validates request id, nonce, schema, status, stage, and answer shape before resuming.</p>
           </div>
         </div>
+        <p class="diagram-caption">
+          The panel is not a Unity overlay and does not own the study world. It
+          is a separate Quest-compatible Android app launched only for the
+          questionnaire moment.
+        </p>
+
+        <div class="boundary-grid" aria-label="Conceptual boundary">
+          <article>
+            <h3>This is</h3>
+            <ul>
+              <li>A Quest/Horizon OS-compatible Android 2D panel app.</li>
+              <li>A reusable request/result handoff for XR studies.</li>
+              <li>A way to standardize questionnaires across study conditions.</li>
+              <li>A caller-owned result JSON workflow.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>This is not</h3>
+            <ul>
+              <li>A Unity-only form system.</li>
+              <li>A public-storage answer exchange.</li>
+              <li>An ADB-based product workflow.</li>
+              <li>A replacement for the XR study scene.</li>
+            </ul>
+          </article>
+        </div>
 
         <div class="status-table" role="region" aria-label="Integration status matrix" tabindex="0">
           <table>
+            <caption>Current integration status. Last reviewed on main at commit 44276b7.</caption>
             <thead>
               <tr>
                 <th scope="col">Frontend / caller</th>
@@ -139,7 +220,7 @@
               </tr>
               <tr>
                 <td>Unity / BRB</td>
-                <td>Working example branch</td>
+                <td>Working reference on main</td>
                 <td>Unity C# to Android Java bridge</td>
                 <td>Real XR study integration.</td>
               </tr>
@@ -166,60 +247,251 @@
         </div>
       </section>
 
-      <section class="section guide" aria-labelledby="start-title">
+      <section id="choose-path" class="section guide" aria-labelledby="path-title">
         <div class="section-heading">
-          <h2 id="start-title">Start Here</h2>
+          <h2 id="path-title">Choose Your Path</h2>
           <p>
-            Read the project as two cooperating apps, not as one Unity project
-            with a form bolted into it.
+            The same contract supports different readers. Start with the path
+            that matches what you need to evaluate or build.
           </p>
         </div>
 
-        <div class="guide-grid">
-          <article>
-            <h3>1. The XR app owns the study.</h3>
+        <div class="path-grid">
+          <a id="research-path" class="path-card" href="#integrity">
+            <h3>I am evaluating this for a study</h3>
             <p>
-              The caller keeps the 3D scene, condition timing, participant
-              session, and any app-specific logic. In the BRB case, that means
-              Unity owns the room, the button, condition audio, press counting,
-              and final physical interaction through the
-              <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity launcher</a>.
+              Start with the handoff, privacy model, recovery statuses, timing
+              metadata, and visual demos.
+            </p>
+          </a>
+
+          <a id="unity-path" class="path-card" href="#brb">
+            <h3>I want to call this from Unity</h3>
+            <p>
+              Start with the Unity wrapper, BRB reference, stage mapping, and
+              result validation path.
+            </p>
+          </a>
+
+          <a id="android-path" class="path-card" href="#contract">
+            <h3>I want to call this from Android/OpenXR</h3>
+            <p>
+              Start with the Android caller SDK, explicit Intent contract, and
+              request/result JSON fixtures.
+            </p>
+          </a>
+
+          <a id="contributor-path" class="path-card" href="#implementation">
+            <h3>I want to contribute</h3>
+            <p>
+              Start with the implementation map, validation matrix, workplan,
+              public artifact guard, and contribution guide.
+            </p>
+          </a>
+        </div>
+      </section>
+
+      <section id="demos" class="section" aria-labelledby="demos-title">
+        <div class="section-heading">
+          <h2 id="demos-title">What It Looks Like</h2>
+          <p>
+            Unity owns the 3D scene, the panel owns the questionnaire moment,
+            and the caller resumes only after reading and validating the result
+            JSON. The renderings below are generated host-side layout
+            references at the verified Quest panel frame, not headset
+            screenshots.
+          </p>
+        </div>
+
+        <div class="demo-grid">
+          <article class="demo-card">
+            <video controls muted loop playsinline preload="metadata" aria-label="Big red button blink loop">
+              <source src="media/brb-blink.mp4" type="video/mp4" />
+            </video>
+            <h3>Unity owns the study world</h3>
+            <p>
+              The BRB app can run a timed blink on the 3D button cap. This
+              stays on the Unity side because it belongs to the study scene.
             </p>
           </article>
 
-          <article>
-            <h3>2. The panel owns the questionnaire moment.</h3>
+          <article class="demo-card">
+            <video controls muted loop playsinline preload="metadata" aria-label="Big red button press loop">
+              <source src="media/brb-press.mp4" type="video/mp4" />
+            </video>
+            <h3>Unity owns physical interaction</h3>
             <p>
-              When the caller needs form-like input, it launches this native 2D
-              panel with a request. The panel renders only the requested stage
-              or sequence, plays panel-owned questionnaire prompts, validates
-              required answers, and submits a result from
-              <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireActivity.kt">QuestionnaireActivity</a>.
+              A runtime command plays the press animation and increments the
+              world-space counter. The panel does not replace this interaction.
             </p>
           </article>
 
-          <article>
-            <h3>3. The result goes back through Android IPC.</h3>
+          <article class="demo-card">
+            <video controls muted loop playsinline preload="metadata" aria-label="Questionnaire panel answer and close loop">
+              <source src="media/panel-menu.mp4" type="video/mp4" />
+            </video>
+            <h3>The panel owns form input</h3>
             <p>
-              The caller creates a private result file, exposes exactly that
-              file as a writable <code>content://</code> URI, and gives the
-              panel a one-shot broadcast <code>PendingIntent</code>. The panel
-              writes JSON to the URI, sends the callback as a signal, and
-              finishes only its own activity. The full rule set is in the
-              <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a>.
+              The caller brings the native 2D panel forward, one answer action
+              is submitted, and the panel finishes without taking ownership of
+              the Unity scene.
             </p>
           </article>
         </div>
+
+        <details id="renders" class="render-disclosure">
+          <summary>View all panel renderings</summary>
+          <p>
+            These frames use the Quest 3S panel surface verified on device:
+            1350 x 900 pixels at 200dpi.
+          </p>
+
+          <h3 class="render-subheading">BRB questionnaire sequence</h3>
+          <div class="render-grid">
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-01-language-select.png">
+                <img src="media/panel-renders/brb-01-language-select.png" alt="Quest Questionnaire language selection screen with English and Japanese options." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Language selection</strong>
+                <span>Initial BRB questionnaire entry page.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-02-demographics.png">
+                <img src="media/panel-renders/brb-02-demographics.png" alt="Quest Questionnaire demographics screen with participant context fields." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Demographics</strong>
+                <span>Age, gender, education, and employment fields.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-03-prior-experience.png">
+                <img src="media/panel-renders/brb-03-prior-experience.png" alt="Quest Questionnaire prior experience screen with VR and gaming context fields." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Prior experience</strong>
+                <span>VR, gaming, and presurvey context.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-04-post-pictographic.png">
+                <img src="media/panel-renders/brb-04-post-pictographic.png" alt="Quest Questionnaire post-condition pictographic response screen." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Pictographic response</strong>
+                <span>Post-condition body-state scale.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-05-post-presence.png">
+                <img src="media/panel-renders/brb-05-post-presence.png" alt="Quest Questionnaire presence rating screen with multiple post-condition items." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Presence ratings</strong>
+                <span>Post-condition XR presence and perception items.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-06-lost-opportunity.png">
+                <img src="media/panel-renders/brb-06-lost-opportunity.png" alt="Quest Questionnaire lost opportunity reflection screen with open response area." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Lost opportunity</strong>
+                <span>Condition reflection and open response.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-07-final-confirmation.png">
+                <img src="media/panel-renders/brb-07-final-confirmation.png" alt="Quest Questionnaire final confirmation screen with a 1 to 10 rating scale." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Final confirmation</strong>
+                <span>End-of-study confirmation step.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-08-extra-presses-prompt.png">
+                <img src="media/panel-renders/brb-08-extra-presses-prompt.png" alt="Quest Questionnaire final button prompt explaining optional extra physical presses." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Extra presses prompt</strong>
+                <span>Follow-up page for optional additional presses.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/brb-09-export-summary.png">
+                <img src="media/panel-renders/brb-09-export-summary.png" alt="Quest Questionnaire export summary screen confirming result return to the caller." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Export summary</strong>
+                <span>Result and completion summary state.</span>
+              </figcaption>
+            </figure>
+          </div>
+
+          <h3 class="render-subheading">Reusable panel fixture</h3>
+          <div class="render-grid render-grid-compact">
+            <figure class="render-card">
+              <a href="media/panel-renders/generic-01-intro.png">
+                <img src="media/panel-renders/generic-01-intro.png" alt="Generic Quest Questionnaire intro screen rendered at Quest panel size." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Generic intro</strong>
+                <span>Baseline contract fixture.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/generic-02-rating.png">
+                <img src="media/panel-renders/generic-02-rating.png" alt="Generic Quest Questionnaire rating screen rendered at Quest panel size." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Generic rating</strong>
+                <span>Single-page rating state.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/generic-03-comment.png">
+                <img src="media/panel-renders/generic-03-comment.png" alt="Generic Quest Questionnaire comment screen with open text response area." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Generic comment</strong>
+                <span>Open response state.</span>
+              </figcaption>
+            </figure>
+
+            <figure class="render-card">
+              <a href="media/panel-renders/generic-04-complete.png">
+                <img src="media/panel-renders/generic-04-complete.png" alt="Generic Quest Questionnaire completion screen rendered at Quest panel size." loading="lazy" />
+              </a>
+              <figcaption>
+                <strong>Generic complete</strong>
+                <span>Completion fixture.</span>
+              </figcaption>
+            </figure>
+          </div>
+        </details>
       </section>
 
       <section id="brb" class="section split" aria-labelledby="brb-title">
         <div class="section-heading">
-          <h2 id="brb-title">How BRB Uses The Panel</h2>
+          <h2 id="brb-title">Case Study: Big Red Button Unity Integration</h2>
           <p>
-            The Big Red Button Unity app is the current integration target. It
+            The Big Red Button Unity app is the current reference integration. It
             drives the panel by choosing the questionnaire stage, creating the
             request, and validating the returned JSON. The current reference is
-            the pushed BRB branch
+            the BRB
             <a class="inline-link" href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main"><code>main</code></a>.
           </p>
         </div>
@@ -247,49 +519,52 @@
           </div>
         </div>
 
-        <div class="stage-table" role="region" aria-label="BRB questionnaire sequences" tabindex="0">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">BRB moment</th>
-                <th scope="col">Panel sequence</th>
-                <th scope="col">Plain-language purpose</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Before the first condition</td>
-                <td><code>language_select -> demographics -> prior_experience</code></td>
-                <td>Set language and collect starting context before the study begins.</td>
-              </tr>
-              <tr>
-                <td>After condition 1</td>
-                <td><code>post_condition:pictographic -> post_condition:presence_questionnaire -> post_condition:lost_opportunity</code></td>
-                <td>Ask how the button felt and whether the participant noticed a lost opportunity.</td>
-              </tr>
-              <tr>
-                <td>After condition 2</td>
-                <td><code>post_condition:pictographic -> post_condition:presence_questionnaire</code></td>
-                <td>Repeat the post-condition measures without the first-condition-only prompt.</td>
-              </tr>
-              <tr>
-                <td>End of the study</td>
-                <td><code>final:end_confirmation -> final:extra_presses_prompt -> complete:export_summary</code></td>
-                <td>Ask the 1-to-10 end confirmation, then return to Unity for any physical final presses.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <details class="runbook-details">
+          <summary>Show BRB stage mapping and source links</summary>
+          <div class="stage-table" role="region" aria-label="BRB questionnaire sequences" tabindex="0">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">BRB moment</th>
+                  <th scope="col">Panel sequence</th>
+                  <th scope="col">Plain-language purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Before the first condition</td>
+                  <td><code>language_select -> demographics -> prior_experience</code></td>
+                  <td>Set language and collect starting context before the study begins.</td>
+                </tr>
+                <tr>
+                  <td>After condition 1</td>
+                  <td><code>post_condition:pictographic -> post_condition:presence_questionnaire -> post_condition:lost_opportunity</code></td>
+                  <td>Ask how the button felt and whether the participant noticed a lost opportunity.</td>
+                </tr>
+                <tr>
+                  <td>After condition 2</td>
+                  <td><code>post_condition:pictographic -> post_condition:presence_questionnaire</code></td>
+                  <td>Repeat the post-condition measures without the first-condition-only prompt.</td>
+                </tr>
+                <tr>
+                  <td>End of the study</td>
+                  <td><code>final:end_confirmation -> final:extra_presses_prompt -> complete:export_summary</code></td>
+                  <td>Ask the 1-to-10 end confirmation, then return to Unity for any physical final presses.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-        <div class="link-panel">
-          <h3>BRB integration source</h3>
-          <ul class="link-list">
-            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Documentation/New-Agent-Integration-Brief.md">New-agent integration brief</a></li>
-            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireContract.java">BRB Android questionnaire constants and stage names</a></li>
-            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnairePanelBridge.java">BRB Android bridge that launches the panel</a></li>
-            <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity C# launcher that chooses questionnaire routes</a></li>
-          </ul>
-        </div>
+          <div class="link-panel">
+            <h3>BRB integration source</h3>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Documentation/New-Agent-Integration-Brief.md">New-agent integration brief</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireContract.java">BRB Android questionnaire constants and stage names</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnairePanelBridge.java">BRB Android bridge that launches the panel</a></li>
+              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity C# launcher that chooses questionnaire routes</a></li>
+            </ul>
+          </div>
+        </details>
       </section>
 
       <section id="reuse" class="section" aria-labelledby="reuse-title">
@@ -348,64 +623,52 @@
         </div>
       </section>
 
-      <section id="contribute" class="section" aria-labelledby="contribute-title">
+      <section id="quickstart" class="section" aria-labelledby="quickstart-title">
         <div class="section-heading">
-          <h2 id="contribute-title">Use Or Contribute</h2>
+          <h2 id="quickstart-title">Quickstart: Prove The Handoff</h2>
           <p>
-            The project is public so other XR teams can reuse the contract,
-            study the BRB integration, and contribute focused improvements
-            without depending on private lab artifacts.
+            This is the shortest success path for proving that the panel can
+            be launched, can collect a result, and can return that result to a
+            caller-owned private URI.
           </p>
         </div>
 
-        <div class="source-map">
+        <div class="quickstart-grid">
           <article>
-            <h3>Use the panel</h3>
-            <p>
-              Start with the minimal panel build and the plain contract docs.
-              The product path is explicit Android IPC, not ADB or shared
-              storage.
-            </p>
-            <ul class="link-list">
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">Panel README and build flavors</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">Handoff contract</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.request.schema.json">Request JSON schema</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.result.schema.json">Result JSON schema</a></li>
+            <h3>Prerequisites</h3>
+            <ul>
+              <li>Android Studio or local Gradle.</li>
+              <li>A Quest device or Android test environment.</li>
+              <li>This repository checked out.</li>
             </ul>
           </article>
 
           <article>
-            <h3>Integrate a caller</h3>
-            <p>
-              Reuse the Android SDK or Unity wrapper when possible, then check
-              the native caller and BRB reference for end-to-end behavior.
-            </p>
-            <ul class="link-list">
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/README.md">Android caller SDK</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/NativeCallerActivity.kt">Native caller example</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">BRB Unity main branch</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/validation-matrix.md">Validation matrix</a></li>
-            </ul>
+            <h3>Steps</h3>
+            <ol class="plain-list">
+              <li>Build the minimal panel.</li>
+              <li>Build and install the native caller example.</li>
+              <li>Launch the native caller test request.</li>
+              <li>Submit the panel.</li>
+              <li>Inspect the validated result JSON.</li>
+            </ol>
           </article>
 
           <article>
-            <h3>Contribute safely</h3>
-            <p>
-              Contributions should keep public docs clean, avoid private lab
-              evidence, and include the smallest relevant checks for the touched
-              module.
-            </p>
-            <ul class="link-list">
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/CONTRIBUTING.md">Contribution guide</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/issues">Issues and feature requests</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/WORKPLAN.md">Development workplan</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/tools/check_public_artifacts.py">Public artifact guard</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/LICENSE">License</a></li>
+            <h3>Expected result</h3>
+            <ul>
+              <li><code>status</code> is <code>completed</code>.</li>
+              <li>The request id and nonce match.</li>
+              <li>The result was read from the caller-owned private URI.</li>
             </ul>
           </article>
         </div>
+
+        <details class="runbook-details">
+          <summary>Show minimal build commands</summary>
+          <pre><code>.\gradlew.bat :app:assembleMinimalDebug
+.\gradlew.bat :examples:native-caller:assembleDebug</code></pre>
+        </details>
       </section>
 
       <section class="section" aria-labelledby="copy-title">
@@ -470,53 +733,55 @@ startActivity(
           </p>
         </div>
 
-        <div class="contract-table" role="region" aria-label="Required launch extras" tabindex="0">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Required extra</th>
-                <th scope="col">Type</th>
-                <th scope="col">Why it exists</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>session_id</code></td>
-                <td>string</td>
-                <td>Caller session identifier.</td>
-              </tr>
-              <tr>
-                <td><code>request_id</code></td>
-                <td>string</td>
-                <td>Opaque per-request id used to match the result.</td>
-              </tr>
-              <tr>
-                <td><code>request_nonce</code></td>
-                <td>string</td>
-                <td>Random value that binds launch and result.</td>
-              </tr>
-              <tr>
-                <td><code>request_json</code></td>
-                <td>string</td>
-                <td>JSON matching <code>quest.questionnaire.v1.request</code>.</td>
-              </tr>
-              <tr>
-                <td><code>result_uri</code></td>
-                <td>parcelable Uri</td>
-                <td>Caller-owned writable <code>content://</code> URI.</td>
-              </tr>
-              <tr>
-                <td><code>return_to_caller</code></td>
-                <td>PendingIntent</td>
-                <td>One-shot broadcast callback sent after JSON is written.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <details class="runbook-details" open>
+          <summary>Required launch extras</summary>
+          <div class="contract-table" role="region" aria-label="Required launch extras" tabindex="0">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Required extra</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Why it exists</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>session_id</code></td>
+                  <td>string</td>
+                  <td>Caller session identifier.</td>
+                </tr>
+                <tr>
+                  <td><code>request_id</code></td>
+                  <td>string</td>
+                  <td>Opaque per-request id used to match the result.</td>
+                </tr>
+                <tr>
+                  <td><code>request_nonce</code></td>
+                  <td>string</td>
+                  <td>Random value that binds launch and result.</td>
+                </tr>
+                <tr>
+                  <td><code>request_json</code></td>
+                  <td>string</td>
+                  <td>JSON matching <code>quest.questionnaire.v1.request</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>result_uri</code></td>
+                  <td>parcelable Uri</td>
+                  <td>Caller-owned writable <code>content://</code> URI.</td>
+                </tr>
+                <tr>
+                  <td><code>return_to_caller</code></td>
+                  <td>PendingIntent</td>
+                  <td>One-shot broadcast callback sent after JSON is written.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
 
-        <div class="example-pair">
-          <article>
-            <h3>Request JSON from the caller</h3>
+        <details class="runbook-details">
+          <summary>Show request JSON example</summary>
             <pre><code>{
   "protocol_version": "quest.questionnaire.v1",
   "session_id": "brb-session-042",
@@ -537,10 +802,10 @@ startActivity(
     "engine": "unity"
   }
 }</code></pre>
-          </article>
+        </details>
 
-          <article>
-            <h3>Result JSON written by the panel</h3>
+        <details class="runbook-details">
+          <summary>Show result JSON example</summary>
             <pre><code>{
   "protocol_version": "quest.questionnaire.v1",
   "schema": "quest.questionnaire.v1.result",
@@ -587,8 +852,7 @@ startActivity(
   "submitted_at": "2026-06-13T21:11:14Z",
   "error": null
 }</code></pre>
-          </article>
-        </div>
+        </details>
       </section>
 
       <section id="integrity" class="section" aria-labelledby="integrity-title">
@@ -598,6 +862,15 @@ startActivity(
             The handoff is designed so a study can recover from interruption
             without leaking answers into broad storage, callback extras, logs,
             or filenames.
+          </p>
+        </div>
+
+        <div class="note-block safety-callout">
+          <h3>Study data safety rule</h3>
+          <p>
+            Answers go into the caller-owned result JSON only. The callback is
+            only a signal. Do not put answers or raw participant identifiers in
+            logs, filenames, notifications, or callback extras.
           </p>
         </div>
 
@@ -673,71 +946,99 @@ startActivity(
 
         <div class="source-map">
           <article>
-            <h3>Panel app: Android contract and UI</h3>
+            <h3>Core contract</h3>
             <p>
-              This is the reusable app other XR experiences launch. Read these
-              files to understand the public contract, validation, screen flow,
-              and answer shape.
+              Start here when you need the launch shape, schema rules, and
+              compatibility guarantees.
             </p>
             <ul class="link-list">
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">Panel README and setup</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/handoff-contract.md">Handoff contract</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent extras and callback contract</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/questionnaire-contract-core/src/main/kotlin/io/github/mesmerprism/questquestionnaire/contract/QuestionnaireResultEnvelopeValidator.kt">Shared result envelope validator</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/src/main/java/io/github/mesmerprism/questquestionnaire/sdk/QuestQuestionnaireLauncher.kt">Android caller SDK launcher</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireLaunchValidator.kt">Launch validation</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireRequest.kt">Request model</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireResult.kt">Result model</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/intents.md">Intent contract</a></li>
+            </ul>
+            <details>
+              <summary>Show all contract links</summary>
+              <ul class="link-list">
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/README.md">Panel README and setup</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.request.schema.json">Request JSON schema</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/contract/quest.questionnaire.v1.result.schema.json">Result JSON schema</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/contract-versioning.md">Contract versioning</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/questionnaire-contract-core/src/main/kotlin/io/github/mesmerprism/questquestionnaire/contract/QuestionnaireResultEnvelopeValidator.kt">Shared result envelope validator</a></li>
+              </ul>
+            </details>
+          </article>
+
+          <article>
+            <h3>Panel runtime</h3>
+            <p>
+              Use these files to understand launch validation, rendering, and
+              answer models inside the Android panel app.
+            </p>
+            <ul class="link-list">
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireActivity.kt">Panel activity and renderer host</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/DefaultQuestionnaireRendererRegistry.kt">Renderer registry</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/generic/GenericQuestionnaireRenderer.kt">Generic questionnaire renderer</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/brb/BrbQuestionnaireRenderer.kt">BRB renderer adapter</a></li>
             </ul>
+            <details>
+              <summary>Show all panel runtime links</summary>
+              <ul class="link-list">
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireLaunchValidator.kt">Launch validation</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireRequest.kt">Request model</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/QuestionnaireResult.kt">Result model</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/generic/GenericQuestionnaireRenderer.kt">Generic questionnaire renderer</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/app/src/main/java/io/github/mesmerprism/questquestionnaire/panel/brb/BrbQuestionnaireRenderer.kt">BRB renderer adapter</a></li>
+              </ul>
+            </details>
           </article>
 
           <article>
-            <h3>BRB app: Unity caller reference</h3>
+            <h3>Caller integrations</h3>
             <p>
-              BRB shows how a Unity study app can own the 3D world while
-              delegating questionnaire screens to the panel.
+              Start here when wiring a native Android caller, Unity caller, or
+              BRB-style reference app.
             </p>
             <ul class="link-list">
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Documentation/New-Agent-Integration-Brief.md">BRB integration brief</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Scripts/Questionnaire/QuestQuestionnairePanelLauncher.cs">Unity questionnaire launcher</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireContract.java">BRB Java contract constants</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnairePanelBridge.java">Android bridge from Unity to panel</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/QuestionnaireResultValidator.java">BRB result validator</a></li>
-              <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/blob/main/Assets/Plugins/Android/AndroidManifest.xml">BRB Android manifest declarations</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/Runtime/QuestQuestionnairePanel.cs">Reusable Unity C# facade</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/src/main/java/io/github/mesmerprism/questquestionnaire/unity/UnityQuestionnaireBridge.kt">Reusable Android Unity bridge</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/README.md">Android caller SDK</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/README.md">Unity caller plugin</a></li>
             </ul>
+            <details>
+              <summary>Show all caller links</summary>
+              <ul class="link-list">
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/android-caller-sdk/src/main/java/io/github/mesmerprism/questquestionnaire/sdk/QuestQuestionnaireLauncher.kt">Android caller SDK launcher</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/NativeCallerActivity.kt">Native caller example activity</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/QuestionnaireResultValidator.kt">Native caller result validation</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/Runtime/QuestQuestionnairePanel.cs">Reusable Unity C# facade</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/unity-caller-plugin/src/main/java/io/github/mesmerprism/questquestionnaire/unity/UnityQuestionnaireBridge.kt">Reusable Android Unity bridge</a></li>
+                <li><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">BRB Unity main branch</a></li>
+              </ul>
+            </details>
           </article>
 
           <article>
-            <h3>Examples, validation, and audio</h3>
+            <h3>Maintainer runbooks</h3>
             <p>
-              These files are useful when adapting the pattern to another app
-              or checking headset behavior.
+              Use these when checking headset behavior, documentation hygiene,
+              audio assets, validation coverage, or capture workflows.
             </p>
             <ul class="link-list">
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/NativeCallerActivity.kt">Native caller example activity</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/examples/native-caller/src/main/java/io/github/mesmerprism/questquestionnaire/nativecaller/QuestionnaireResultValidator.kt">Native caller result validation</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/validation-matrix.md">Validation matrix</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/audio/README.md">Panel audio guide</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/audio/speech-asset-protocol.md">Speech asset protocol</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/self-update.md">Self-update notes</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/contract-versioning.md">Contract versioning</a></li>
               <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/research-data-safety.md">Research data safety</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/demo-capture-workflow.md">BRB demo capture workflow</a></li>
-              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/quest-uiautomator-runbook.md">Quest UIAutomator recorder runbook</a></li>
             </ul>
+            <details>
+              <summary>Show all maintainer links</summary>
+              <ul class="link-list">
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/audio/README.md">Panel audio guide</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/audio/speech-asset-protocol.md">Speech asset protocol</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/self-update.md">Self-update notes</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/demo-capture-workflow.md">BRB demo capture workflow</a></li>
+                <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/quest-uiautomator-runbook.md">Quest UIAutomator recorder runbook</a></li>
+              </ul>
+            </details>
           </article>
         </div>
       </section>
 
       <section id="commands" class="section" aria-labelledby="commands-title">
         <div class="section-heading">
-          <h2 id="commands-title">Commands For Developers</h2>
+          <h2 id="commands-title">Developer Runbook</h2>
           <p>
             These ADB commands are development and capture helpers. They are
             useful for repeatable headset checks, but the product integration is
@@ -745,69 +1046,72 @@ startActivity(
           </p>
         </div>
 
-        <div class="recipe-grid">
-          <article>
-            <h3>Build the public minimal panel</h3>
-            <p>The minimal flavor is the default recommendation for study deployments.</p>
-            <pre><code>.\gradlew.bat :app:assembleMinimalDebug</code></pre>
-          </article>
+        <details class="runbook-details">
+          <summary>Show developer commands and headset validation helpers</summary>
+          <div class="recipe-grid">
+            <article>
+              <h3>Build the public minimal panel</h3>
+              <p>The minimal flavor is the default recommendation for study deployments.</p>
+              <pre><code>.\gradlew.bat :app:assembleMinimalDebug</code></pre>
+            </article>
 
-          <article>
-            <h3>Build the lab updater panel</h3>
-            <p>The lab updater flavor keeps the internal update UI and install permissions.</p>
-            <pre><code>.\gradlew.bat :app:assembleLabUpdaterDebug</code></pre>
-          </article>
+            <article>
+              <h3>Build the lab updater panel</h3>
+              <p>The lab updater flavor keeps the internal update UI and install permissions.</p>
+              <pre><code>.\gradlew.bat :app:assembleLabUpdaterDebug</code></pre>
+            </article>
 
-          <article>
-            <h3>Run a Unity-side button command</h3>
-            <p>Use this to prove the BRB Unity runtime is receiving command extras.</p>
-            <pre><code>adb shell am start -W \
+            <article>
+              <h3>Run a Unity-side button command</h3>
+              <p>Use this to prove the BRB Unity runtime is receiving command extras.</p>
+              <pre><code>adb shell am start -W \
   -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
   --es brb.runtimeCommand press_button</code></pre>
-          </article>
+            </article>
 
-          <article>
-            <h3>Run a Unity blink command</h3>
-            <p>Use this to capture the timed 3D button blink from the BRB runtime.</p>
-            <pre><code>adb shell am start -W \
+            <article>
+              <h3>Run a Unity blink command</h3>
+              <p>Use this to capture the timed 3D button blink from the BRB runtime.</p>
+              <pre><code>adb shell am start -W \
   -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
   --es brb.runtimeCommand "blink_button:6"</code></pre>
-          </article>
+            </article>
 
-          <article>
-            <h3>Open the initial panel sequence from Unity</h3>
-            <p>Unity prepares the request and launches the panel route.</p>
-            <pre><code>adb shell am start -W \
+            <article>
+              <h3>Open the initial panel sequence from Unity</h3>
+              <p>Unity prepares the request and launches the panel route.</p>
+              <pre><code>adb shell am start -W \
   -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
   --ez brb.questionnaireOpen true \
   --es brb.questionnaireTrigger initial</code></pre>
-          </article>
+            </article>
 
-          <article>
-            <h3>Open a post-condition sequence</h3>
-            <p>Use the numbered trigger after condition 1 or condition 2.</p>
-            <pre><code>adb shell am start -W \
+            <article>
+              <h3>Open a post-condition sequence</h3>
+              <p>Use the numbered trigger after condition 1 or condition 2.</p>
+              <pre><code>adb shell am start -W \
   -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
   --ez brb.questionnaireOpen true \
   --es brb.questionnaireTrigger post_condition_1</code></pre>
-          </article>
+            </article>
 
-          <article>
-            <h3>Drive final panel input at human pace</h3>
-            <p>Debug scripts are for validation clips and regression checks.</p>
-            <pre><code>adb shell am start -W \
+            <article>
+              <h3>Drive final panel input at human pace</h3>
+              <p>Debug scripts are for validation clips and regression checks.</p>
+              <pre><code>adb shell am start -W \
   -n org.thebigredbuttoninstitute.app/com.unity3d.player.UnityPlayerGameActivity \
   --ez brb.questionnaireOpen true \
   --es brb.questionnaireTrigger final \
   --es brb.questionnaireCommandScript "final:1,next,submit" \
   --ei brb.questionnaireCommandIntervalMs 1400</code></pre>
-          </article>
-        </div>
+            </article>
+          </div>
+        </details>
       </section>
 
       <section id="capture" class="section" aria-labelledby="capture-title">
         <div class="section-heading">
-          <h2 id="capture-title">Demo Capture Refresh</h2>
+          <h2 id="capture-title">Demo Capture Runbook</h2>
           <p>
             The preferred public capture path is now one continuous Quest
             built-in headset recording started and stopped through UIAutomator,
@@ -819,262 +1123,78 @@ startActivity(
           </p>
         </div>
 
-        <div class="example-pair">
-          <article>
-            <h3>Start the one-take headset recorder</h3>
-            <p>
-              Run this in one shell, then trigger the BRB Unity and panel
-              commands from another shell while the recorder probe is waiting.
-            </p>
-            <pre><code>adb shell am instrument -w \
+        <details class="runbook-details">
+          <summary>Show capture workflow commands</summary>
+          <div class="example-pair">
+            <article>
+              <h3>Start the one-take headset recorder</h3>
+              <p>
+                Run this in one shell, then trigger the BRB Unity and panel
+                commands from another shell while the recorder probe is waiting.
+              </p>
+              <pre><code>adb shell am instrument -w \
   -e scenario metacamRecordProbe \
   -e recordMs 180000 \
   io.github.mesmerprism.questquestionnaire.questuiautomation.test/androidx.test.runner.AndroidJUnitRunner</code></pre>
+            </article>
+
+            <article>
+              <h3>Cut the reviewed public clips</h3>
+              <p>
+                Trim the reviewed source into the onboarding loop names:
+                <code>brb-blink</code>, <code>brb-press</code>, and
+                <code>panel-menu</code>. Keep the raw source MP4 outside this
+                repository.
+              </p>
+              <p>
+                The detailed capture checklist is in the
+                <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/demo-capture-workflow.md">BRB demo capture workflow</a>.
+              </p>
+            </article>
+          </div>
+        </details>
+      </section>
+
+      <section id="contribute" class="section" aria-labelledby="contribute-title">
+        <div class="section-heading">
+          <h2 id="contribute-title">Contribute</h2>
+          <p>
+            The project is public so XR teams can reuse the contract, study the
+            BRB integration, and contribute focused improvements without
+            committing private lab artifacts.
+          </p>
+        </div>
+
+        <div class="source-map contribute-map">
+          <article>
+            <h3>Start here</h3>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel">Panel repository</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/CONTRIBUTING.md">Contribution guide</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/issues">Issues and feature requests</a></li>
+            </ul>
           </article>
 
           <article>
-            <h3>Cut the reviewed public clips</h3>
+            <h3>Plan and validate</h3>
+            <ul class="link-list">
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/WORKPLAN.md">Development workplan</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/validation-matrix.md">Validation matrix</a></li>
+              <li><a href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/tools/check_public_artifacts.py">Public artifact guard</a></li>
+            </ul>
+          </article>
+
+          <article>
+            <h3>Publication boundary</h3>
             <p>
-              Trim the reviewed source into the onboarding loop names:
-              <code>brb-blink</code>, <code>brb-press</code>, and
-              <code>panel-menu</code>. Keep the raw source MP4 outside this
-              repository.
-            </p>
-            <p>
-              The detailed capture checklist is in the
-              <a class="inline-link" href="https://github.com/MesmerPrism/quest-questionnaire-panel/blob/main/docs/demo-capture-workflow.md">BRB demo capture workflow</a>.
+              Keep raw participant data, device serials, APKs, screenshots,
+              logcat bundles, signing keys, local machine paths, and private
+              evidence artifacts out of committed files.
             </p>
           </article>
         </div>
       </section>
 
-      <section id="renders" class="section" aria-labelledby="renders-title">
-        <div class="section-heading">
-          <h2 id="renders-title">Quest Panel Renderings</h2>
-          <p>
-            These host-rendered Compose frames use the Quest 3S panel surface
-            verified on device: 1350 x 900 pixels at 200dpi. They are layout
-            references for review, docs, and future panel changes, not raw
-            headset screenshots.
-          </p>
-        </div>
-
-        <h3 class="render-subheading">BRB questionnaire sequence</h3>
-        <div class="render-grid">
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-01-language-select.png">
-              <img src="media/panel-renders/brb-01-language-select.png" alt="BRB questionnaire language selection page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Language selection</strong>
-              <span>Initial stage entry page.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-02-demographics.png">
-              <img src="media/panel-renders/brb-02-demographics.png" alt="BRB questionnaire demographics page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Demographics</strong>
-              <span>Age, gender, education, and employment fields.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-03-prior-experience.png">
-              <img src="media/panel-renders/brb-03-prior-experience.png" alt="BRB questionnaire prior experience page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Prior experience</strong>
-              <span>VR, gaming, and presurvey context.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-04-post-pictographic.png">
-              <img src="media/panel-renders/brb-04-post-pictographic.png" alt="BRB questionnaire pictographic response page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Pictographic response</strong>
-              <span>Post-condition body-state scale.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-05-post-presence.png">
-              <img src="media/panel-renders/brb-05-post-presence.png" alt="BRB questionnaire presence rating page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Presence ratings</strong>
-              <span>Post-condition XR presence and perception items.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-06-lost-opportunity.png">
-              <img src="media/panel-renders/brb-06-lost-opportunity.png" alt="BRB questionnaire lost opportunity page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Lost opportunity</strong>
-              <span>Condition reflection and open response.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-07-final-confirmation.png">
-              <img src="media/panel-renders/brb-07-final-confirmation.png" alt="BRB questionnaire final confirmation page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Final confirmation</strong>
-              <span>End-of-study confirmation step.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-08-extra-presses-prompt.png">
-              <img src="media/panel-renders/brb-08-extra-presses-prompt.png" alt="BRB questionnaire extra presses prompt rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Extra presses prompt</strong>
-              <span>Follow-up page for optional additional presses.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/brb-09-export-summary.png">
-              <img src="media/panel-renders/brb-09-export-summary.png" alt="BRB questionnaire export summary page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Export summary</strong>
-              <span>Result and completion summary state.</span>
-            </figcaption>
-          </figure>
-        </div>
-
-        <h3 class="render-subheading">Reusable panel fixture</h3>
-        <div class="render-grid render-grid-compact">
-          <figure class="render-card">
-            <a href="media/panel-renders/generic-01-intro.png">
-              <img src="media/panel-renders/generic-01-intro.png" alt="Generic questionnaire intro page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Generic intro</strong>
-              <span>Baseline contract fixture.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/generic-02-rating.png">
-              <img src="media/panel-renders/generic-02-rating.png" alt="Generic questionnaire rating page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Generic rating</strong>
-              <span>Single-page rating state.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/generic-03-comment.png">
-              <img src="media/panel-renders/generic-03-comment.png" alt="Generic questionnaire comment page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Generic comment</strong>
-              <span>Open response state.</span>
-            </figcaption>
-          </figure>
-
-          <figure class="render-card">
-            <a href="media/panel-renders/generic-04-complete.png">
-              <img src="media/panel-renders/generic-04-complete.png" alt="Generic questionnaire complete page rendered at Quest panel size" loading="lazy" />
-            </a>
-            <figcaption>
-              <strong>Generic complete</strong>
-              <span>Completion fixture.</span>
-            </figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section id="demos" class="section" aria-labelledby="demos-title">
-        <div class="section-heading">
-          <h2 id="demos-title">What The Pieces Look Like</h2>
-          <p>
-            These looped clips show the current Unity and panel handoff in the
-            order a caller experiences it: animate the study object, accept the
-            study press, then foreground and close the questionnaire panel.
-          </p>
-        </div>
-
-        <div class="demo-grid">
-          <article class="demo-card">
-            <video autoplay muted loop playsinline preload="metadata" aria-label="Big red button blink loop">
-              <source src="media/brb-blink.mp4" type="video/mp4" />
-            </video>
-            <h3>Unity: blink the button</h3>
-            <p>
-              The BRB app can run a timed blink on the 3D button cap. This
-              stays on the Unity side because it belongs to the study world.
-            </p>
-          </article>
-
-          <article class="demo-card">
-            <video autoplay muted loop playsinline preload="metadata" aria-label="Big red button press loop">
-              <source src="media/brb-press.mp4" type="video/mp4" />
-            </video>
-            <h3>Unity: press animation and counter</h3>
-            <p>
-              A runtime command plays the press animation and increments the
-              world-space counter. The panel does not replace this physical
-              interaction.
-            </p>
-          </article>
-
-          <article class="demo-card">
-            <video autoplay muted loop playsinline preload="metadata" aria-label="Questionnaire panel open action and close loop">
-              <source src="media/panel-menu.mp4" type="video/mp4" />
-            </video>
-            <h3>Panel: answer and close</h3>
-            <p>
-              The caller brings the native 2D panel forward, one answer action
-              is submitted, and the panel finishes without taking ownership of
-              the Unity scene.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section class="section flow-section" aria-labelledby="flow-title">
-        <div class="section-heading">
-          <h2 id="flow-title">End-To-End Flow</h2>
-          <p>
-            This is the whole handoff in the order a caller should implement it.
-          </p>
-        </div>
-
-        <ol class="flow-diagram">
-          <li>
-            <strong>Caller prepares request</strong>
-            <span>Persist pending state, create request id, nonce, and private result file.</span>
-          </li>
-          <li>
-            <strong>Caller launches panel</strong>
-            <span>Use an explicit component, request JSON, and write-granted result URI.</span>
-          </li>
-          <li>
-            <strong>Panel collects answers</strong>
-            <span>Render only the requested stage sequence in the native 2D UI.</span>
-          </li>
-          <li>
-            <strong>Panel writes result</strong>
-            <span>Write JSON, close the stream, send the caller callback, then finish.</span>
-          </li>
-          <li>
-            <strong>Caller validates</strong>
-            <span>Check protocol, request id, nonce, schema, status, stage, and answer shape.</span>
-          </li>
-        </ol>
-      </section>
     </main>
 
     <footer class="site-footer">
