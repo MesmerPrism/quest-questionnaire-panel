@@ -124,7 +124,8 @@ powershell -ExecutionPolicy Bypass -File .\tools\Export-PanelRenderSequence.ps1
 ```
 
 The generated PNGs are written to `artifacts/panel-render-sequence/` and are
-ignored by git.
+ignored by git. The render fixture uses the Quest activity manifest's default
+2D panel frame, `1080dp x 720dp`.
 
 For the latest source-intake decision on Quest UI automation and capture
 references, see

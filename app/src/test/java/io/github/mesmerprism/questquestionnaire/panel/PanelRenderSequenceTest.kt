@@ -15,6 +15,8 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
+import com.android.resources.Density
+import com.android.resources.ScreenOrientation
 import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
 import io.github.mesmerprism.questquestionnaire.panel.brb.BrbQuestionnaireViewModel
 import io.github.mesmerprism.questquestionnaire.panel.generic.GenericQuestionnaireContract
@@ -29,11 +31,16 @@ class PanelRenderSequenceTest {
     @get:Rule
     val paparazzi = Paparazzi(
         deviceConfig = DeviceConfig.PIXEL_5.copy(
-            screenWidth = 1440,
-            screenHeight = 900,
+            screenWidth = 1080,
+            screenHeight = 720,
+            xdpi = 160,
+            ydpi = 160,
+            orientation = ScreenOrientation.LANDSCAPE,
+            density = Density.MEDIUM,
             softButtons = false
         ),
         showSystemUi = false,
+        useDeviceResolution = true,
         theme = "android:style/Theme.Material.Light.NoActionBar"
     )
 
