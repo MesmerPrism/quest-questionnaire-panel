@@ -116,6 +116,16 @@ Before committing public docs or lab automation notes, run:
 python tools\check_public_artifacts.py
 ```
 
+To render clean host-side panel UI images for docs review, without a headset,
+emulator, screenshot, or video recorder, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\Export-PanelRenderSequence.ps1
+```
+
+The generated PNGs are written to `artifacts/panel-render-sequence/` and are
+ignored by git.
+
 For the latest source-intake decision on Quest UI automation and capture
 references, see
 [`docs/source-audit-intake-2026-06-14.md`](docs/source-audit-intake-2026-06-14.md).
