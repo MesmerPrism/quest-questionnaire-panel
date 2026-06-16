@@ -1,10 +1,18 @@
-# Windows Makepad Questionnaire Operator
+# Windows Makepad Questionnaire Operator Example
 
 The Windows operator app lives in
 `operator/makepad-quest-questionnaire-operator/`. It is a Makepad GUI that
 sends commands to an on-Quest Rusty Morphospace bridge, displays foreground
 status reported by that bridge, and optionally reads passive Quest readiness
 signals through ADB.
+
+This is one reference integration for the same panel architecture used by the
+Unity/BRB example. The current Windows operator path targets the MAIA-2 plus
+spatial-frame-reference questionnaire through Rusty Morphospace. The Unity path
+targets the BRB questionnaire sequence through a Unity-owned Android bridge.
+The questionnaire content and control surfaces differ; the panel runtime,
+request/result contract, caller-owned `content://` result URI, and callback
+pattern are shared.
 
 This keeps the Android authority boundary intact:
 

@@ -104,6 +104,7 @@ main {
   max-width: var(--max);
   margin: 0 auto;
   padding: 0 24px 56px;
+  overflow-wrap: break-word;
 }
 
 .intro {
@@ -113,6 +114,11 @@ main {
   padding: 72px 0 52px;
   scroll-margin-top: 88px;
   align-items: end;
+}
+
+.intro > *,
+.section-heading > * {
+  min-width: 0;
 }
 
 .project-name {
@@ -171,6 +177,7 @@ h3 {
 
 .button-link {
   display: inline-flex;
+  max-width: 100%;
   min-height: 40px;
   padding: 9px 13px;
   align-items: center;
@@ -179,6 +186,7 @@ h3 {
   background: var(--surface);
   color: var(--ink);
   font-weight: 700;
+  white-space: normal;
   text-decoration: none;
 }
 
@@ -226,6 +234,7 @@ h3 {
 .summary-list strong {
   display: block;
   margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 
 .toc {
@@ -304,9 +313,12 @@ h3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.path-grid,
 .quickstart-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.path-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .boundary-grid {
@@ -812,6 +824,16 @@ code {
 
   .lede {
     font-size: 18px;
+  }
+
+  .cta-row {
+    align-items: stretch;
+  }
+
+  .button-link {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
   }
 
   .guide-grid,

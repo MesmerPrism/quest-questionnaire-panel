@@ -6,7 +6,7 @@
     <title>Quest Questionnaire Panel</title>
     <meta
       name="description"
-      content="Onboarding guide for the Quest Questionnaire Panel, the BRB Unity integration, and the reusable Android IPC contract for XR apps."
+      content="Onboarding guide for the Quest Questionnaire Panel, including Unity/BRB and Windows Makepad/Rusty Morphospace reference integrations over the same Android IPC contract."
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -43,12 +43,17 @@
             resumes with structured data.
           </p>
           <p class="why-copy">
-            Unity is the first demonstrated caller. The reusable interface is
-            the Android request/result contract.
+            The repository includes two reference integration lanes. The
+            Unity/BRB lane drives the Big Red Button questionnaire sequence.
+            The Windows Makepad/Rusty Morphospace lane drives the MAIA/spatial
+            questionnaire sequence. They are different examples of the same
+            panel runtime shape: a caller launches a panel stage and receives a
+            validated result through the Android request/result contract.
           </p>
           <div class="cta-row" aria-label="Primary actions">
             <a class="button-link primary" href="#demos">Watch the flow</a>
             <a class="button-link" href="#unity-path">Use from Unity</a>
+            <a class="button-link" href="#operator-path">Use the Windows operator</a>
             <a class="button-link" href="#android-path">Use from Android</a>
             <a class="button-link" href="#contract">View contract</a>
           </div>
@@ -61,6 +66,10 @@
           <div>
             <span>Working reference</span>
             <strong><a href="https://github.com/MesmerPrism/the-big-red-button-institute/tree/main">Big Red Button Unity study app</a></strong>
+          </div>
+          <div>
+            <span>Operator reference</span>
+            <strong><a href="#operator-setup">Windows Makepad plus Rusty Morphospace bridge</a></strong>
           </div>
           <div>
             <span>Reusable contract</span>
@@ -161,8 +170,8 @@
 
         <div class="architecture-diagram" aria-label="Questionnaire handoff architecture">
           <div>
-            <h3>Unity / XR study app</h3>
-            <p>Owns scene, condition timing, participant session, and physical interaction.</p>
+            <h3>Caller app or bridge</h3>
+            <p>Owns the session, trigger timing, request id, result URI, and recovery state.</p>
           </div>
           <span>explicit Android Intent</span>
           <div>
@@ -171,14 +180,45 @@
           </div>
           <span>JSON result URI plus one-shot callback</span>
           <div>
-            <h3>Unity / XR study app</h3>
-            <p>Validates request id, nonce, schema, status, stage, and answer shape before resuming.</p>
+            <h3>Caller resumes</h3>
+            <p>Validates request id, nonce, schema, status, stage, and answer shape before continuing.</p>
           </div>
         </div>
         <p class="diagram-caption">
-          The panel is not a Unity overlay and does not own the study world. It
-          is a separate Quest-compatible Android app launched only for the
-          questionnaire moment.
+          The panel is not a Unity overlay, not a Windows overlay, and not the
+          owner of the study world. It is a separate Quest-compatible Android
+          panel launched only for the questionnaire moment.
+        </p>
+
+        <div class="example-pair" aria-label="Reference integration examples">
+          <article>
+            <h3>Example 1: Unity / BRB</h3>
+            <p>
+              The Big Red Button example is a Unity XR study app that launches
+              the panel for BRB-specific stages such as demographics,
+              post-condition presence, and final confirmation.
+            </p>
+            <p>
+              <a class="inline-link" href="#brb">Read the Unity/BRB case study</a>
+            </p>
+          </article>
+
+          <article>
+            <h3>Example 2: Windows Makepad / Rusty Morphospace</h3>
+            <p>
+              The Windows operator example sends commands to a Quest-side
+              Rusty Morphospace bridge. That bridge launches the panel for the
+              MAIA-2 plus spatial-frame-reference questionnaire sequence.
+            </p>
+            <p>
+              <a class="inline-link" href="#operator-setup">Read the Windows operator setup</a>
+            </p>
+          </article>
+        </div>
+        <p class="diagram-caption">
+          These examples use different questionnaire content and different
+          control surfaces, but the underlying panel code, stage request model,
+          result URI, and callback pattern are intentionally shared.
         </p>
 
         <div class="boundary-grid" aria-label="Conceptual boundary">
@@ -207,48 +247,42 @@
             <caption>Current integration status on the main branch.</caption>
             <thead>
               <tr>
-                <th scope="col">Frontend / caller</th>
-                <th scope="col">Current status</th>
-                <th scope="col">Integration layer</th>
+                <th scope="col">Reference lane</th>
+                <th scope="col">Questionnaire content</th>
+                <th scope="col">Caller / control layer</th>
                 <th scope="col">What it proves</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>Native Android caller</td>
-                <td>Working reference</td>
+                <td>Generic contract fixtures</td>
                 <td>Direct Android Intent</td>
                 <td>Minimal request/result contract.</td>
               </tr>
               <tr>
                 <td>Unity / BRB</td>
-                <td>Working reference on main</td>
+                <td>Big Red Button questionnaire sequence</td>
                 <td>Unity C# to Android Java bridge</td>
-                <td>Real XR study integration.</td>
+                <td>XR study app launches and resumes around panel moments.</td>
+              </tr>
+              <tr>
+                <td>Windows Makepad / Rusty Morphospace</td>
+                <td>MAIA-2 plus spatial-frame-reference sequence</td>
+                <td>Makepad host app plus Quest-side HTTP bridge</td>
+                <td>Experimenter/operator commands can trigger panel blocks without Unity owning the trigger.</td>
               </tr>
               <tr>
                 <td>Generic Unity package</td>
-                <td>Initial wrapper in repo</td>
+                <td>Caller-provided stage sequence</td>
                 <td>Unity C# facade plus Android SDK bridge</td>
                 <td>Reusable caller path without Unity-side IPC duplication.</td>
               </tr>
               <tr>
-                <td>Generic panel renderer</td>
-                <td>Working demo</td>
-                <td>Registered non-BRB questionnaire renderer</td>
-                <td>The panel runtime is not BRB-only.</td>
-              </tr>
-              <tr>
                 <td>Other OpenXR / native apps</td>
-                <td>Contract-compatible</td>
+                <td>Caller-provided stage sequence</td>
                 <td>Explicit Android Intent</td>
                 <td>Engine-agnostic launch and return path.</td>
-              </tr>
-              <tr>
-                <td>Windows Makepad operator</td>
-                <td>Host-side setup and control surface</td>
-                <td>ADB install/forward plus Quest-side HTTP bridge</td>
-                <td>Install the panel APK, check Quest readiness, and trigger bridge-owned questionnaire blocks.</td>
               </tr>
             </tbody>
           </table>
@@ -274,7 +308,7 @@
           </a>
 
           <a id="unity-path" class="path-card" href="#brb">
-            <h3>I want to call this from Unity</h3>
+            <h3>I want the Unity / BRB example</h3>
             <p>
               Start with the Unity wrapper, BRB reference, stage mapping, and
               result validation path.
@@ -290,10 +324,10 @@
           </a>
 
           <a id="operator-path" class="path-card" href="#operator-setup">
-            <h3>I need the Windows operator</h3>
+            <h3>I want the Windows operator example</h3>
             <p>
-              Start with the Makepad app, panel APK install, Quest bridge
-              forwarding, foreground status, and CLI equivalents.
+              Start with the Makepad app, Rusty Morphospace bridge, MAIA
+              questionnaire blocks, foreground status, and CLI equivalents.
             </p>
           </a>
 
@@ -311,14 +345,25 @@
         <div class="section-heading">
           <h2 id="operator-setup-title">Windows Operator Setup</h2>
           <p>
-            The Makepad operator is the Windows control surface for lab setup:
-            install or refresh the panel APK, check the Quest, forward the
-            bridge port, and send questionnaire block commands to the
-            on-Quest caller bridge.
+            The Makepad operator is one possible host-side control surface for
+            this panel architecture. In the current reference it controls the
+            MAIA/spatial questionnaire through a Rusty Morphospace bridge,
+            while the Unity/BRB example controls a BRB questionnaire through a
+            Unity-owned Android bridge.
           </p>
         </div>
 
-        <div class="reader-grid">
+        <div class="quickstart-grid">
+          <article>
+            <h3>Where it fits</h3>
+            <p>
+              The operator installs or refreshes the panel APK, checks the
+              Quest, forwards the bridge port, and sends block commands. The
+              Quest-side bridge still owns the actual Android launch request
+              and caller-owned result URI.
+            </p>
+          </article>
+
           <article>
             <h3>Prerequisites</h3>
             <ul>
