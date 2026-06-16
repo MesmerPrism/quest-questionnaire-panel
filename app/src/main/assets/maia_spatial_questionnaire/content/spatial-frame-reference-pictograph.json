@@ -1,0 +1,49 @@
+{
+  "instrumentId": "spatial_frame_reference_pictograph",
+  "instrumentLabel": "Spatial Frame of Reference Pictograph",
+  "asset": {
+    "path": "assets/pictographs/spatial-frame-reference-continuum.png",
+    "sha256": "4D5AA60F1475DC2E75BB859CC6890D7E3A42F7EF41C5BDE2C4CF22B30693E5C3"
+  },
+  "choices": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H"
+  ],
+  "selectedLanguagePrompts": {
+    "en": {
+      "title": "Spatial Frame of Reference",
+      "instructions": "Please choose the picture that best matches your current sense of spatial reference.",
+      "choicePrompt": "Select one letter."
+    },
+    "de": {
+      "title": "Räumlicher Bezugsrahmen",
+      "instructions": "Bitte wählen Sie das Bild aus, das Ihrem aktuellen räumlichen Bezugsrahmen am besten entspricht.",
+      "choicePrompt": "Wählen Sie einen Buchstaben aus."
+    }
+  },
+  "administrations": [
+    {
+      "blockId": "block_2_spatial_frame_reference",
+      "administrationIndex": 1,
+      "required": true
+    },
+    {
+      "blockId": "block_3_spatial_frame_reference",
+      "administrationIndex": 2,
+      "required": true
+    }
+  ],
+  "exportRequirements": {
+    "storeSelectedChoice": true,
+    "storeAdministrationIndex": true,
+    "storeBlockId": true,
+    "storeAssetSha256": true,
+    "storeResponseTimestamp": true
+  }
+}

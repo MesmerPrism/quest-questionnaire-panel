@@ -1,6 +1,7 @@
 package io.github.mesmerprism.questquestionnaire.panel
 
 import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
+import io.github.mesmerprism.questquestionnaire.maiaspatial.MaiaSpatialQuestionnaireContract
 import io.github.mesmerprism.questquestionnaire.panel.generic.GenericQuestionnaireContract
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -27,6 +28,19 @@ class QuestionnaireRendererRegistryTest {
                 schemaId = GenericQuestionnaireContract.QuestionnaireId,
                 openStage = GenericQuestionnaireContract.StageIntro,
                 screenSequence = GenericQuestionnaireContract.DemoSequence
+            )
+        )
+
+        assertNotNull(renderer)
+    }
+
+    @Test
+    fun defaultRegistryFindsMaiaSpatialRenderer() {
+        val renderer = DefaultQuestionnaireRendererRegistry.create().rendererFor(
+            request(
+                schemaId = MaiaSpatialQuestionnaireContract.QuestionnaireId,
+                openStage = MaiaSpatialQuestionnaireContract.StageLanguageSelection,
+                screenSequence = MaiaSpatialQuestionnaireContract.BlockOneSetupMaia2Sequence
             )
         )
 
@@ -86,6 +100,7 @@ class QuestionnaireRendererRegistryTest {
             schemaId = schemaId,
             openStage = openStage,
             conditionNumber = null,
-            screenSequence = screenSequence
+            screenSequence = screenSequence,
+            questionnaireState = null
         )
 }

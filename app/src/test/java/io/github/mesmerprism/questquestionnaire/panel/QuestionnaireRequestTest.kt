@@ -26,6 +26,22 @@ class QuestionnaireRequestTest {
     }
 
     @Test
+    fun parsesOptionalQuestionnaireState() {
+        val json = JSONObject(validRequestJson()).apply {
+            put("questionnaire_state", JSONObject().put("language_code", "de"))
+        }
+
+        val request = QuestionnaireRequest.parse(
+            requestJson = json.toString(),
+            sessionIdExtra = SessionId,
+            requestIdExtra = RequestId,
+            nonceExtra = Nonce
+        )
+
+        assertEquals("de", request.questionnaireState?.getString("language_code"))
+    }
+
+    @Test
     fun rejectsMissingRequestIdInRequestJson() {
         val json = JSONObject(validRequestJson()).apply {
             remove("request_id")

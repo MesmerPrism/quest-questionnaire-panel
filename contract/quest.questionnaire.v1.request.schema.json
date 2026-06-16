@@ -58,6 +58,11 @@
       "type": ["string", "null"],
       "description": "Optional caller-owned participant reference. Do not put raw identifying data here."
     },
+    "questionnaire_state": {
+      "type": ["object", "null"],
+      "description": "Optional questionnaire-owned state needed to resume a split program, for example a selected language copied from an earlier result.",
+      "additionalProperties": true
+    },
     "caller": {
       "type": "object",
       "additionalProperties": false,

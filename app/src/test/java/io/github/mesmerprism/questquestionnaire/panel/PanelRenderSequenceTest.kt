@@ -18,6 +18,7 @@ import app.cash.paparazzi.Paparazzi
 import com.android.resources.Density
 import com.android.resources.ScreenOrientation
 import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
+import io.github.mesmerprism.questquestionnaire.maiaspatial.MaiaSpatialQuestionnaireContract
 import io.github.mesmerprism.questquestionnaire.panel.brb.BrbQuestionnaireViewModel
 import io.github.mesmerprism.questquestionnaire.panel.generic.GenericQuestionnaireContract
 import java.io.File
@@ -186,6 +187,28 @@ class PanelRenderSequenceTest {
         )
     }
 
+    @Test
+    fun maiaSpatialLanguage() {
+        snapshot(
+            name = "maia-spatial-01-language",
+            request = maiaSpatialRequest(
+                openStage = MaiaSpatialQuestionnaireContract.StageLanguageSelection,
+                screenSequence = MaiaSpatialQuestionnaireContract.BlockOneSetupMaia2Sequence
+            )
+        )
+    }
+
+    @Test
+    fun maiaSpatialPictographBlockTwo() {
+        snapshot(
+            name = "maia-spatial-02-pictograph-block-two",
+            request = maiaSpatialRequest(
+                openStage = MaiaSpatialQuestionnaireContract.StageSpatialFrameReference1,
+                screenSequence = MaiaSpatialQuestionnaireContract.BlockTwoSpatialFrameReferenceSequence
+            )
+        )
+    }
+
     private fun snapshot(name: String, request: QuestionnaireRequest) {
         val renderer = requireNotNull(rendererRegistry.rendererFor(request)) {
             "No renderer for ${request.schemaId} stage ${request.openStage}"
@@ -263,6 +286,17 @@ class PanelRenderSequenceTest {
             conditionNumber = null
         )
 
+    private fun maiaSpatialRequest(
+        openStage: String,
+        screenSequence: List<String>
+    ): QuestionnaireRequest =
+        request(
+            schemaId = MaiaSpatialQuestionnaireContract.QuestionnaireId,
+            openStage = openStage,
+            screenSequence = screenSequence,
+            conditionNumber = null
+        )
+
     private fun request(
         schemaId: String,
         openStage: String,
@@ -282,6 +316,7 @@ class PanelRenderSequenceTest {
             schemaId = schemaId,
             openStage = openStage,
             conditionNumber = conditionNumber,
-            screenSequence = screenSequence
+            screenSequence = screenSequence,
+            questionnaireState = null
         )
 }

@@ -48,6 +48,7 @@ android {
 dependencies {
     implementation(project(":android-caller-sdk"))
     implementation(project(":brb-questionnaire-core"))
+    implementation(project(":maia-spatial-questionnaire-core"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))

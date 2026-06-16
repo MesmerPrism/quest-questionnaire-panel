@@ -1,0 +1,24 @@
+[package]
+name = "makepad-quest-questionnaire-operator"
+version = "0.1.0"
+edition = "2021"
+description = "Windows Makepad operator console for Quest questionnaire panel bridge commands"
+license = "MIT"
+publish = false
+
+[dependencies]
+makepad-widgets = { git = "https://github.com/MesmerPrism/makepad.git", rev = "520bd23e5d7392316ba4e487e0726d47edb22198" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lib]
+name = "makepad_quest_questionnaire_operator"
+path = "src/lib.rs"
+
+[[bin]]
+name = "makepad-quest-questionnaire-operator"
+path = "src/main.rs"
+
+[[bin]]
+name = "quest-questionnaire-operator-cli"
+path = "src/cli_main.rs"

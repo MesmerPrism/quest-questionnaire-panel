@@ -85,7 +85,24 @@ QuestionnaireLaunchRequestSpec(
     questionnaireId = "brb-questionnaire-v1",
     openStage = "demographics",
     conditionNumber = null,
+    questionnaireState = null,
     screenSequence = listOf("demographics")
+)
+```
+
+For split questionnaires where the caller must carry small state from one
+launch to another, pass `questionnaireState`. For example, the MAIA/spatial
+renderer expects Block 2 and Block 3 to receive the language selected in
+Block 1:
+
+```kotlin
+QuestionnaireLaunchRequestSpec(
+    sessionId = "...",
+    studyId = "maia-spatial",
+    questionnaireId = "maia2-spatial-frame-questionnaire-v1",
+    openStage = "maia_spatial:spatial_frame_reference_1",
+    screenSequence = listOf("maia_spatial:spatial_frame_reference_1"),
+    questionnaireState = JSONObject().put("language_code", "en")
 )
 ```
 

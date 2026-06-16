@@ -1,0 +1,68 @@
+{
+  "language": {
+    "code": "de",
+    "label": "Deutsch"
+  },
+  "screens": {
+    "languageSelection": {
+      "title": "Sprache",
+      "prompt": "Bitte wählen Sie eine Sprache aus.",
+      "english": "Englisch",
+      "german": "Deutsch",
+      "continue": "Weiter"
+    },
+    "demographics": {
+      "title": "Teilnehmendenangaben",
+      "nameLabel": "Name",
+      "namePlaceholder": "Bitte geben Sie Ihren Namen ein",
+      "ageLabel": "Alter",
+      "agePlaceholder": "Bitte geben Sie Ihr Alter ein",
+      "genderLabel": "Geschlecht",
+      "handednessLabel": "Händigkeit",
+      "consentLabel": "Einwilligung",
+      "consentText": "Ich willige ein, an dieser Studie teilzunehmen, und verstehe, dass meine Antworten zu Forschungszwecken aufgezeichnet werden.",
+      "signatureLabel": "Unterschrift",
+      "signaturePrompt": "Bitte unterschreiben Sie, um Ihre Einwilligung zu bestätigen.",
+      "clearSignature": "Unterschrift löschen",
+      "submit": "Weiter"
+    },
+    "maia2": {
+      "title": "Körpergewahrsein",
+      "instructions": "Unten finden Sie eine Liste von Aussagen. Geben Sie bitte für jede der folgenden Aussagen an, wie oft sie generell im täglichen Leben auf Sie zutrifft.",
+      "leftAnchor": "Nie",
+      "rightAnchor": "Immer",
+      "submit": "Weiter"
+    },
+    "spatialFrameReference": {
+      "title": "Räumlicher Bezugsrahmen",
+      "instructions": "Bitte wählen Sie das Bild aus, das Ihrem aktuellen räumlichen Bezugsrahmen am besten entspricht.",
+      "choicePrompt": "Wählen Sie einen Buchstaben aus.",
+      "submit": "Weiter"
+    },
+    "completion": {
+      "title": "Vielen Dank",
+      "message": "Vielen Dank für Ihre Teilnahme."
+    }
+  },
+  "choices": {
+    "gender": {
+      "female": "Weiblich",
+      "male": "Männlich",
+      "non_binary_or_diverse": "Nichtbinär / divers",
+      "prefer_not_to_say": "Keine Angabe"
+    },
+    "handedness": {
+      "left": "Linkshändig",
+      "right": "Rechtshändig",
+      "ambidextrous": "Beidhändig",
+      "prefer_not_to_say": "Keine Angabe"
+    }
+  },
+  "validationMessages": {
+    "required": "Bitte füllen Sie dieses Feld aus.",
+    "ageRange": "Bitte geben Sie ein Alter von 0 bis 120 ein.",
+    "consentRequired": "Die Einwilligung ist erforderlich, bevor Sie fortfahren.",
+    "signatureRequired": "Bitte unterschreiben Sie, bevor Sie fortfahren.",
+    "singleChoiceRequired": "Bitte wählen Sie eine Option aus."
+  }
+}

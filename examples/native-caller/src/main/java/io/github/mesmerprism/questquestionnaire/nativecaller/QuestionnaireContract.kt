@@ -22,6 +22,10 @@ object QuestionnaireContract {
     const val ExtraReturnToCaller = QuestQuestionnaireIntentContract.ExtraReturnToCaller
     const val ExtraDebugRunSmoke = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_RUN_SMOKE"
     const val ExtraDebugAutoSubmit = QuestQuestionnaireIntentContract.ExtraDebugAutoSubmit
+    const val ExtraDebugCommandScript =
+        "io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_SCRIPT"
+    const val ExtraDebugCommandIntervalMs =
+        "io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_INTERVAL_MS"
 
     const val QuestionnaireId = BrbQuestionnaireContract.QuestionnaireId
     const val StageLanguageSelect = BrbQuestionnaireContract.StageLanguageSelect

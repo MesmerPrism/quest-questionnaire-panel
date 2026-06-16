@@ -1,0 +1,17 @@
+[makepad]
+source = "git"
+repository = "https://github.com/MesmerPrism/makepad.git"
+commit = "520bd23e5d7392316ba4e487e0726d47edb22198"
+cargo_makepad_commit = "520bd23e5d7392316ba4e487e0726d47edb22198"
+
+[targets]
+windows = true
+linux = true
+macos = true
+android = false
+quest = false
+ios = false
+wasm = false
+
+[notes]
+reason = "Pinned Morphospace Makepad 2.0 fork baseline for the script-based Windows operator. This includes the opt-in TextInput inner-alignment patch used by the operator field template."

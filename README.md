@@ -19,8 +19,10 @@ app/                    # Native Kotlin/Android Quest 2D panel app
 contract/               # Versioned JSON schemas and intent names
 questionnaire-contract-core/ # Pure Kotlin envelope parsing and validation
 brb-questionnaire-core/ # Pure Kotlin BRB stage constants and answer validation
+maia-spatial-questionnaire-core/ # Pure Kotlin MAIA/spatial constants, scoring, validation
 android-caller-sdk/     # Kotlin/AAR helper for Android callers
 unity-caller-plugin/    # Unity C# facade plus Android bridge wrapper
+operator/               # Host-side Makepad operator apps and bridge tools
 examples/
   native-caller/        # Minimal Android caller/tester app
 docs/
@@ -48,6 +50,8 @@ tools/
 5. Provide `android-caller-sdk` for native Android and Unity bridge callers.
 6. Register BRB and generic questionnaire renderers behind the panel registry.
 7. Provide a Unity C# facade and Android bridge in `unity-caller-plugin`.
+8. Provide the MAIA-2 plus spatial-frame-reference renderer for native/Rusty
+   Morphospace callers.
 
 ## Communication Pattern
 
@@ -134,6 +138,15 @@ observed in device validation, `1350px x 900px` at `200dpi`.
 For the latest source-intake decision on Quest UI automation and capture
 references, see
 [`docs/source-audit-intake-2026-06-14.md`](docs/source-audit-intake-2026-06-14.md).
+
+For the MAIA-2 plus spatial-frame-reference program intended for Rusty
+Morphospace/LSL-triggered launches, see
+[`docs/rusty-morphospace-maia-spatial.md`](docs/rusty-morphospace-maia-spatial.md).
+
+For the Windows Makepad operator app that installs the panel APK, forwards the
+Quest bridge port, sends questionnaire block commands to the on-Quest Rusty
+Morphospace bridge, and displays foreground status, see
+[`docs/windows-makepad-operator.md`](docs/windows-makepad-operator.md).
 
 For the current public BRB plus panel demo capture plan, including the
 one-take headset-recorder workflow and clip map, see

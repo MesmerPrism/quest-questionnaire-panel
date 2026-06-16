@@ -100,6 +100,7 @@ class BrbQuestionnaireViewModelTest {
             schemaId = BrbQuestionnaireContract.QuestionnaireId,
             openStage = BrbQuestionnaireContract.StageLanguageSelect,
             conditionNumber = null,
-            screenSequence = BrbQuestionnaireContract.InitialStudySequence
+            screenSequence = BrbQuestionnaireContract.InitialStudySequence,
+            questionnaireState = null
         )
 }

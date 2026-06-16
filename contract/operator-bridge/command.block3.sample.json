@@ -1,0 +1,24 @@
+{
+  "protocol_version": "quest.questionnaire.operator.v1",
+  "command_id": "operator-000003",
+  "action": "open_questionnaire",
+  "command_name": "maia_spatial.block3",
+  "panel_request": {
+    "protocol_version": "quest.questionnaire.v1",
+    "session_id": "maia-spatial-session-001",
+    "study_id": "maia-spatial",
+    "schema_id": "maia2-spatial-frame-questionnaire-v1",
+    "open_stage": "maia_spatial:spatial_frame_reference_2",
+    "screen_sequence": [
+      "maia_spatial:spatial_frame_reference_2"
+    ],
+    "participant_ref": "P001",
+    "questionnaire_state": {
+      "language_code": "en"
+    },
+    "caller_hint": {
+      "engine": "rusty-morphospace",
+      "transport": "makepad-windows-operator"
+    }
+  }
+}

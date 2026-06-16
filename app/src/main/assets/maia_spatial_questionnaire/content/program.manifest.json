@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "questionnaire-content-handoff.v1",
+  "programId": "maia2-spatial-frame-reference-three-block",
+  "programVersion": "1.0.0",
+  "createdDate": "2026-06-15",
+  "languages": [
+    {
+      "code": "en",
+      "label": "English",
+      "content": "content/i18n/en.json"
+    },
+    {
+      "code": "de",
+      "label": "Deutsch",
+      "content": "content/i18n/de.json"
+    }
+  ],
+  "languageSelection": {
+    "required": true,
+    "default": null,
+    "appliesToBlocks": [
+      "block_1_setup_maia2",
+      "block_2_spatial_frame_reference",
+      "block_3_spatial_frame_reference"
+    ]
+  },
+  "participantFields": [
+    {
+      "id": "name",
+      "type": "text",
+      "required": true,
+      "personallyIdentifying": true
+    },
+    {
+      "id": "age",
+      "type": "integer",
+      "required": true,
+      "min": 0,
+      "max": 120
+    },
+    {
+      "id": "gender",
+      "type": "singleChoice",
+      "required": true,
+      "choices": [
+        "female",
+        "male",
+        "non_binary_or_diverse",
+        "prefer_not_to_say"
+      ]
+    },
+    {
+      "id": "handedness",
+      "type": "singleChoice",
+      "required": true,
+      "choices": [
+        "left",
+        "right",
+        "ambidextrous",
+        "prefer_not_to_say"
+      ]
+    },
+    {
+      "id": "consent",
+      "type": "checkbox",
+      "required": true,
+      "mustBeTrue": true
+    },
+    {
+      "id": "signature",
+      "type": "signature",
+      "required": true,
+      "recommendedStorage": [
+        "svg",
+        "png",
+        "raw_points_json"
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "id": "block_1_setup_maia2",
+      "ordinal": 1,
+      "type": "compound",
+      "components": [
+        {
+          "id": "language_selection",
+          "type": "languageSelection"
+        },
+        {
+          "id": "demographics",
+          "type": "demographics",
+          "fieldsFrom": "participantFields"
+        },
+        {
+          "id": "maia2",
+          "type": "likert",
+          "instrumentId": "maia2",
+          "selectedLanguageItemSources": {
+            "en": "content/maia2/en.json",
+            "de": "content/maia2/de.json"
+          },
+          "scoring": "content/maia2/scoring.json"
+        }
+      ]
+    },
+    {
+      "id": "block_2_spatial_frame_reference",
+      "ordinal": 2,
+      "type": "pictograph",
+      "instrumentId": "spatial_frame_reference_pictograph",
+      "administrationIndex": 1,
+      "content": "content/spatial-frame-reference-pictograph.json"
+    },
+    {
+      "id": "block_3_spatial_frame_reference",
+      "ordinal": 3,
+      "type": "pictograph",
+      "instrumentId": "spatial_frame_reference_pictograph",
+      "administrationIndex": 2,
+      "content": "content/spatial-frame-reference-pictograph.json"
+    }
+  ],
+  "exports": {
+    "requiredFormats": [
+      "json",
+      "csv"
+    ],
+    "schema": "content/schemas/session-export.schema.json",
+    "mustIncludeRawResponses": true,
+    "mustIncludeScoredResponses": true,
+    "mustIncludeAssetVersions": true,
+    "mustIncludeLanguageCode": true
+  }
+}

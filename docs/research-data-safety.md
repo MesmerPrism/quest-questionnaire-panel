@@ -15,6 +15,7 @@ Request metadata:
 - questionnaire id;
 - open stage and screen sequence;
 - optional pseudonymous participant reference;
+- optional small questionnaire-owned state such as a selected language code;
 - optional caller package/version/engine.
 
 Result payload:
@@ -25,6 +26,12 @@ Result payload:
 - optional terminal context;
 - optional error code/message;
 - optional screen-level timing metadata.
+
+Some questionnaire answer payloads can contain directly identifying data. The
+MAIA/spatial renderer records name and signature because that source program
+requires them. Treat those result files as participant data and keep them in
+caller-private storage until the study retention/export policy moves or
+deletes them.
 
 Local runtime data:
 

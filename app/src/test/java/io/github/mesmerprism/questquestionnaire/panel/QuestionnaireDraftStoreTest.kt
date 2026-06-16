@@ -110,6 +110,7 @@ class QuestionnaireDraftStoreTest {
             schemaId = "brb-questionnaire-v1",
             openStage = QuestionnaireContract.StagePostConditionPictographic,
             conditionNumber = 1,
-            screenSequence = QuestionnaireContract.ConditionOnePostSequence
+            screenSequence = QuestionnaireContract.ConditionOnePostSequence,
+            questionnaireState = null
         )
 }

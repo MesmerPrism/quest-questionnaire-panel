@@ -1,0 +1,17 @@
+{
+  "protocol_version": "quest.questionnaire.operator.v1",
+  "bridge": {
+    "app": "rusty-morphospace",
+    "version": "0.1.0",
+    "device_label": "quest-lab"
+  },
+  "foreground": {
+    "xr_app_foreground": true,
+    "panel_foreground": false,
+    "foreground_package": "io.github.mesmerprism.rustymorphospace",
+    "foreground_activity": ".MainActivity",
+    "questionnaire_id": null,
+    "open_stage": null
+  },
+  "message": "ready"
+}

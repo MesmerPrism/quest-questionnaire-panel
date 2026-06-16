@@ -50,6 +50,8 @@ toolchain is available:
 - Protocol models and validation in `questionnaire-contract-core/`.
 - BRB-specific stage constants and answer validation in
   `brb-questionnaire-core/`.
+- MAIA/spatial stage constants, MAIA-2 scoring, and answer validation in
+  `maia-spatial-questionnaire-core/`.
 - Native Android integration helpers in `android-caller-sdk/`.
 - Unity caller helpers in `unity-caller-plugin/`.
 - Public integration docs in `docs/` and `contract/`.

@@ -7,6 +7,10 @@ local.properties
 *.aab
 *.apks
 
+# Rust/Cargo
+target/
+*/target/
+
 # Generated evidence
 artifacts/
 captures/
@@ -25,6 +29,10 @@ __pycache__/
 !docs/media/*.mp4
 !docs/media/panel-renders/
 !docs/media/panel-renders/*.png
+!app/src/main/assets/maia_spatial_questionnaire/
+!app/src/main/assets/maia_spatial_questionnaire/assets/
+!app/src/main/assets/maia_spatial_questionnaire/assets/pictographs/
+!app/src/main/assets/maia_spatial_questionnaire/assets/pictographs/spatial-frame-reference-continuum.png
 
 # IDE and OS
 .idea/

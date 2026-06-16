@@ -1,0 +1,84 @@
+{
+  "instrumentId": "maia2",
+  "scoreVersion": "maia2-2018-standard",
+  "responseRange": {
+    "min": 0,
+    "max": 5
+  },
+  "reverseScoringFormula": "5 - rawScore",
+  "reverseScoredItems": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    15
+  ],
+  "subscales": [
+    {
+      "id": "noticing",
+      "labelEnglish": "Noticing",
+      "labelGerman": "Bemerken",
+      "items": [1, 2, 3, 4],
+      "score": "mean"
+    },
+    {
+      "id": "not_distracting",
+      "labelEnglish": "Not-Distracting",
+      "labelGerman": "Nicht-Ablenken",
+      "items": [5, 6, 7, 8, 9, 10],
+      "score": "mean_after_reverse_scoring"
+    },
+    {
+      "id": "not_worrying",
+      "labelEnglish": "Not-Worrying",
+      "labelGerman": "Sich-Keine-Sorgen-Machen",
+      "items": [11, 12, 13, 14, 15],
+      "score": "mean_after_reverse_scoring"
+    },
+    {
+      "id": "attention_regulation",
+      "labelEnglish": "Attention Regulation",
+      "labelGerman": "Aufmerksamkeitsregulation",
+      "items": [16, 17, 18, 19, 20, 21, 22],
+      "score": "mean"
+    },
+    {
+      "id": "emotional_awareness",
+      "labelEnglish": "Emotional Awareness",
+      "labelGerman": "Emotionales Gewahrsein",
+      "items": [23, 24, 25, 26, 27],
+      "score": "mean"
+    },
+    {
+      "id": "self_regulation",
+      "labelEnglish": "Self-Regulation",
+      "labelGerman": "Selbstregulation",
+      "items": [28, 29, 30, 31],
+      "score": "mean"
+    },
+    {
+      "id": "body_listening",
+      "labelEnglish": "Body Listening",
+      "labelGerman": "Auf-den-Leib-Hören",
+      "items": [32, 33, 34],
+      "score": "mean"
+    },
+    {
+      "id": "trusting",
+      "labelEnglish": "Trusting",
+      "labelGerman": "Vertrauen",
+      "items": [35, 36, 37],
+      "score": "mean"
+    }
+  ],
+  "exportRequirements": {
+    "saveRawItemResponses": true,
+    "saveReverseScoredItemValues": true,
+    "saveSubscaleMeans": true,
+    "doNotComputeTotalScoreUnlessExplicitlyApproved": true
+  }
+}

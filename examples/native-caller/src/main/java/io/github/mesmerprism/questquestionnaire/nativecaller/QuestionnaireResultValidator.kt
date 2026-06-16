@@ -1,9 +1,16 @@
 package io.github.mesmerprism.questquestionnaire.nativecaller
 
 import io.github.mesmerprism.questquestionnaire.brb.BrbAnswerValidator
+import io.github.mesmerprism.questquestionnaire.brb.BrbQuestionnaireContract
+import io.github.mesmerprism.questquestionnaire.contract.AnswerValidationResult
+import io.github.mesmerprism.questquestionnaire.contract.QuestionnaireAnswerValidator
 import io.github.mesmerprism.questquestionnaire.contract.QuestionnaireExpectedResult as CoreExpectedQuestionnaireResult
+import io.github.mesmerprism.questquestionnaire.contract.QuestionnaireResultEnvelope
 import io.github.mesmerprism.questquestionnaire.contract.QuestionnaireResultEnvelopeValidator
 import io.github.mesmerprism.questquestionnaire.contract.QuestionnaireResultValidation as CoreQuestionnaireResultValidation
+import io.github.mesmerprism.questquestionnaire.maiaspatial.MaiaSpatialAnswerValidator
+import io.github.mesmerprism.questquestionnaire.maiaspatial.MaiaSpatialQuestionnaireContract
+import org.json.JSONObject
 
 data class ExpectedQuestionnaireResult(
     val requestId: String,
@@ -33,7 +40,7 @@ object QuestionnaireResultValidator {
             val validation = QuestionnaireResultEnvelopeValidator.validate(
                 resultJson = resultJson,
                 expected = coreExpected,
-                answerValidator = BrbAnswerValidator
+                answerValidator = NativeCallerAnswerValidator
             )
         ) {
             is CoreQuestionnaireResultValidation.Valid ->
@@ -48,4 +55,19 @@ object QuestionnaireResultValidator {
 
     private fun invalid(reason: String): QuestionnaireResultValidation =
         QuestionnaireResultValidation(valid = false, reason = reason)
+}
+
+object NativeCallerAnswerValidator : QuestionnaireAnswerValidator {
+    override fun validateCompletedAnswers(
+        expected: CoreExpectedQuestionnaireResult,
+        envelope: QuestionnaireResultEnvelope,
+        answers: JSONObject
+    ): AnswerValidationResult =
+        when (envelope.questionnaire.id) {
+            BrbQuestionnaireContract.QuestionnaireId ->
+                BrbAnswerValidator.validateCompletedAnswers(expected, envelope, answers)
+            MaiaSpatialQuestionnaireContract.QuestionnaireId ->
+                MaiaSpatialAnswerValidator.validateCompletedAnswers(expected, envelope, answers)
+            else -> AnswerValidationResult.Invalid("unsupported_questionnaire")
+        }
 }

@@ -15,6 +15,7 @@
       <nav aria-label="Primary navigation">
         <a href="#overview">Overview</a>
         <a href="#reuse">Use it</a>
+        <a href="#operator-setup">Operator setup</a>
         <a href="#contract">Contract</a>
         <a href="#demos">Demos</a>
         <a href="#contribute">Contribute</a>
@@ -67,7 +68,7 @@
           </div>
           <div>
             <span>Last reviewed</span>
-            <strong>main commit 44276b7</strong>
+            <strong>main branch documentation</strong>
           </div>
         </div>
       </section>
@@ -78,6 +79,7 @@
           <a href="#handoff">Five-step handoff</a>
           <a href="#status">What this solves</a>
           <a href="#choose-path">Choose your path</a>
+          <a href="#operator-setup">Windows operator setup</a>
           <a href="#demos">Visual demo</a>
           <a href="#reuse">Use it from your app</a>
           <a href="#contract">Contract</a>
@@ -202,7 +204,7 @@
 
         <div class="status-table" role="region" aria-label="Integration status matrix" tabindex="0">
           <table>
-            <caption>Current integration status. Last reviewed on main at commit 44276b7.</caption>
+            <caption>Current integration status on the main branch.</caption>
             <thead>
               <tr>
                 <th scope="col">Frontend / caller</th>
@@ -241,6 +243,12 @@
                 <td>Contract-compatible</td>
                 <td>Explicit Android Intent</td>
                 <td>Engine-agnostic launch and return path.</td>
+              </tr>
+              <tr>
+                <td>Windows Makepad operator</td>
+                <td>Host-side setup and control surface</td>
+                <td>ADB install/forward plus Quest-side HTTP bridge</td>
+                <td>Install the panel APK, check Quest readiness, and trigger bridge-owned questionnaire blocks.</td>
               </tr>
             </tbody>
           </table>
@@ -281,6 +289,14 @@
             </p>
           </a>
 
+          <a id="operator-path" class="path-card" href="#operator-setup">
+            <h3>I need the Windows operator</h3>
+            <p>
+              Start with the Makepad app, panel APK install, Quest bridge
+              forwarding, foreground status, and CLI equivalents.
+            </p>
+          </a>
+
           <a id="contributor-path" class="path-card" href="#implementation">
             <h3>I want to contribute</h3>
             <p>
@@ -289,6 +305,116 @@
             </p>
           </a>
         </div>
+      </section>
+
+      <section id="operator-setup" class="section" aria-labelledby="operator-setup-title">
+        <div class="section-heading">
+          <h2 id="operator-setup-title">Windows Operator Setup</h2>
+          <p>
+            The Makepad operator is the Windows control surface for lab setup:
+            install or refresh the panel APK, check the Quest, forward the
+            bridge port, and send questionnaire block commands to the
+            on-Quest caller bridge.
+          </p>
+        </div>
+
+        <div class="reader-grid">
+          <article>
+            <h3>Prerequisites</h3>
+            <ul>
+              <li>This repository checked out on Windows.</li>
+              <li>Rust and Cargo available for the Makepad operator crate.</li>
+              <li>Android platform tools or another ADB path discoverable by the operator.</li>
+              <li>A Quest with developer mode and USB or Wi-Fi debugging enabled.</li>
+            </ul>
+          </article>
+
+          <article>
+            <h3>Build and install</h3>
+            <ol class="plain-list">
+              <li>Build the minimal panel APK.</li>
+              <li>Launch the Makepad operator.</li>
+              <li>Use <code>Devices</code> to fill the Quest serial.</li>
+              <li>Keep the default panel APK path or enter another APK.</li>
+              <li>Use <code>Install Panel</code> to run an ADB reinstall.</li>
+            </ol>
+          </article>
+
+          <article>
+            <h3>Control a study run</h3>
+            <p>
+              Use <code>Forward</code> when the Quest bridge listens on the
+              default device port and the operator should reach it through
+              <code>http://127.0.0.1:8787</code>. Then use
+              <code>Poll</code> and <code>Open Block 1/2/3</code>.
+            </p>
+            <p>
+              In production the bridge should live in the active XR caller
+              that owns the session and result URI, so panel completion returns
+              to the same app session.
+            </p>
+          </article>
+        </div>
+
+        <div class="status-table" role="region" aria-label="Windows operator setup commands" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Step</th>
+                <th scope="col">GUI control</th>
+                <th scope="col">CLI equivalent</th>
+                <th scope="col">Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Build panel</td>
+                <td>Outside the operator</td>
+                <td><code>.\gradlew.bat :app:assembleMinimalDebug</code></td>
+                <td>Creates the public minimal questionnaire APK.</td>
+              </tr>
+              <tr>
+                <td>Install panel</td>
+                <td><code>Panel APK</code> plus <code>Install Panel</code></td>
+                <td><code>install-panel --serial SERIAL --apk app\build\outputs\apk\minimal\debug\app-minimal-debug.apk</code></td>
+                <td>Runs <code>adb install -r -d</code> for setup or update.</td>
+              </tr>
+              <tr>
+                <td>Check Quest</td>
+                <td><code>Tools</code>, <code>Devices</code>, <code>Status</code></td>
+                <td><code>tooling-status</code>, <code>devices</code>, <code>device-status --serial SERIAL</code></td>
+                <td>Confirms ADB, the selected Quest, battery, controllers, and foreground hints.</td>
+              </tr>
+              <tr>
+                <td>Reach bridge</td>
+                <td><code>Forward</code></td>
+                <td><code>bridge-forward --serial SERIAL --host-port 8787 --device-port 8787</code></td>
+                <td>Forwards the Quest-side bridge to a local operator endpoint.</td>
+              </tr>
+              <tr>
+                <td>Open questionnaire</td>
+                <td><code>Open Block 1/2/3</code></td>
+                <td><code>open-block --block 2 --session-id SESSION --participant-ref REF --endpoint http://127.0.0.1:8787</code></td>
+                <td>Sends a bridge command; the Quest caller launches the panel through the Android contract.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details class="runbook-details">
+          <summary>Show command-only setup</summary>
+          <pre><code>.\gradlew.bat :app:assembleMinimalDebug
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- install-panel --serial SERIAL --apk app\build\outputs\apk\minimal\debug\app-minimal-debug.apk --json
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- bridge-forward --serial SERIAL --host-port 8787 --device-port 8787
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- status --endpoint http://127.0.0.1:8787
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787</code></pre>
+        </details>
+
+        <p class="diagram-caption">
+          ADB installation and port forwarding are lab setup tools. The
+          questionnaire handoff remains the caller-owned
+          <code>content://</code> result URI plus callback contract.
+        </p>
       </section>
 
       <section id="demos" class="section" aria-labelledby="demos-title">

@@ -174,13 +174,25 @@ def is_curated_public_media(path: str) -> bool:
     )
 
 
+def is_allowed_runtime_binary_asset(path: str) -> bool:
+    normalized = repo_relative(path)
+    return bool(
+        re.fullmatch(
+            r"app/src/main/assets/maia_spatial_questionnaire/assets/pictographs/"
+            r"spatial-frame-reference-continuum\.png",
+            normalized,
+            re.IGNORECASE,
+        )
+    )
+
+
 def path_violations(path: str) -> list[Violation]:
     normalized = repo_relative(path)
     lower = normalized.lower()
     violations: list[Violation] = []
 
     extension = Path(normalized).suffix.lower()
-    if is_curated_public_media(normalized):
+    if is_curated_public_media(normalized) or is_allowed_runtime_binary_asset(normalized):
         return violations
     if extension in BLOCKED_EXTENSIONS:
         violations.append(Violation(normalized, BLOCKED_EXTENSIONS[extension]))
@@ -209,7 +221,11 @@ def text_violations(path: str) -> list[Violation]:
         return []
 
     extension = Path(normalized).suffix.lower()
-    if extension in BINARY_EXTENSIONS or is_curated_public_media(normalized):
+    if (
+        extension in BINARY_EXTENSIONS
+        or is_curated_public_media(normalized)
+        or is_allowed_runtime_binary_asset(normalized)
+    ):
         return []
 
     file_path = Path(path)

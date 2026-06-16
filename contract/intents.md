@@ -33,6 +33,10 @@ Required extras:
 | `result_uri` | parcelable Uri | Caller-owned result URI. |
 | `return_to_caller` | parcelable PendingIntent | Completion callback. |
 
+The `request_json` payload may include optional `questionnaire_state` for
+small questionnaire-owned state that a caller carries between split launches,
+such as the MAIA/spatial selected language code.
+
 Debug-only optional extras:
 
 | Extra | Type | Meaning |
@@ -144,3 +148,38 @@ generic:intro -> generic:rating -> generic:comment -> generic:complete
 The generic demo proves that the v1 envelope is not BRB-specific. Production
 questionnaires should use their own `schema_id`, stage names, renderer, and
 answer validator.
+
+## MAIA-2 Spatial Frame Stage Names
+
+The MAIA-2 plus spatial-frame-reference renderer uses:
+
+```text
+schema_id = maia2-spatial-frame-questionnaire-v1
+```
+
+Recommended Rusty Morphospace/native caller sequences:
+
+```text
+Block 1 setup + MAIA-2:
+maia_spatial:language_selection -> maia_spatial:demographics -> maia_spatial:maia2
+
+Block 2 spatial frame:
+maia_spatial:spatial_frame_reference_1
+
+Block 3 spatial frame:
+maia_spatial:spatial_frame_reference_2
+```
+
+Block 2 and Block 3 should include the Block 1 language in request JSON:
+
+```json
+{
+  "questionnaire_state": {
+    "language_code": "en"
+  }
+}
+```
+
+The corresponding completed result answer buckets are
+`spatial_frame_reference_administration_1` and
+`spatial_frame_reference_administration_2`.

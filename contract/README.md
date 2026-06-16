@@ -10,6 +10,8 @@ Contract files:
 - `quest.questionnaire.v1.result.schema.json` describes result JSON.
 - `../docs/contract-versioning.md` documents v1 compatibility rules.
 - `../docs/research-data-safety.md` documents public-repo data safety rules.
+- `examples/request.maia_spatial.*.valid.json` show the MAIA-2 plus
+  spatial-frame-reference block launches for Rusty Morphospace/native callers.
 
 Caller-owned result URI is required for product flows. The result `content://`
 URI is carried as Intent data for the write grant and also in `result_uri` for
@@ -35,3 +37,9 @@ Stage names are questionnaire-owned. The v1 request envelope only requires
 non-empty stage strings and `open_stage` membership in `screen_sequence`; BRB
 stages are enforced by the BRB renderer and BRB answer validator. The generic
 demo fixtures show the same envelope with `generic:*` stages.
+
+Split-session questionnaires can use the optional `questionnaire_state` object
+for small questionnaire-owned state that the caller copies from an earlier
+result into a later launch. The MAIA/spatial renderer uses
+`questionnaire_state.language_code` for Block 2 and Block 3 so the Block 1
+language selection remains fixed across the session.

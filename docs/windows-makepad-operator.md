@@ -1,0 +1,126 @@
+# Windows Makepad Questionnaire Operator
+
+The Windows operator app lives in
+`operator/makepad-quest-questionnaire-operator/`. It is a Makepad GUI that
+sends commands to an on-Quest Rusty Morphospace bridge, displays foreground
+status reported by that bridge, and optionally reads passive Quest readiness
+signals through ADB.
+
+This keeps the Android authority boundary intact:
+
+```text
+Windows Makepad operator
+  -> HTTP command to Rusty Morphospace bridge on Quest
+  -> foreground Rusty Morphospace Android caller
+  -> explicit Quest Questionnaire Panel intent
+  -> caller-owned content:// result URI
+  -> broadcast PendingIntent completion
+```
+
+The operator does not use ADB for questionnaire launch, public storage,
+overlays, package killing, or a direct panel launch from Windows. Its ADB lane
+is limited to tooling/device readiness, panel APK installation, bridge port
+forwarding, passive foreground/battery/controller snapshots, and proof
+evidence.
+
+## Run
+
+```powershell
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml
+```
+
+Set the endpoint field to the bridge base URL. `http://127.0.0.1:8787` is only
+the local development default. For headset use, enter the Quest bridge URL.
+
+Build the public minimal panel APK before using the install action:
+
+```powershell
+.\gradlew.bat :app:assembleMinimalDebug
+```
+
+The GUI's **Panel APK** field defaults to
+`app/build/outputs/apk/minimal/debug/app-minimal-debug.apk`. Select a Quest
+serial, then use **Install Panel** to run an ADB reinstall of that APK. This is
+a setup/update action only; questionnaire foregrounding still belongs to the
+on-Quest caller bridge.
+
+## CLI Equivalents
+
+The operator crate also builds `quest-questionnaire-operator-cli`. The CLI
+matches the GUI surface:
+
+| GUI control | CLI command |
+| --- | --- |
+| Connect / Poll | `status --endpoint <url>` |
+| Tools | `tooling-status [--json]` |
+| Devices | `devices [--json]` |
+| Status | `device-status --serial <serial> [--json]` |
+| Forward | `bridge-forward --serial <serial> --host-port <port> --device-port <port> [--json]` |
+| Panel APK | `install-panel --serial <serial> --apk <apk-path> [--json]` |
+| Install Panel | `install-panel --serial <serial> --apk <apk-path> [--json]` |
+| Open Block 1 | `open-block --block 1 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
+| Open Block 2 | `open-block --block 2 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
+| Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
+| Dismiss Panel | `dismiss --session-id <id> --endpoint <url>` |
+
+Install example:
+
+```powershell
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- install-panel --serial <quest-serial> --apk app\build\outputs\apk\minimal\debug\app-minimal-debug.apk --json
+```
+
+Additional proof command:
+
+```powershell
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- proof-run --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787 --out artifacts\operator-proof-run
+```
+
+Example:
+
+```powershell
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
+```
+
+## Bridge Endpoints
+
+The bridge should expose:
+
+```text
+GET  /v1/status
+POST /v1/command
+```
+
+Sample command and status JSON files are in `contract/operator-bridge/`.
+
+The command payload includes a `panel_request` object containing the same
+MAIA/spatial launch values documented in
+`docs/rusty-morphospace-maia-spatial.md`:
+
+| Button | `command_name` | `open_stage` |
+| --- | --- | --- |
+| Open Block 1 | `maia_spatial.block1` | `maia_spatial:language_selection` |
+| Open Block 2 | `maia_spatial.block2` | `maia_spatial:spatial_frame_reference_1` |
+| Open Block 3 | `maia_spatial.block3` | `maia_spatial:spatial_frame_reference_2` |
+
+Rusty Morphospace should translate an accepted `open_questionnaire` command
+into the existing `QuestQuestionnaireLauncher` flow. The bridge must create the
+request id, nonce, result URI, and completion `PendingIntent` on Quest.
+
+## Foreground Feedback
+
+The app expects bridge responses to include:
+
+```json
+"foreground": {
+  "xr_app_foreground": false,
+  "panel_foreground": true,
+  "foreground_package": "io.github.mesmerprism.questquestionnaire",
+  "foreground_activity": ".panel.QuestionnaireActivity",
+  "questionnaire_id": "maia2-spatial-frame-questionnaire-v1",
+  "open_stage": "maia_spatial:spatial_frame_reference_1"
+}
+```
+
+The exact foreground detection mechanism belongs in the on-Quest bridge, where
+the foreground app and panel launch lifecycle are observable without weakening
+the questionnaire app contract.

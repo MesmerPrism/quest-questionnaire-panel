@@ -15,6 +15,7 @@ data class QuestionnaireLaunchRequest(
     val conditionNumber: Int?,
     val screenSequence: List<String>,
     val participantRef: String?,
+    val questionnaireState: JSONObject?,
     val caller: QuestionnaireCallerInfo?
 ) {
     companion object {
@@ -56,6 +57,7 @@ data class QuestionnaireLaunchRequest(
                 conditionNumber = json.optionalNonNegativeInt("condition_number"),
                 screenSequence = screenSequence,
                 participantRef = json.optionalString("participant_ref"),
+                questionnaireState = json.optionalObject("questionnaire_state"),
                 caller = json.optJSONObject("caller")?.let(QuestionnaireCallerInfo::fromJson)
             )
         }
@@ -106,6 +108,19 @@ internal fun JSONObject.optionalString(name: String): String? {
     return value
 }
 
+internal fun JSONObject.optionalObject(name: String): JSONObject? {
+    if (!has(name) || isNull(name)) {
+        return null
+    }
+
+    val value = get(name)
+    if (value !is JSONObject) {
+        throw QuestionnaireContractException("invalid_$name")
+    }
+
+    return JSONObject(value.toString())
+}
+
 internal fun JSONObject.requiredStringArray(name: String): List<String> {
     if (!has(name) || isNull(name)) {
         throw QuestionnaireContractException("missing_$name")
@@ -142,4 +157,3 @@ internal fun JSONObject.optionalNonNegativeInt(name: String): Int? {
 
     return intValue
 }
-

@@ -1,0 +1,21 @@
+{
+  "protocol_version": "quest.questionnaire.v1",
+  "session_id": "maia-spatial-session-001",
+  "request_id": "4a0cc8f2-d60f-4d78-8cb4-d0bcac1d8e71",
+  "nonce": "d46f4146a69047be8dd7e2ac",
+  "study_id": "maia-spatial",
+  "schema_id": "maia2-spatial-frame-questionnaire-v1",
+  "open_stage": "maia_spatial:language_selection",
+  "condition_number": null,
+  "screen_sequence": [
+    "maia_spatial:language_selection",
+    "maia_spatial:demographics",
+    "maia_spatial:maia2"
+  ],
+  "participant_ref": "P042",
+  "caller": {
+    "package": "io.github.mesmerprism.rustymorphospace.questcaller",
+    "app_version": "0.1.0",
+    "engine": "native"
+  }
+}

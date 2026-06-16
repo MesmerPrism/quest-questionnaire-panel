@@ -38,6 +38,7 @@ data class QuestionnaireLaunchRequestSpec(
     val screenSequence: List<String>,
     val conditionNumber: Int? = null,
     val participantRef: String? = null,
+    val questionnaireState: JSONObject? = null,
     val caller: QuestionnaireCallerMetadata? = null
 )
 
@@ -266,6 +267,7 @@ private fun QuestionnaireLaunchRequestSpec.toJson(requestId: String, nonce: Stri
         .put("screen_sequence", JSONArray(screenSequence))
         .apply {
             participantRef?.let { put("participant_ref", it) }
+            questionnaireState?.let { put("questionnaire_state", JSONObject(it.toString())) }
             caller?.toJson()?.let { put("caller", it) }
         }
 

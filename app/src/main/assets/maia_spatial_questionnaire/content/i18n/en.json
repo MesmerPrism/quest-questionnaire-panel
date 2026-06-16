@@ -1,0 +1,68 @@
+{
+  "language": {
+    "code": "en",
+    "label": "English"
+  },
+  "screens": {
+    "languageSelection": {
+      "title": "Language",
+      "prompt": "Please choose a language.",
+      "english": "English",
+      "german": "German",
+      "continue": "Continue"
+    },
+    "demographics": {
+      "title": "Participant Information",
+      "nameLabel": "Name",
+      "namePlaceholder": "Enter your name",
+      "ageLabel": "Age",
+      "agePlaceholder": "Enter your age",
+      "genderLabel": "Gender",
+      "handednessLabel": "Handedness",
+      "consentLabel": "Consent",
+      "consentText": "I consent to participate in this study and understand that my responses will be recorded for research purposes.",
+      "signatureLabel": "Signature",
+      "signaturePrompt": "Please sign to confirm consent.",
+      "clearSignature": "Clear signature",
+      "submit": "Continue"
+    },
+    "maia2": {
+      "title": "Body Awareness",
+      "instructions": "Below you will find a list of statements. Please indicate how often each statement applies to you generally in daily life.",
+      "leftAnchor": "Never",
+      "rightAnchor": "Always",
+      "submit": "Continue"
+    },
+    "spatialFrameReference": {
+      "title": "Spatial Frame of Reference",
+      "instructions": "Please choose the picture that best matches your current sense of spatial reference.",
+      "choicePrompt": "Select one letter.",
+      "submit": "Continue"
+    },
+    "completion": {
+      "title": "Thank you",
+      "message": "Thank you for your participation."
+    }
+  },
+  "choices": {
+    "gender": {
+      "female": "Female",
+      "male": "Male",
+      "non_binary_or_diverse": "Non-binary / diverse",
+      "prefer_not_to_say": "Prefer not to say"
+    },
+    "handedness": {
+      "left": "Left-handed",
+      "right": "Right-handed",
+      "ambidextrous": "Ambidextrous",
+      "prefer_not_to_say": "Prefer not to say"
+    }
+  },
+  "validationMessages": {
+    "required": "Please complete this field.",
+    "ageRange": "Please enter an age from 0 to 120.",
+    "consentRequired": "Consent is required before continuing.",
+    "signatureRequired": "Please provide a signature before continuing.",
+    "singleChoiceRequired": "Please select one option."
+  }
+}

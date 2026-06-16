@@ -13,7 +13,8 @@ data class QuestionnaireRequest(
     val schemaId: String,
     val openStage: String,
     val conditionNumber: Int?,
-    val screenSequence: List<String>
+    val screenSequence: List<String>,
+    val questionnaireState: JSONObject?
 ) {
     companion object {
         fun parse(
@@ -67,7 +68,8 @@ data class QuestionnaireRequest(
                 schemaId = json.requiredString("schema_id"),
                 openStage = openStage,
                 conditionNumber = json.optionalNonNegativeInt("condition_number"),
-                screenSequence = screenSequence
+                screenSequence = screenSequence,
+                questionnaireState = json.optionalObject("questionnaire_state")
             )
         }
 
@@ -114,6 +116,17 @@ private fun JSONObject.requiredStringArray(name: String): List<String> {
         items += item
     }
     return items
+}
+
+private fun JSONObject.optionalObject(name: String): JSONObject? {
+    if (!has(name) || isNull(name)) {
+        return null
+    }
+    val value = get(name)
+    if (value !is JSONObject) {
+        throw QuestionnaireRequestException("invalid_$name")
+    }
+    return JSONObject(value.toString())
 }
 
 private fun JSONObject.optionalNonNegativeInt(name: String): Int? {
