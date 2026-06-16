@@ -109,6 +109,9 @@ lab/fleet operations path, not part of the questionnaire result contract.
 For the relationship between this product contract, the Quest workflow repo,
 the Termux fleet-control lab, and the UIAutomator settings/recorder sweeps, see
 [`docs/remote-operations-relationship.md`](docs/remote-operations-relationship.md).
+That relationship doc also records the current Horizon OS 2.x validation notes,
+Meta VR CLI / `hzdb` provider naming, and Unity SDK compatibility caveats for
+live Quest runs.
 
 Before committing public docs or lab automation notes, run:
 

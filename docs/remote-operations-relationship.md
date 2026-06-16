@@ -39,7 +39,7 @@ The public
 [meta-quest-agent-workflow](https://github.com/MesmerPrism/meta-quest-agent-workflow)
 repo and local `meta-quest-workflow` skill own headset-facing discipline:
 
-- ADB and `hzdb` provider selection;
+- ADB and Meta VR CLI / `hzdb` provider selection;
 - APK install/launch evidence;
 - screenshot, logcat, recorder, and MediaProjection capture labeling;
 - protected prompt and headset readiness notes;
@@ -47,6 +47,15 @@ repo and local `meta-quest-workflow` skill own headset-facing discipline:
 
 Use that workflow before live Quest runs. It should record how the device was
 operated; it should not change the questionnaire result contract.
+
+Current compatibility note: new manual Meta MCP setup examples use Meta VR CLI
+(`npx -y metavr`), while MQDH/editor bundles may still expose `hzdb`. Record
+the selected route and version in run notes. On Horizon OS 2.x, validation
+notes should also record exact OS and PTC state, Navigator/Home state, restored
+or snapped panels, privacy indicators, and any Meta system UI that appears
+during launch/return. Those surfaces can affect screenshot and foreground
+evidence, but they do not change the product path: answers still return through
+the caller-owned `content://` URI and caller callback.
 
 ## Termux Lab Path
 
@@ -102,7 +111,11 @@ The current low-risk remote scenarios are:
 ## Decision Rule
 
 If a change affects participant questionnaire behavior, request/result JSON,
-Unity/Android caller APIs, or BRB screen logic, it belongs in this repository.
+Unity/Android caller APIs, or BRB/MAIA screen logic, it belongs in this
+repository. Unity callers should verify their project pin against the current
+Meta XR SDK line before treating a Quest workflow issue as a questionnaire
+contract issue; Meta XR SDK 203.0 and Spatial SDK 0.13.1 introduce current
+Unity/SDK compatibility expectations outside this panel contract.
 
 If a change affects how a developer operates a Quest, captures evidence,
 pregrants MediaProjection for lab capture, or interprets Meta system UI, it
