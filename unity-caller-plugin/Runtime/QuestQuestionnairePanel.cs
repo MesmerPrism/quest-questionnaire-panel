@@ -16,6 +16,7 @@ namespace MesmerPrism.QuestQuestionnairePanel
         public string ParticipantRef;
         public string CallerPackageName;
         public string CallerAppVersion;
+        public string QuestionnaireStateJson;
     }
 
     public static class QuestQuestionnairePanel
@@ -27,7 +28,8 @@ namespace MesmerPrism.QuestQuestionnairePanel
             QuestQuestionnaireRequest request,
             string resultAuthority,
             string callbackReceiverClassName,
-            bool debugAutoSubmit = false)
+            bool debugAutoSubmit = false,
+            string questionnaireStateJson = "")
         {
             if (request == null)
             {
@@ -61,6 +63,9 @@ namespace MesmerPrism.QuestQuestionnairePanel
                     request.ParticipantRef,
                     request.CallerPackageName,
                     request.CallerAppVersion,
+                    string.IsNullOrWhiteSpace(questionnaireStateJson)
+                        ? request.QuestionnaireStateJson ?? ""
+                        : questionnaireStateJson,
                     debugAutoSubmit);
             }
 #else

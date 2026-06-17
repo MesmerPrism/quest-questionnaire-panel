@@ -25,6 +25,7 @@ object UnityQuestionnaireBridge {
         participantRef: String?,
         callerPackageName: String?,
         callerAppVersion: String?,
+        questionnaireStateJson: String?,
         debugAutoSubmit: Boolean
     ): String {
         return try {
@@ -55,6 +56,7 @@ object UnityQuestionnaireBridge {
                     screenSequence = screenSequenceJson.toStringList(),
                     conditionNumber = conditionNumber.takeIf { it >= 0 },
                     participantRef = participantRef.nullIfBlank(),
+                    questionnaireState = questionnaireStateJson.nullIfBlank()?.let { JSONObject(it) },
                     caller = QuestionnaireCallerMetadata(
                         packageName = callerPackageName.nullIfBlank(),
                         appVersion = callerAppVersion.nullIfBlank(),

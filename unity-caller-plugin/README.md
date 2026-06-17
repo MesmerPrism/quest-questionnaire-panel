@@ -43,6 +43,10 @@ Unity projects that consume plain AARs need this bridge AAR plus the
 Projects with a Gradle-based Unity export can depend on the bridge module and
 let Gradle resolve the SDK dependency.
 
+`QuestionnaireStateJson` is optional and should contain only small per-launch
+state, for example selected language or condition labels. Do not use it for
+sample streams or frame data.
+
 ## C# Launch Example
 
 ```csharp
@@ -55,7 +59,8 @@ var request = new QuestQuestionnaireRequest
     ScreenSequence = BrbQuestionnaire.InitialSequence,
     ParticipantRef = participantRef,
     CallerPackageName = Application.identifier,
-    CallerAppVersion = Application.version
+    CallerAppVersion = Application.version,
+    QuestionnaireStateJson = "{\"language_code\":\"en\"}"
 };
 
 var statusJson = QuestQuestionnairePanel.Launch(
