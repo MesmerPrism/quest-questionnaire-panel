@@ -42,6 +42,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- bridge-forward --serial <quest-serial> --host-port 8787 --device-port 8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- install-target-apk --serial <quest-serial> --apk path\to\target-runtime.apk --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- launch-target-runtime --serial <quest-serial> --package io.github.example.target --json
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- pull-target-session --serial <quest-serial> --package io.github.example.target --remote-relative files/runtime_csv/participant-P001/session-001 --out artifacts\device-session-pull --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 1 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 3 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
@@ -68,6 +69,11 @@ public operator repo.
 The `install-target-apk` and `launch-target-runtime` helpers are setup and
 foregrounding tools only. They do not launch the questionnaire panel and do not
 replace the caller-owned result URI flow.
+
+The `pull-target-session` helper is the explicit export step for target runtime
+session evidence. It pulls from the target app's app-specific Quest storage
+under `/sdcard/Android/data/<package>/...` into an operator-selected local
+folder; do not use it for implicit background collection.
 
 When `--audit-dir` is provided, runtime command helpers append a local
 `command_audit.jsonl` file with request, response, timing, acceptance, and error

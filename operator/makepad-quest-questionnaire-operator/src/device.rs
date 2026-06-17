@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_PANEL_APK_PATH: &str =
     "app/build/outputs/apk/minimal/debug/app-minimal-debug.apk";
+pub const DEFAULT_TARGET_SESSION_REMOTE_RELATIVE: &str = "files/runtime_csv";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolProbe {
@@ -252,6 +253,66 @@ pub fn launch_package(
     } else {
         Err(run.condensed_output())
     }
+}
+
+pub fn pull_target_session(
+    serial: &str,
+    package_name: &str,
+    remote_relative: &str,
+    output_dir: &Path,
+) -> Result<CommandRun, String> {
+    let serial = serial.trim();
+    if serial.is_empty() {
+        return Err("Device serial is required.".to_string());
+    }
+    let package_name = package_name.trim();
+    if package_name.is_empty() {
+        return Err("Package name is required.".to_string());
+    }
+    if output_dir.as_os_str().is_empty() {
+        return Err("Output folder is required.".to_string());
+    }
+
+    std::fs::create_dir_all(output_dir).map_err(|err| {
+        format!(
+            "Could not create output folder {}: {err}",
+            output_dir.display()
+        )
+    })?;
+
+    let adb = require_adb()?;
+    let remote = target_session_remote_path(package_name, remote_relative)?;
+    let output = output_dir.to_string_lossy().to_string();
+    let args = ["-s", serial, "pull", remote.as_str(), output.as_str()];
+    let run = run_adb(&adb, &args, Duration::from_secs(180))?;
+    if run.succeeded() {
+        Ok(run)
+    } else {
+        Err(run.condensed_output())
+    }
+}
+
+fn target_session_remote_path(package_name: &str, remote_relative: &str) -> Result<String, String> {
+    let package_name = package_name.trim();
+    if package_name.is_empty() {
+        return Err("Package name is required.".to_string());
+    }
+
+    let relative = remote_relative.trim().replace('\\', "/");
+    let relative = relative.trim_matches('/');
+    if relative.is_empty() {
+        return Err("Remote relative path is required.".to_string());
+    }
+    if relative
+        .split('/')
+        .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
+        return Err(
+            "Remote relative path must not contain empty, '.', or '..' segments.".to_string(),
+        );
+    }
+
+    Ok(format!("/sdcard/Android/data/{package_name}/{relative}"))
 }
 
 fn launch_package_args(serial: &str, package_name: &str, activity: Option<&str>) -> Vec<String> {
@@ -753,5 +814,22 @@ mod tests {
                 "io.github.example/.MainActivity",
             ]
         );
+    }
+
+    #[test]
+    fn builds_target_session_remote_path() {
+        assert_eq!(
+            target_session_remote_path(
+                "io.github.example",
+                "files/runtime_csv/participant-P001/session-001"
+            )
+            .unwrap(),
+            "/sdcard/Android/data/io.github.example/files/runtime_csv/participant-P001/session-001"
+        );
+    }
+
+    #[test]
+    fn rejects_parent_segments_in_target_session_remote_path() {
+        assert!(target_session_remote_path("io.github.example", "files/../secret").is_err());
     }
 }

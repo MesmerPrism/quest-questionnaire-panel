@@ -165,6 +165,13 @@ pub enum CliCommand {
         activity: Option<String>,
         json: bool,
     },
+    PullTargetSession {
+        serial: String,
+        package_name: String,
+        remote_relative: String,
+        out: PathBuf,
+        json: bool,
+    },
     OpenBlock {
         endpoint: String,
         block: u8,
@@ -252,6 +259,13 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             activity,
             json,
         } => launch_target_runtime(&serial, &package_name, activity.as_deref(), json),
+        CliCommand::PullTargetSession {
+            serial,
+            package_name,
+            remote_relative,
+            out,
+            json,
+        } => pull_target_session(&serial, &package_name, &remote_relative, &out, json),
         CliCommand::OpenBlock {
             endpoint,
             block,
@@ -403,6 +417,24 @@ pub fn launch_target_runtime(
     } else {
         Ok(format!(
             "Launch requested for target runtime {package_name}."
+        ))
+    }
+}
+
+pub fn pull_target_session(
+    serial: &str,
+    package_name: &str,
+    remote_relative: &str,
+    out: &Path,
+    json: bool,
+) -> Result<String, String> {
+    let run = device::pull_target_session(serial, package_name, remote_relative, out)?;
+    if json {
+        serde_json::to_string_pretty(&run).map_err(|err| err.to_string())
+    } else {
+        Ok(format!(
+            "Pulled target session data from {package_name} into {}.",
+            out.display()
         ))
     }
 }
@@ -1026,6 +1058,39 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 json,
             })
         }
+        "pull-target-session" => {
+            let mut serial: Option<String> = None;
+            let mut package_name: Option<String> = None;
+            let mut remote_relative = device::DEFAULT_TARGET_SESSION_REMOTE_RELATIVE.to_string();
+            let mut out: Option<PathBuf> = None;
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--serial" => serial = Some(next_value(&mut iter, "--serial")?),
+                    "--package" | "--package-name" => {
+                        package_name = Some(next_value(&mut iter, "--package")?)
+                    }
+                    "--remote-relative" => {
+                        remote_relative = next_value(&mut iter, "--remote-relative")?
+                    }
+                    "--out" => out = Some(PathBuf::from(next_value(&mut iter, "--out")?)),
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown pull-target-session argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::PullTargetSession {
+                serial: serial
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "pull-target-session requires --serial".to_string())?,
+                package_name: package_name
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "pull-target-session requires --package".to_string())?,
+                remote_relative,
+                out: out.ok_or_else(|| "pull-target-session requires --out".to_string())?,
+                json,
+            })
+        }
         "open-block" => {
             let mut endpoint = DEFAULT_ENDPOINT.to_string();
             let mut block: Option<u8> = None;
@@ -1528,6 +1593,7 @@ fn help_text() -> String {
         "  install-target-apk --serial SERIAL --apk target.apk [--json]".to_string(),
         "  launch-target-runtime --serial SERIAL --package PACKAGE [--activity ACTIVITY] [--json]"
             .to_string(),
+        "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
         "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
@@ -1638,6 +1704,34 @@ mod tests {
                 package_name: "io.github.example".to_string(),
                 activity: Some(".MainActivity".to_string()),
                 json: false,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_pull_target_session_command() {
+        let command = parse_args(vec![
+            "pull-target-session".to_string(),
+            "--serial".to_string(),
+            "QUEST_SERIAL".to_string(),
+            "--package".to_string(),
+            "io.github.example".to_string(),
+            "--remote-relative".to_string(),
+            "files/runtime_csv/participant-P001/session-001".to_string(),
+            "--out".to_string(),
+            "study-data/device-session-pull".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::PullTargetSession {
+                serial: "QUEST_SERIAL".to_string(),
+                package_name: "io.github.example".to_string(),
+                remote_relative: "files/runtime_csv/participant-P001/session-001".to_string(),
+                out: PathBuf::from("study-data/device-session-pull"),
+                json: true,
             }
         );
     }
