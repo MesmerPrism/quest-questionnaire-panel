@@ -229,6 +229,56 @@ pub fn install_apk(serial: &str, apk_path: &Path) -> Result<CommandRun, String> 
     }
 }
 
+pub fn launch_package(
+    serial: &str,
+    package_name: &str,
+    activity: Option<&str>,
+) -> Result<CommandRun, String> {
+    let serial = serial.trim();
+    if serial.is_empty() {
+        return Err("Device serial is required.".to_string());
+    }
+    let package_name = package_name.trim();
+    if package_name.is_empty() {
+        return Err("Package name is required.".to_string());
+    }
+
+    let adb = require_adb()?;
+    let args = launch_package_args(serial, package_name, activity);
+    let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
+    let run = run_adb(&adb, &arg_refs, Duration::from_secs(20))?;
+    if run.succeeded() {
+        Ok(run)
+    } else {
+        Err(run.condensed_output())
+    }
+}
+
+fn launch_package_args(serial: &str, package_name: &str, activity: Option<&str>) -> Vec<String> {
+    match activity.map(str::trim).filter(|value| !value.is_empty()) {
+        Some(activity) => vec![
+            "-s".to_string(),
+            serial.to_string(),
+            "shell".to_string(),
+            "am".to_string(),
+            "start".to_string(),
+            "-n".to_string(),
+            format!("{package_name}/{activity}"),
+        ],
+        None => vec![
+            "-s".to_string(),
+            serial.to_string(),
+            "shell".to_string(),
+            "monkey".to_string(),
+            "-p".to_string(),
+            package_name.to_string(),
+            "-c".to_string(),
+            "android.intent.category.LAUNCHER".to_string(),
+            "1".to_string(),
+        ],
+    }
+}
+
 pub fn format_tooling_text(status: &ToolingStatus) -> String {
     if status.adb.available {
         format!(
@@ -668,6 +718,40 @@ mod tests {
         assert_eq!(
             parse_focused_app(output).as_deref(),
             Some("io.github.other/.OtherActivity")
+        );
+    }
+
+    #[test]
+    fn builds_launch_package_monkey_args() {
+        assert_eq!(
+            launch_package_args("SERIAL", "io.github.example", None),
+            vec![
+                "-s",
+                "SERIAL",
+                "shell",
+                "monkey",
+                "-p",
+                "io.github.example",
+                "-c",
+                "android.intent.category.LAUNCHER",
+                "1",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_launch_package_activity_args() {
+        assert_eq!(
+            launch_package_args("SERIAL", "io.github.example", Some(".MainActivity")),
+            vec![
+                "-s",
+                "SERIAL",
+                "shell",
+                "am",
+                "start",
+                "-n",
+                "io.github.example/.MainActivity",
+            ]
         );
     }
 }

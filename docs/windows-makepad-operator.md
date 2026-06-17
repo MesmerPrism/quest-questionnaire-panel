@@ -66,10 +66,36 @@ matches the GUI surface:
 | Forward | `bridge-forward --serial <serial> --host-port <port> --device-port <port> [--json]` |
 | Panel APK | `install-panel --serial <serial> --apk <apk-path> [--json]` |
 | Install Panel | `install-panel --serial <serial> --apk <apk-path> [--json]` |
+| Install target APK | `install-target-apk --serial <serial> --apk <apk-path> [--json]` |
+| Launch target runtime | `launch-target-runtime --serial <serial> --package <package> [--activity <activity>] [--json]` |
 | Open Block 1 | `open-block --block 1 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 2 | `open-block --block 2 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Dismiss Panel | `dismiss --session-id <id> --endpoint <url>` |
+
+The CLI also has downstream-runtime helpers for target apps that expose the
+same low-rate bridge route:
+
+| CLI-only helper | Command |
+| --- | --- |
+| Start target session | `start-session --session-id <id> --participant-ref <ref> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Mark target timing event | `mark-timing-event --session-id <id> --marker-name <name> --marker-detail <text> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Stop target session | `stop-session --session-id <id> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Post private fixture JSON | `post-command --file <command.json> --endpoint <url> [--audit-dir <dir>]` |
+
+Keep concrete private runtime protocol ids, package names, APK hashes, study
+stage maps, participant ids, and local file paths in private fixtures. Do not
+promote them into this public operator repository unless a separate
+public-boundary review approves a sanitized version.
+
+Target APK install and target runtime launch are setup/foregrounding helpers
+only. Questionnaire foregrounding must still happen through the on-Quest caller
+bridge and the caller-owned `content://` result URI contract.
+
+When `--audit-dir` is supplied, runtime HTTP helpers append
+`command_audit.jsonl` with the command request, bridge response, timing, and
+error status. Treat that output as local session evidence and keep real study
+audit folders out of source control.
 
 Install example:
 

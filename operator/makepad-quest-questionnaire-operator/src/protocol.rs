@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 pub const OPERATOR_PROTOCOL_VERSION: &str = "quest.questionnaire.operator.v1";
 pub const PANEL_PROTOCOL_VERSION: &str = "quest.questionnaire.v1";
+pub const DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION: &str = "target.runtime.operator.v1";
+pub const DEFAULT_RUNTIME_KIND: &str = "target_quest_apk";
 pub const STUDY_ID: &str = "maia-spatial";
 pub const SCHEMA_ID: &str = "maia2-spatial-frame-questionnaire-v1";
 
@@ -227,6 +229,149 @@ pub struct LastResult {
     pub open_stage: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeOperatorCommandRequest {
+    pub protocol_version: String,
+    pub command_id: String,
+    pub action: RuntimeOperatorAction,
+    pub command_name: String,
+    pub target: RuntimeTargetSpec,
+    pub session: RuntimeSessionSpec,
+    pub runtime_provenance: RuntimeProvenanceSpec,
+    pub marker: RuntimeMarkerSpec,
+}
+
+impl RuntimeOperatorCommandRequest {
+    pub fn start_session(
+        command_id: impl Into<String>,
+        protocol_version: impl Into<String>,
+        target: RuntimeTargetSpec,
+        session: RuntimeSessionSpec,
+        runtime_provenance: RuntimeProvenanceSpec,
+    ) -> Self {
+        Self {
+            protocol_version: protocol_version.into(),
+            command_id: command_id.into(),
+            action: RuntimeOperatorAction::StartSession,
+            command_name: "target_runtime.session.start".to_string(),
+            target,
+            session,
+            runtime_provenance,
+            marker: RuntimeMarkerSpec::default(),
+        }
+    }
+
+    pub fn stop_session(
+        command_id: impl Into<String>,
+        protocol_version: impl Into<String>,
+        target: RuntimeTargetSpec,
+        session_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            protocol_version: protocol_version.into(),
+            command_id: command_id.into(),
+            action: RuntimeOperatorAction::StopSession,
+            command_name: "target_runtime.session.stop".to_string(),
+            target,
+            session: RuntimeSessionSpec {
+                session_id: session_id.into(),
+                ..RuntimeSessionSpec::default()
+            },
+            runtime_provenance: RuntimeProvenanceSpec::default(),
+            marker: RuntimeMarkerSpec::default(),
+        }
+    }
+
+    pub fn mark_timing_event(
+        command_id: impl Into<String>,
+        protocol_version: impl Into<String>,
+        target: RuntimeTargetSpec,
+        session_id: impl Into<String>,
+        marker_name: impl Into<String>,
+        marker_detail: impl Into<String>,
+    ) -> Self {
+        let marker_name = marker_name.into();
+        Self {
+            protocol_version: protocol_version.into(),
+            command_id: command_id.into(),
+            action: RuntimeOperatorAction::MarkTimingEvent,
+            command_name: if marker_name.trim().is_empty() {
+                "target_runtime.timing.marker".to_string()
+            } else {
+                format!("target_runtime.timing.{marker_name}")
+            },
+            target,
+            session: RuntimeSessionSpec {
+                session_id: session_id.into(),
+                ..RuntimeSessionSpec::default()
+            },
+            runtime_provenance: RuntimeProvenanceSpec::default(),
+            marker: RuntimeMarkerSpec {
+                marker_name,
+                marker_detail: marker_detail.into(),
+            },
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeOperatorAction {
+    StartSession,
+    StopSession,
+    MarkTimingEvent,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeTargetSpec {
+    pub runtime_kind: String,
+    pub runtime_package: String,
+    pub bridge_endpoint: String,
+    pub quest_selector: String,
+}
+
+impl RuntimeTargetSpec {
+    pub fn new(
+        runtime_kind: impl Into<String>,
+        runtime_package: impl Into<String>,
+        bridge_endpoint: impl Into<String>,
+        quest_selector: impl Into<String>,
+    ) -> Self {
+        Self {
+            runtime_kind: runtime_kind.into(),
+            runtime_package: runtime_package.into(),
+            bridge_endpoint: bridge_endpoint.into(),
+            quest_selector: quest_selector.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeSessionSpec {
+    pub study_id: String,
+    pub session_id: String,
+    pub participant_ref: String,
+    pub dataset_id: String,
+    pub condition_id: String,
+    pub language_code: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeProvenanceSpec {
+    pub unity_project: String,
+    pub unity_editor: String,
+    pub apk_sha256: String,
+    pub app_version_name: String,
+    pub app_version_code: i32,
+    pub source_commit: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeMarkerSpec {
+    pub marker_name: String,
+    pub marker_detail: String,
+}
+
 pub fn endpoint_url(base_url: &str, path: &str) -> Result<String, String> {
     let base = base_url.trim().trim_end_matches('/');
     if base.is_empty() {
@@ -277,5 +422,48 @@ mod tests {
     #[test]
     fn endpoint_url_rejects_missing_scheme() {
         assert!(endpoint_url("127.0.0.1:8787", "/v1/status").is_err());
+    }
+
+    #[test]
+    fn runtime_start_session_uses_generic_target_fields() {
+        let request = RuntimeOperatorCommandRequest::start_session(
+            "cmd-start",
+            DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
+            RuntimeTargetSpec::new(DEFAULT_RUNTIME_KIND, "example.package", "", ""),
+            RuntimeSessionSpec {
+                study_id: "downstream-study".to_string(),
+                session_id: "session-1".to_string(),
+                participant_ref: "P001".to_string(),
+                condition_id: "condition-a".to_string(),
+                language_code: "en".to_string(),
+                ..RuntimeSessionSpec::default()
+            },
+            RuntimeProvenanceSpec {
+                unity_editor: "6000.x".to_string(),
+                source_commit: "abc123".to_string(),
+                ..RuntimeProvenanceSpec::default()
+            },
+        );
+
+        assert_eq!(request.action, RuntimeOperatorAction::StartSession);
+        assert_eq!(request.target.runtime_kind, DEFAULT_RUNTIME_KIND);
+        assert_eq!(request.session.session_id, "session-1");
+        assert_eq!(request.runtime_provenance.source_commit, "abc123");
+    }
+
+    #[test]
+    fn runtime_marker_command_serializes_snake_case_action() {
+        let request = RuntimeOperatorCommandRequest::mark_timing_event(
+            "cmd-marker",
+            DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
+            RuntimeTargetSpec::new(DEFAULT_RUNTIME_KIND, "", "", ""),
+            "session-1",
+            "stage-start",
+            "operator pressed marker",
+        );
+        let json = serde_json::to_string(&request).unwrap();
+
+        assert!(json.contains("\"action\":\"mark_timing_event\""));
+        assert!(json.contains("\"marker_name\":\"stage-start\""));
     }
 }

@@ -10,9 +10,123 @@ use serde::{Deserialize, Serialize};
 use crate::device;
 use crate::protocol::{
     block_by_number, endpoint_url, BridgeStatusResponse, OperatorCommandRequest,
+    RuntimeOperatorCommandRequest, RuntimeProvenanceSpec, RuntimeSessionSpec, RuntimeTargetSpec,
+    DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
 };
 
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:8787";
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuntimeCommonArgs {
+    pub endpoint: String,
+    pub protocol_version: String,
+    pub target_runtime_kind: String,
+    pub target_runtime_package: String,
+    pub bridge_endpoint: String,
+    pub quest_selector: String,
+    pub command_id: Option<String>,
+    pub command_name: Option<String>,
+    pub audit_dir: Option<PathBuf>,
+}
+
+impl Default for RuntimeCommonArgs {
+    fn default() -> Self {
+        Self {
+            endpoint: DEFAULT_ENDPOINT.to_string(),
+            protocol_version: DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION.to_string(),
+            target_runtime_kind: DEFAULT_RUNTIME_KIND.to_string(),
+            target_runtime_package: String::new(),
+            bridge_endpoint: String::new(),
+            quest_selector: String::new(),
+            command_id: None,
+            command_name: None,
+            audit_dir: None,
+        }
+    }
+}
+
+impl RuntimeCommonArgs {
+    fn command_id_or_generated(&self, prefix: &str) -> String {
+        self.command_id
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| generated_command_id(prefix))
+    }
+
+    fn target(&self) -> RuntimeTargetSpec {
+        RuntimeTargetSpec::new(
+            self.target_runtime_kind.clone(),
+            self.target_runtime_package.clone(),
+            if self.bridge_endpoint.trim().is_empty() {
+                self.endpoint.clone()
+            } else {
+                self.bridge_endpoint.clone()
+            },
+            self.quest_selector.clone(),
+        )
+    }
+
+    fn apply_command_name(&self, body: &mut RuntimeOperatorCommandRequest) {
+        if let Some(command_name) = self
+            .command_name
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+        {
+            body.command_name = command_name.to_string();
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RuntimeSessionArgs {
+    pub study_id: String,
+    pub session_id: String,
+    pub participant_ref: String,
+    pub dataset_id: String,
+    pub condition_id: String,
+    pub language_code: String,
+}
+
+impl RuntimeSessionArgs {
+    fn to_spec(&self) -> RuntimeSessionSpec {
+        RuntimeSessionSpec {
+            study_id: self.study_id.clone(),
+            session_id: self.session_id.clone(),
+            participant_ref: self.participant_ref.clone(),
+            dataset_id: self.dataset_id.clone(),
+            condition_id: self.condition_id.clone(),
+            language_code: if self.language_code.trim().is_empty() {
+                "en".to_string()
+            } else {
+                self.language_code.clone()
+            },
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RuntimeProvenanceArgs {
+    pub unity_project: String,
+    pub unity_editor: String,
+    pub apk_sha256: String,
+    pub app_version_name: String,
+    pub app_version_code: i32,
+    pub source_commit: String,
+}
+
+impl RuntimeProvenanceArgs {
+    fn to_spec(&self) -> RuntimeProvenanceSpec {
+        RuntimeProvenanceSpec {
+            unity_project: self.unity_project.clone(),
+            unity_editor: self.unity_editor.clone(),
+            apk_sha256: self.apk_sha256.clone(),
+            app_version_name: self.app_version_name.clone(),
+            app_version_code: self.app_version_code,
+            source_commit: self.source_commit.clone(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CliCommand {
@@ -40,6 +154,17 @@ pub enum CliCommand {
         apk: PathBuf,
         json: bool,
     },
+    InstallTargetApk {
+        serial: String,
+        apk: PathBuf,
+        json: bool,
+    },
+    LaunchTargetRuntime {
+        serial: String,
+        package_name: String,
+        activity: Option<String>,
+        json: bool,
+    },
     OpenBlock {
         endpoint: String,
         block: u8,
@@ -55,6 +180,26 @@ pub enum CliCommand {
         endpoint: String,
         session_id: String,
         command_id: Option<String>,
+    },
+    StartSession {
+        common: RuntimeCommonArgs,
+        session: RuntimeSessionArgs,
+        provenance: RuntimeProvenanceArgs,
+    },
+    StopSession {
+        common: RuntimeCommonArgs,
+        session_id: String,
+    },
+    MarkTimingEvent {
+        common: RuntimeCommonArgs,
+        session_id: String,
+        marker_name: String,
+        marker_detail: String,
+    },
+    PostCommand {
+        endpoint: String,
+        file: PathBuf,
+        audit_dir: Option<PathBuf>,
     },
     ProofRun {
         endpoint: String,
@@ -98,6 +243,15 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             json,
         } => bridge_forward(&serial, host_port, device_port, json),
         CliCommand::InstallPanel { serial, apk, json } => install_panel(&serial, &apk, json),
+        CliCommand::InstallTargetApk { serial, apk, json } => {
+            install_target_apk(&serial, &apk, json)
+        }
+        CliCommand::LaunchTargetRuntime {
+            serial,
+            package_name,
+            activity,
+            json,
+        } => launch_target_runtime(&serial, &package_name, activity.as_deref(), json),
         CliCommand::OpenBlock {
             endpoint,
             block,
@@ -124,6 +278,23 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             session_id,
             command_id,
         } => dismiss(&endpoint, &session_id, command_id.as_deref()),
+        CliCommand::StartSession {
+            common,
+            session,
+            provenance,
+        } => start_session(common, session, provenance),
+        CliCommand::StopSession { common, session_id } => stop_session(common, &session_id),
+        CliCommand::MarkTimingEvent {
+            common,
+            session_id,
+            marker_name,
+            marker_detail,
+        } => mark_timing_event(common, &session_id, &marker_name, &marker_detail),
+        CliCommand::PostCommand {
+            endpoint,
+            file,
+            audit_dir,
+        } => post_command_file(&endpoint, &file, audit_dir.as_deref()),
         CliCommand::ProofRun {
             endpoint,
             block,
@@ -208,6 +379,34 @@ pub fn install_panel(serial: &str, apk: &Path, json: bool) -> Result<String, Str
     }
 }
 
+pub fn install_target_apk(serial: &str, apk: &Path, json: bool) -> Result<String, String> {
+    let run = device::install_apk(serial, apk)?;
+    if json {
+        serde_json::to_string_pretty(&run).map_err(|err| err.to_string())
+    } else {
+        Ok(format!(
+            "Installed target APK on {serial}: {}",
+            apk.display()
+        ))
+    }
+}
+
+pub fn launch_target_runtime(
+    serial: &str,
+    package_name: &str,
+    activity: Option<&str>,
+    json: bool,
+) -> Result<String, String> {
+    let run = device::launch_package(serial, package_name, activity)?;
+    if json {
+        serde_json::to_string_pretty(&run).map_err(|err| err.to_string())
+    } else {
+        Ok(format!(
+            "Launch requested for target runtime {package_name}."
+        ))
+    }
+}
+
 pub fn get_status(endpoint: &str) -> Result<String, String> {
     let url = endpoint_url(endpoint, "/v1/status")?;
     http_request("GET", &url, None)
@@ -261,6 +460,79 @@ pub fn dismiss(
         endpoint,
         OperatorCommandRequest::dismiss(command_id, session_id.to_string()),
     )
+}
+
+pub fn start_session(
+    common: RuntimeCommonArgs,
+    session: RuntimeSessionArgs,
+    provenance: RuntimeProvenanceArgs,
+) -> Result<String, String> {
+    if session.session_id.trim().is_empty() {
+        return Err("start-session requires --session-id".to_string());
+    }
+    if session.participant_ref.trim().is_empty() {
+        return Err("start-session requires --participant-ref".to_string());
+    }
+
+    let mut body = RuntimeOperatorCommandRequest::start_session(
+        common.command_id_or_generated("operator-cli-start-session"),
+        common.protocol_version.clone(),
+        common.target(),
+        session.to_spec(),
+        provenance.to_spec(),
+    );
+    common.apply_command_name(&mut body);
+    post_runtime_command(&common.endpoint, body, common.audit_dir.as_deref())
+}
+
+pub fn stop_session(common: RuntimeCommonArgs, session_id: &str) -> Result<String, String> {
+    if session_id.trim().is_empty() {
+        return Err("stop-session requires --session-id".to_string());
+    }
+
+    let mut body = RuntimeOperatorCommandRequest::stop_session(
+        common.command_id_or_generated("operator-cli-stop-session"),
+        common.protocol_version.clone(),
+        common.target(),
+        session_id.to_string(),
+    );
+    common.apply_command_name(&mut body);
+    post_runtime_command(&common.endpoint, body, common.audit_dir.as_deref())
+}
+
+pub fn mark_timing_event(
+    common: RuntimeCommonArgs,
+    session_id: &str,
+    marker_name: &str,
+    marker_detail: &str,
+) -> Result<String, String> {
+    if session_id.trim().is_empty() {
+        return Err("mark-timing-event requires --session-id".to_string());
+    }
+    if marker_name.trim().is_empty() {
+        return Err("mark-timing-event requires --marker-name".to_string());
+    }
+
+    let mut body = RuntimeOperatorCommandRequest::mark_timing_event(
+        common.command_id_or_generated("operator-cli-marker"),
+        common.protocol_version.clone(),
+        common.target(),
+        session_id.to_string(),
+        marker_name.to_string(),
+        marker_detail.to_string(),
+    );
+    common.apply_command_name(&mut body);
+    post_runtime_command(&common.endpoint, body, common.audit_dir.as_deref())
+}
+
+pub fn post_command_file(
+    endpoint: &str,
+    file: &Path,
+    audit_dir: Option<&Path>,
+) -> Result<String, String> {
+    let body = fs::read_to_string(file)
+        .map_err(|err| format!("Could not read command JSON file {}: {err}", file.display()))?;
+    post_raw_command_with_audit(endpoint, &body, audit_dir)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -424,10 +696,133 @@ fn proof_run(options: ProofRunOptions) -> Result<String, String> {
 }
 
 fn post_command(endpoint: &str, body: OperatorCommandRequest) -> Result<String, String> {
-    let url = endpoint_url(endpoint, "/v1/command")?;
     let body = serde_json::to_string_pretty(&body)
         .map_err(|err| format!("Could not encode command JSON: {err}"))?;
-    http_request("POST", &url, Some(&body))
+    post_raw_command(endpoint, &body)
+}
+
+fn post_runtime_command(
+    endpoint: &str,
+    body: RuntimeOperatorCommandRequest,
+    audit_dir: Option<&Path>,
+) -> Result<String, String> {
+    let body = serde_json::to_string_pretty(&body)
+        .map_err(|err| format!("Could not encode runtime command JSON: {err}"))?;
+    post_raw_command_with_audit(endpoint, &body, audit_dir)
+}
+
+fn post_raw_command(endpoint: &str, body: &str) -> Result<String, String> {
+    let url = endpoint_url(endpoint, "/v1/command")?;
+    http_request("POST", &url, Some(body))
+}
+
+fn post_raw_command_with_audit(
+    endpoint: &str,
+    body: &str,
+    audit_dir: Option<&Path>,
+) -> Result<String, String> {
+    let started_unix_ms = unix_ms();
+    let result = post_raw_command(endpoint, body);
+    let completed_unix_ms = unix_ms();
+
+    if let Some(audit_dir) = audit_dir {
+        if let Err(audit_err) = write_command_audit(
+            audit_dir,
+            endpoint,
+            body,
+            &result,
+            started_unix_ms,
+            completed_unix_ms,
+        ) {
+            return match result {
+                Ok(_) => Err(audit_err),
+                Err(command_err) => Err(format!("{command_err}\nAudit write failed: {audit_err}")),
+            };
+        }
+    }
+
+    result
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct CommandAuditRecord {
+    protocol_version: String,
+    started_unix_ms: u128,
+    completed_unix_ms: u128,
+    endpoint: String,
+    command_id: Option<String>,
+    command_name: Option<String>,
+    action: Option<String>,
+    accepted: Option<bool>,
+    request: serde_json::Value,
+    response: Option<serde_json::Value>,
+    error: Option<String>,
+}
+
+fn write_command_audit(
+    audit_dir: &Path,
+    endpoint: &str,
+    request_body: &str,
+    result: &Result<String, String>,
+    started_unix_ms: u128,
+    completed_unix_ms: u128,
+) -> Result<(), String> {
+    let request = serde_json::from_str::<serde_json::Value>(request_body)
+        .unwrap_or_else(|_| serde_json::Value::String(request_body.to_string()));
+    let response = result
+        .as_ref()
+        .ok()
+        .and_then(|body| serde_json::from_str::<serde_json::Value>(body).ok());
+    let record = CommandAuditRecord {
+        protocol_version: "quest.questionnaire.operator.command-audit.v1".to_string(),
+        started_unix_ms,
+        completed_unix_ms,
+        endpoint: endpoint.to_string(),
+        command_id: json_string_field(&request, "command_id"),
+        command_name: json_string_field(&request, "command_name"),
+        action: json_string_field(&request, "action"),
+        accepted: response
+            .as_ref()
+            .and_then(|value| value.get("accepted"))
+            .and_then(serde_json::Value::as_bool),
+        request,
+        response,
+        error: result.as_ref().err().cloned(),
+    };
+
+    fs::create_dir_all(audit_dir).map_err(|err| {
+        format!(
+            "Could not create command audit folder {}: {err}",
+            audit_dir.display()
+        )
+    })?;
+    let audit_path = audit_dir.join("command_audit.jsonl");
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&audit_path)
+        .map_err(|err| {
+            format!(
+                "Could not open command audit {}: {err}",
+                audit_path.display()
+            )
+        })?;
+    let line = serde_json::to_string(&record)
+        .map_err(|err| format!("Could not encode command audit record: {err}"))?;
+    writeln!(file, "{line}").map_err(|err| {
+        format!(
+            "Could not write command audit {}: {err}",
+            audit_path.display()
+        )
+    })
+}
+
+fn json_string_field(value: &serde_json::Value, field: &str) -> Option<String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
 }
 
 fn parse_status_json(raw: &str) -> Result<BridgeStatusResponse, String> {
@@ -582,6 +977,55 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 json,
             })
         }
+        "install-target-apk" => {
+            let mut serial: Option<String> = None;
+            let mut apk: Option<PathBuf> = None;
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--serial" => serial = Some(next_value(&mut iter, "--serial")?),
+                    "--apk" => apk = Some(PathBuf::from(next_value(&mut iter, "--apk")?)),
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown install-target-apk argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::InstallTargetApk {
+                serial: serial
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "install-target-apk requires --serial".to_string())?,
+                apk: apk.ok_or_else(|| "install-target-apk requires --apk".to_string())?,
+                json,
+            })
+        }
+        "launch-target-runtime" => {
+            let mut serial: Option<String> = None;
+            let mut package_name: Option<String> = None;
+            let mut activity: Option<String> = None;
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--serial" => serial = Some(next_value(&mut iter, "--serial")?),
+                    "--package" | "--package-name" => {
+                        package_name = Some(next_value(&mut iter, "--package")?)
+                    }
+                    "--activity" => activity = Some(next_value(&mut iter, "--activity")?),
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown launch-target-runtime argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::LaunchTargetRuntime {
+                serial: serial
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "launch-target-runtime requires --serial".to_string())?,
+                package_name: package_name
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "launch-target-runtime requires --package".to_string())?,
+                activity,
+                json,
+            })
+        }
         "open-block" => {
             let mut endpoint = DEFAULT_ENDPOINT.to_string();
             let mut block: Option<u8> = None;
@@ -666,6 +1110,146 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 command_id,
             })
         }
+        "start-session" => {
+            let mut common = RuntimeCommonArgs::default();
+            let mut session = RuntimeSessionArgs {
+                language_code: "en".to_string(),
+                ..RuntimeSessionArgs::default()
+            };
+            let mut provenance = RuntimeProvenanceArgs::default();
+            while let Some(arg) = iter.next() {
+                if parse_runtime_common_arg(&arg, &mut iter, &mut common)? {
+                    continue;
+                }
+                match arg.as_str() {
+                    "--study-id" => session.study_id = next_value(&mut iter, "--study-id")?,
+                    "--session-id" | "--session" => {
+                        session.session_id = next_value(&mut iter, "--session-id")?
+                    }
+                    "--participant-ref" | "--participant" => {
+                        session.participant_ref = next_value(&mut iter, "--participant-ref")?
+                    }
+                    "--dataset-id" => session.dataset_id = next_value(&mut iter, "--dataset-id")?,
+                    "--condition-id" => {
+                        session.condition_id = next_value(&mut iter, "--condition-id")?
+                    }
+                    "--language-code" | "--language" => {
+                        session.language_code = next_value(&mut iter, "--language-code")?
+                    }
+                    "--unity-project" => {
+                        provenance.unity_project = next_value(&mut iter, "--unity-project")?
+                    }
+                    "--unity-editor" => {
+                        provenance.unity_editor = next_value(&mut iter, "--unity-editor")?
+                    }
+                    "--apk-sha256" => {
+                        provenance.apk_sha256 = next_value(&mut iter, "--apk-sha256")?
+                    }
+                    "--app-version-name" => {
+                        provenance.app_version_name = next_value(&mut iter, "--app-version-name")?
+                    }
+                    "--app-version-code" => {
+                        let raw = next_value(&mut iter, "--app-version-code")?;
+                        provenance.app_version_code = raw
+                            .parse::<i32>()
+                            .map_err(|_| "--app-version-code must be an integer".to_string())?;
+                    }
+                    "--source-commit" => {
+                        provenance.source_commit = next_value(&mut iter, "--source-commit")?
+                    }
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown start-session argument: {arg}")),
+                }
+            }
+            if session.session_id.trim().is_empty() {
+                return Err("start-session requires --session-id".to_string());
+            }
+            if session.participant_ref.trim().is_empty() {
+                return Err("start-session requires --participant-ref".to_string());
+            }
+            Ok(CliCommand::StartSession {
+                common,
+                session,
+                provenance,
+            })
+        }
+        "stop-session" => {
+            let mut common = RuntimeCommonArgs::default();
+            let mut session_id: Option<String> = None;
+            while let Some(arg) = iter.next() {
+                if parse_runtime_common_arg(&arg, &mut iter, &mut common)? {
+                    continue;
+                }
+                match arg.as_str() {
+                    "--session-id" | "--session" => {
+                        session_id = Some(next_value(&mut iter, "--session-id")?)
+                    }
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown stop-session argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::StopSession {
+                common,
+                session_id: session_id
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "stop-session requires --session-id".to_string())?,
+            })
+        }
+        "mark-timing-event" => {
+            let mut common = RuntimeCommonArgs::default();
+            let mut session_id: Option<String> = None;
+            let mut marker_name: Option<String> = None;
+            let mut marker_detail = String::new();
+            while let Some(arg) = iter.next() {
+                if parse_runtime_common_arg(&arg, &mut iter, &mut common)? {
+                    continue;
+                }
+                match arg.as_str() {
+                    "--session-id" | "--session" => {
+                        session_id = Some(next_value(&mut iter, "--session-id")?)
+                    }
+                    "--marker-name" | "--marker" => {
+                        marker_name = Some(next_value(&mut iter, "--marker-name")?)
+                    }
+                    "--marker-detail" | "--detail" => {
+                        marker_detail = next_value(&mut iter, "--marker-detail")?
+                    }
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown mark-timing-event argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::MarkTimingEvent {
+                common,
+                session_id: session_id
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "mark-timing-event requires --session-id".to_string())?,
+                marker_name: marker_name
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "mark-timing-event requires --marker-name".to_string())?,
+                marker_detail,
+            })
+        }
+        "post-command" => {
+            let mut endpoint = DEFAULT_ENDPOINT.to_string();
+            let mut file: Option<PathBuf> = None;
+            let mut audit_dir: Option<PathBuf> = None;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--endpoint" => endpoint = next_value(&mut iter, "--endpoint")?,
+                    "--file" => file = Some(PathBuf::from(next_value(&mut iter, "--file")?)),
+                    "--audit-dir" => {
+                        audit_dir = Some(PathBuf::from(next_value(&mut iter, "--audit-dir")?))
+                    }
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown post-command argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::PostCommand {
+                endpoint,
+                file: file.ok_or_else(|| "post-command requires --file".to_string())?,
+                audit_dir,
+            })
+        }
         "proof-run" => {
             let mut endpoint = DEFAULT_ENDPOINT.to_string();
             let mut block: Option<u8> = None;
@@ -742,6 +1326,52 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
             })
         }
         _ => Err(format!("Unknown command: {command}\n\n{}", help_text())),
+    }
+}
+
+fn parse_runtime_common_arg(
+    arg: &str,
+    iter: &mut impl Iterator<Item = String>,
+    common: &mut RuntimeCommonArgs,
+) -> Result<bool, String> {
+    match arg {
+        "--endpoint" => {
+            common.endpoint = next_value(iter, "--endpoint")?;
+            Ok(true)
+        }
+        "--protocol-version" => {
+            common.protocol_version = next_value(iter, "--protocol-version")?;
+            Ok(true)
+        }
+        "--target-runtime-kind" | "--runtime-kind" => {
+            common.target_runtime_kind = next_value(iter, "--target-runtime-kind")?;
+            Ok(true)
+        }
+        "--target-runtime-package" | "--runtime-package" => {
+            common.target_runtime_package = next_value(iter, "--target-runtime-package")?;
+            Ok(true)
+        }
+        "--bridge-endpoint" => {
+            common.bridge_endpoint = next_value(iter, "--bridge-endpoint")?;
+            Ok(true)
+        }
+        "--quest-selector" => {
+            common.quest_selector = next_value(iter, "--quest-selector")?;
+            Ok(true)
+        }
+        "--command-id" => {
+            common.command_id = Some(next_value(iter, "--command-id")?);
+            Ok(true)
+        }
+        "--command-name" => {
+            common.command_name = Some(next_value(iter, "--command-name")?);
+            Ok(true)
+        }
+        "--audit-dir" => {
+            common.audit_dir = Some(PathBuf::from(next_value(iter, "--audit-dir")?));
+            Ok(true)
+        }
+        _ => Ok(false),
     }
 }
 
@@ -895,8 +1525,15 @@ fn help_text() -> String {
             "  install-panel --serial SERIAL [--apk {}] [--json]",
             device::DEFAULT_PANEL_APK_PATH
         ),
+        "  install-target-apk --serial SERIAL --apk target.apk [--json]".to_string(),
+        "  launch-target-runtime --serial SERIAL --package PACKAGE [--activity ACTIVITY] [--json]"
+            .to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
+        "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
+        "  stop-session --session-id ID [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
+        "  mark-timing-event --session-id ID --marker-name NAME [--marker-detail TEXT] [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
+        "  post-command --file command.json [--endpoint URL] [--audit-dir DIR]".to_string(),
         "  proof-run --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--out FOLDER] [--timeout-ms MS] [--poll-interval-ms MS]".to_string(),
     ]
     .join("\n")
@@ -960,6 +1597,52 @@ mod tests {
     }
 
     #[test]
+    fn parses_install_target_apk_command() {
+        let command = parse_args(vec![
+            "install-target-apk".to_string(),
+            "--serial".to_string(),
+            "QUEST_SERIAL".to_string(),
+            "--apk".to_string(),
+            "target-runtime.apk".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::InstallTargetApk {
+                serial: "QUEST_SERIAL".to_string(),
+                apk: PathBuf::from("target-runtime.apk"),
+                json: true,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_launch_target_runtime_command() {
+        let command = parse_args(vec![
+            "launch-target-runtime".to_string(),
+            "--serial".to_string(),
+            "QUEST_SERIAL".to_string(),
+            "--package".to_string(),
+            "io.github.example".to_string(),
+            "--activity".to_string(),
+            ".MainActivity".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::LaunchTargetRuntime {
+                serial: "QUEST_SERIAL".to_string(),
+                package_name: "io.github.example".to_string(),
+                activity: Some(".MainActivity".to_string()),
+                json: false,
+            }
+        );
+    }
+
+    #[test]
     fn parses_http_url_with_path() {
         assert_eq!(
             HttpUrl::parse("http://127.0.0.1:8787/v1/status").unwrap(),
@@ -974,5 +1657,140 @@ mod tests {
     #[test]
     fn rejects_https_for_stdlib_client() {
         assert!(HttpUrl::parse("https://127.0.0.1:8787/v1/status").is_err());
+    }
+
+    #[test]
+    fn parses_start_session_command() {
+        let command = parse_args(vec![
+            "start-session".to_string(),
+            "--session-id".to_string(),
+            "session-1".to_string(),
+            "--participant-ref".to_string(),
+            "P001".to_string(),
+            "--protocol-version".to_string(),
+            "private.runtime.operator.v1".to_string(),
+            "--runtime-kind".to_string(),
+            "target_quest_apk".to_string(),
+            "--condition-id".to_string(),
+            "condition-a".to_string(),
+            "--source-commit".to_string(),
+            "abc123".to_string(),
+            "--command-name".to_string(),
+            "private.session.start".to_string(),
+            "--audit-dir".to_string(),
+            "audit-output".to_string(),
+        ])
+        .unwrap();
+
+        match command {
+            CliCommand::StartSession {
+                common,
+                session,
+                provenance,
+            } => {
+                assert_eq!(common.protocol_version, "private.runtime.operator.v1");
+                assert_eq!(common.target_runtime_kind, "target_quest_apk");
+                assert_eq!(
+                    common.command_name.as_deref(),
+                    Some("private.session.start")
+                );
+                assert_eq!(common.audit_dir.as_deref(), Some(Path::new("audit-output")));
+                assert_eq!(session.session_id, "session-1");
+                assert_eq!(session.participant_ref, "P001");
+                assert_eq!(session.condition_id, "condition-a");
+                assert_eq!(provenance.source_commit, "abc123");
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_stop_session_command() {
+        let command = parse_args(vec![
+            "stop-session".to_string(),
+            "--session".to_string(),
+            "session-1".to_string(),
+            "--command-name".to_string(),
+            "private.session.stop".to_string(),
+        ])
+        .unwrap();
+
+        match command {
+            CliCommand::StopSession { common, session_id } => {
+                assert_eq!(session_id, "session-1");
+                assert_eq!(common.command_name.as_deref(), Some("private.session.stop"));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_mark_timing_event_command() {
+        let command = parse_args(vec![
+            "mark-timing-event".to_string(),
+            "--session-id".to_string(),
+            "session-1".to_string(),
+            "--marker-name".to_string(),
+            "condition_start".to_string(),
+            "--marker-detail".to_string(),
+            "operator marker".to_string(),
+        ])
+        .unwrap();
+
+        match command {
+            CliCommand::MarkTimingEvent {
+                session_id,
+                marker_name,
+                marker_detail,
+                ..
+            } => {
+                assert_eq!(session_id, "session-1");
+                assert_eq!(marker_name, "condition_start");
+                assert_eq!(marker_detail, "operator marker");
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_post_command_file() {
+        let command = parse_args(vec![
+            "post-command".to_string(),
+            "--file".to_string(),
+            "command.json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::PostCommand {
+                endpoint: DEFAULT_ENDPOINT.to_string(),
+                file: PathBuf::from("command.json"),
+                audit_dir: None,
+            }
+        );
+    }
+
+    #[test]
+    fn writes_command_audit_jsonl() {
+        let audit_dir = std::env::temp_dir().join(format!("quest-operator-audit-{}", unix_ms()));
+        let result =
+            Ok("{\"accepted\":true,\"command_id\":\"cmd-1\",\"message\":\"accepted\"}".to_string());
+
+        write_command_audit(
+            &audit_dir,
+            "http://127.0.0.1:8787",
+            "{\"command_id\":\"cmd-1\",\"command_name\":\"runtime.start\",\"action\":\"start_session\"}",
+            &result,
+            100,
+            120,
+        )
+        .unwrap();
+
+        let audit_path = audit_dir.join("command_audit.jsonl");
+        let text = fs::read_to_string(&audit_path).unwrap();
+        assert!(text.contains("\"command_id\":\"cmd-1\""));
+        assert!(text.contains("\"accepted\":true"));
+        fs::remove_dir_all(&audit_dir).unwrap();
     }
 }
