@@ -81,6 +81,7 @@ same low-rate bridge route:
 | --- | --- |
 | Start target session | `start-session --session-id <id> --participant-ref <ref> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Mark target timing event | `mark-timing-event --session-id <id> --marker-name <name> --marker-detail <text> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Open target questionnaire | `open-questionnaire --session-id <id> --participant-ref <ref> --study-id <id> --questionnaire-id <id> --open-stage <stage> --screen-sequence <a,b> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Stop target session | `stop-session --session-id <id> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Post private fixture JSON | `post-command --file <command.json> --endpoint <url> [--audit-dir <dir>]` |
 
@@ -92,6 +93,10 @@ public-boundary review approves a sanitized version.
 Target APK install and target runtime launch are setup/foregrounding helpers
 only. Questionnaire foregrounding must still happen through the on-Quest caller
 bridge and the caller-owned `content://` result URI contract.
+
+The generic `open-questionnaire` helper builds the low-rate command envelope
+for a target runtime bridge. It does not create result URIs, use ADB for panel
+launch, or replace study-specific fixture review.
 
 Target session pull is an explicit export operation. It copies app-specific
 Quest files from `/sdcard/Android/data/<package>/...` into a chosen local

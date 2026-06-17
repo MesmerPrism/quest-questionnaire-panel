@@ -10,8 +10,9 @@ use serde::{Deserialize, Serialize};
 use crate::device;
 use crate::protocol::{
     block_by_number, endpoint_url, BridgeStatusResponse, OperatorCommandRequest,
-    RuntimeOperatorCommandRequest, RuntimeProvenanceSpec, RuntimeSessionSpec, RuntimeTargetSpec,
-    DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
+    RuntimeOperatorCommandRequest, RuntimePanelLaunchSpec, RuntimeProvenanceSpec,
+    RuntimeQuestionnaireStateSpec, RuntimeSessionSpec, RuntimeTargetSpec, DEFAULT_RUNTIME_KIND,
+    DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION,
 };
 
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:8787";
@@ -203,6 +204,10 @@ pub enum CliCommand {
         marker_name: String,
         marker_detail: String,
     },
+    OpenQuestionnaire {
+        common: RuntimeCommonArgs,
+        panel_request: RuntimePanelLaunchSpec,
+    },
     PostCommand {
         endpoint: String,
         file: PathBuf,
@@ -304,6 +309,10 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             marker_name,
             marker_detail,
         } => mark_timing_event(common, &session_id, &marker_name, &marker_detail),
+        CliCommand::OpenQuestionnaire {
+            common,
+            panel_request,
+        } => open_questionnaire(common, panel_request),
         CliCommand::PostCommand {
             endpoint,
             file,
@@ -552,6 +561,61 @@ pub fn mark_timing_event(
         session_id.to_string(),
         marker_name.to_string(),
         marker_detail.to_string(),
+    );
+    common.apply_command_name(&mut body);
+    post_runtime_command(&common.endpoint, body, common.audit_dir.as_deref())
+}
+
+pub fn open_questionnaire(
+    common: RuntimeCommonArgs,
+    mut panel_request: RuntimePanelLaunchSpec,
+) -> Result<String, String> {
+    if panel_request.session_id.trim().is_empty() {
+        return Err("open-questionnaire requires --session-id".to_string());
+    }
+    if panel_request.study_id.trim().is_empty() {
+        return Err("open-questionnaire requires --study-id".to_string());
+    }
+    if panel_request.schema_id.trim().is_empty() && panel_request.questionnaire_id.trim().is_empty()
+    {
+        return Err("open-questionnaire requires --questionnaire-id or --schema-id".to_string());
+    }
+    if panel_request.schema_id.trim().is_empty() {
+        panel_request.schema_id = panel_request.questionnaire_id.clone();
+    }
+    if panel_request.questionnaire_id.trim().is_empty() {
+        panel_request.questionnaire_id = panel_request.schema_id.clone();
+    }
+    if panel_request.open_stage.trim().is_empty() {
+        return Err("open-questionnaire requires --open-stage".to_string());
+    }
+    if panel_request.screen_sequence.is_empty() {
+        panel_request
+            .screen_sequence
+            .push(panel_request.open_stage.clone());
+    }
+    if panel_request.participant_ref.trim().is_empty() {
+        return Err("open-questionnaire requires --participant-ref".to_string());
+    }
+    if panel_request.caller_package_name.trim().is_empty() {
+        panel_request.caller_package_name = common.target_runtime_package.clone();
+    }
+
+    let state = panel_request
+        .questionnaire_state
+        .get_or_insert_with(RuntimeQuestionnaireStateSpec::default);
+    if state.language_code.trim().is_empty() {
+        state.language_code = "en".to_string();
+    }
+    if state.condition_index < 0 && panel_request.condition_number >= 0 {
+        state.condition_index = panel_request.condition_number;
+    }
+
+    let mut body = RuntimeOperatorCommandRequest::open_questionnaire(
+        common.command_id_or_generated("operator-cli-open-questionnaire"),
+        common.protocol_version.clone(),
+        common.target(),
+        panel_request,
     );
     common.apply_command_name(&mut body);
     post_runtime_command(&common.endpoint, body, common.audit_dir.as_deref())
@@ -1294,6 +1358,94 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 marker_detail,
             })
         }
+        "open-questionnaire" => {
+            let mut common = RuntimeCommonArgs::default();
+            let mut panel_request = RuntimePanelLaunchSpec::default();
+            let mut state = RuntimeQuestionnaireStateSpec {
+                language_code: "en".to_string(),
+                ..RuntimeQuestionnaireStateSpec::default()
+            };
+            while let Some(arg) = iter.next() {
+                if parse_runtime_common_arg(&arg, &mut iter, &mut common)? {
+                    continue;
+                }
+                match arg.as_str() {
+                    "--panel-protocol-version" => {
+                        panel_request.protocol_version =
+                            next_value(&mut iter, "--panel-protocol-version")?
+                    }
+                    "--study-id" => panel_request.study_id = next_value(&mut iter, "--study-id")?,
+                    "--session-id" | "--session" => {
+                        panel_request.session_id = next_value(&mut iter, "--session-id")?
+                    }
+                    "--participant-ref" | "--participant" => {
+                        panel_request.participant_ref = next_value(&mut iter, "--participant-ref")?
+                    }
+                    "--schema-id" => {
+                        panel_request.schema_id = next_value(&mut iter, "--schema-id")?
+                    }
+                    "--questionnaire-id" => {
+                        panel_request.questionnaire_id =
+                            next_value(&mut iter, "--questionnaire-id")?
+                    }
+                    "--open-stage" => {
+                        panel_request.open_stage = next_value(&mut iter, "--open-stage")?
+                    }
+                    "--screen" => {
+                        let stage = next_value(&mut iter, "--screen")?;
+                        if !stage.trim().is_empty() {
+                            panel_request.screen_sequence.push(stage);
+                        }
+                    }
+                    "--screen-sequence" => {
+                        let raw = next_value(&mut iter, "--screen-sequence")?;
+                        extend_screen_sequence(&raw, &mut panel_request.screen_sequence);
+                    }
+                    "--condition-number" => {
+                        panel_request.condition_number = parse_i32(
+                            &next_value(&mut iter, "--condition-number")?,
+                            "--condition-number",
+                        )?
+                    }
+                    "--caller-package-name" | "--caller-package" => {
+                        panel_request.caller_package_name =
+                            next_value(&mut iter, "--caller-package-name")?
+                    }
+                    "--caller-app-version" => {
+                        panel_request.caller_app_version =
+                            next_value(&mut iter, "--caller-app-version")?
+                    }
+                    "--language-code" | "--language" => {
+                        state.language_code = next_value(&mut iter, "--language-code")?
+                    }
+                    "--condition-id" => {
+                        state.condition_id = next_value(&mut iter, "--condition-id")?
+                    }
+                    "--condition-label" => {
+                        state.condition_label = next_value(&mut iter, "--condition-label")?
+                    }
+                    "--operator-stage" => {
+                        state.operator_stage = next_value(&mut iter, "--operator-stage")?
+                    }
+                    "--condition-index" => {
+                        state.condition_index = parse_i32(
+                            &next_value(&mut iter, "--condition-index")?,
+                            "--condition-index",
+                        )?
+                    }
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown open-questionnaire argument: {arg}")),
+                }
+            }
+            if panel_request.protocol_version.trim().is_empty() {
+                panel_request.protocol_version = PANEL_PROTOCOL_VERSION.to_string();
+            }
+            panel_request.questionnaire_state = Some(state);
+            Ok(CliCommand::OpenQuestionnaire {
+                common,
+                panel_request,
+            })
+        }
         "post-command" => {
             let mut endpoint = DEFAULT_ENDPOINT.to_string();
             let mut file: Option<PathBuf> = None;
@@ -1462,6 +1614,21 @@ fn parse_u64(value: &str, flag: &str) -> Result<u64, String> {
         .ok_or_else(|| format!("{flag} must be a positive integer"))
 }
 
+fn parse_i32(value: &str, flag: &str) -> Result<i32, String> {
+    value
+        .parse::<i32>()
+        .map_err(|_| format!("{flag} must be an integer"))
+}
+
+fn extend_screen_sequence(raw: &str, screen_sequence: &mut Vec<String>) {
+    for stage in raw.split(',') {
+        let stage = stage.trim();
+        if !stage.is_empty() {
+            screen_sequence.push(stage.to_string());
+        }
+    }
+}
+
 fn http_request(method: &str, url: &str, body: Option<&str>) -> Result<String, String> {
     let parsed = HttpUrl::parse(url)?;
     let mut stream = TcpStream::connect((parsed.host.as_str(), parsed.port)).map_err(|err| {
@@ -1599,6 +1766,7 @@ fn help_text() -> String {
         "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  stop-session --session-id ID [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  mark-timing-event --session-id ID --marker-name NAME [--marker-detail TEXT] [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
+        "  open-questionnaire --session-id ID --participant-ref REF --study-id ID --questionnaire-id ID --open-stage STAGE [--screen-sequence A,B] [--condition-number N] [--language-code en] [--condition-id ID] [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  post-command --file command.json [--endpoint URL] [--audit-dir DIR]".to_string(),
         "  proof-run --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--out FOLDER] [--timeout-ms MS] [--poll-interval-ms MS]".to_string(),
     ]
@@ -1841,6 +2009,63 @@ mod tests {
                 assert_eq!(session_id, "session-1");
                 assert_eq!(marker_name, "condition_start");
                 assert_eq!(marker_detail, "operator marker");
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_open_questionnaire_command() {
+        let command = parse_args(vec![
+            "open-questionnaire".to_string(),
+            "--session-id".to_string(),
+            "session-1".to_string(),
+            "--participant-ref".to_string(),
+            "P001".to_string(),
+            "--study-id".to_string(),
+            "target-study".to_string(),
+            "--questionnaire-id".to_string(),
+            "questionnaire-v1".to_string(),
+            "--open-stage".to_string(),
+            "target:intro".to_string(),
+            "--screen-sequence".to_string(),
+            "target:intro,target:rating".to_string(),
+            "--condition-number".to_string(),
+            "2".to_string(),
+            "--condition-id".to_string(),
+            "condition-b".to_string(),
+            "--runtime-package".to_string(),
+            "io.github.example.target".to_string(),
+            "--command-name".to_string(),
+            "target.questionnaire.open".to_string(),
+        ])
+        .unwrap();
+
+        match command {
+            CliCommand::OpenQuestionnaire {
+                common,
+                panel_request,
+            } => {
+                assert_eq!(common.target_runtime_package, "io.github.example.target");
+                assert_eq!(
+                    common.command_name.as_deref(),
+                    Some("target.questionnaire.open")
+                );
+                assert_eq!(panel_request.session_id, "session-1");
+                assert_eq!(panel_request.study_id, "target-study");
+                assert_eq!(panel_request.questionnaire_id, "questionnaire-v1");
+                assert_eq!(
+                    panel_request.screen_sequence,
+                    vec!["target:intro".to_string(), "target:rating".to_string()]
+                );
+                assert_eq!(panel_request.condition_number, 2);
+                assert_eq!(
+                    panel_request
+                        .questionnaire_state
+                        .as_ref()
+                        .map(|state| state.condition_id.as_str()),
+                    Some("condition-b")
+                );
             }
             other => panic!("unexpected command: {other:?}"),
         }

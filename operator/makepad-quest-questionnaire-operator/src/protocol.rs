@@ -239,6 +239,8 @@ pub struct RuntimeOperatorCommandRequest {
     pub session: RuntimeSessionSpec,
     pub runtime_provenance: RuntimeProvenanceSpec,
     pub marker: RuntimeMarkerSpec,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub panel_request: Option<RuntimePanelLaunchSpec>,
 }
 
 impl RuntimeOperatorCommandRequest {
@@ -258,6 +260,7 @@ impl RuntimeOperatorCommandRequest {
             session,
             runtime_provenance,
             marker: RuntimeMarkerSpec::default(),
+            panel_request: None,
         }
     }
 
@@ -279,6 +282,7 @@ impl RuntimeOperatorCommandRequest {
             },
             runtime_provenance: RuntimeProvenanceSpec::default(),
             marker: RuntimeMarkerSpec::default(),
+            panel_request: None,
         }
     }
 
@@ -310,6 +314,44 @@ impl RuntimeOperatorCommandRequest {
                 marker_name,
                 marker_detail: marker_detail.into(),
             },
+            panel_request: None,
+        }
+    }
+
+    pub fn open_questionnaire(
+        command_id: impl Into<String>,
+        protocol_version: impl Into<String>,
+        target: RuntimeTargetSpec,
+        panel_request: RuntimePanelLaunchSpec,
+    ) -> Self {
+        let condition_id = panel_request
+            .questionnaire_state
+            .as_ref()
+            .map(|state| state.condition_id.clone())
+            .unwrap_or_default();
+        let language_code = panel_request
+            .questionnaire_state
+            .as_ref()
+            .map(|state| state.language_code.clone())
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "en".to_string());
+        Self {
+            protocol_version: protocol_version.into(),
+            command_id: command_id.into(),
+            action: RuntimeOperatorAction::OpenQuestionnaire,
+            command_name: "target_runtime.questionnaire.open".to_string(),
+            target,
+            session: RuntimeSessionSpec {
+                study_id: panel_request.study_id.clone(),
+                session_id: panel_request.session_id.clone(),
+                participant_ref: panel_request.participant_ref.clone(),
+                condition_id,
+                language_code,
+                ..RuntimeSessionSpec::default()
+            },
+            runtime_provenance: RuntimeProvenanceSpec::default(),
+            marker: RuntimeMarkerSpec::default(),
+            panel_request: Some(panel_request),
         }
     }
 }
@@ -320,6 +362,7 @@ pub enum RuntimeOperatorAction {
     StartSession,
     StopSession,
     MarkTimingEvent,
+    OpenQuestionnaire,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -370,6 +413,63 @@ pub struct RuntimeProvenanceSpec {
 pub struct RuntimeMarkerSpec {
     pub marker_name: String,
     pub marker_detail: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimePanelLaunchSpec {
+    pub protocol_version: String,
+    pub session_id: String,
+    pub study_id: String,
+    pub schema_id: String,
+    pub questionnaire_id: String,
+    pub open_stage: String,
+    pub screen_sequence: Vec<String>,
+    pub condition_number: i32,
+    pub participant_ref: String,
+    pub caller_package_name: String,
+    pub caller_app_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub questionnaire_state: Option<RuntimeQuestionnaireStateSpec>,
+}
+
+impl Default for RuntimePanelLaunchSpec {
+    fn default() -> Self {
+        Self {
+            protocol_version: PANEL_PROTOCOL_VERSION.to_string(),
+            session_id: String::new(),
+            study_id: String::new(),
+            schema_id: String::new(),
+            questionnaire_id: String::new(),
+            open_stage: String::new(),
+            screen_sequence: Vec::new(),
+            condition_number: -1,
+            participant_ref: String::new(),
+            caller_package_name: String::new(),
+            caller_app_version: String::new(),
+            questionnaire_state: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeQuestionnaireStateSpec {
+    pub language_code: String,
+    pub condition_id: String,
+    pub condition_label: String,
+    pub operator_stage: String,
+    pub condition_index: i32,
+}
+
+impl Default for RuntimeQuestionnaireStateSpec {
+    fn default() -> Self {
+        Self {
+            language_code: String::new(),
+            condition_id: String::new(),
+            condition_label: String::new(),
+            operator_stage: String::new(),
+            condition_index: -1,
+        }
+    }
 }
 
 pub fn endpoint_url(base_url: &str, path: &str) -> Result<String, String> {
@@ -465,5 +565,39 @@ mod tests {
 
         assert!(json.contains("\"action\":\"mark_timing_event\""));
         assert!(json.contains("\"marker_name\":\"stage-start\""));
+    }
+
+    #[test]
+    fn runtime_open_questionnaire_serializes_panel_request() {
+        let request = RuntimeOperatorCommandRequest::open_questionnaire(
+            "cmd-panel",
+            DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
+            RuntimeTargetSpec::new(DEFAULT_RUNTIME_KIND, "example.package", "", ""),
+            RuntimePanelLaunchSpec {
+                protocol_version: PANEL_PROTOCOL_VERSION.to_string(),
+                session_id: "session-1".to_string(),
+                study_id: "downstream-study".to_string(),
+                schema_id: "questionnaire-v1".to_string(),
+                questionnaire_id: "questionnaire-v1".to_string(),
+                open_stage: "study:stage".to_string(),
+                screen_sequence: vec!["study:stage".to_string()],
+                condition_number: 1,
+                participant_ref: "P001".to_string(),
+                caller_package_name: "example.package".to_string(),
+                caller_app_version: "1.0".to_string(),
+                questionnaire_state: Some(RuntimeQuestionnaireStateSpec {
+                    language_code: "en".to_string(),
+                    condition_id: "condition-a".to_string(),
+                    condition_index: 1,
+                    ..RuntimeQuestionnaireStateSpec::default()
+                }),
+            },
+        );
+        let json = serde_json::to_string(&request).unwrap();
+
+        assert_eq!(request.action, RuntimeOperatorAction::OpenQuestionnaire);
+        assert!(json.contains("\"action\":\"open_questionnaire\""));
+        assert!(json.contains("\"panel_request\""));
+        assert!(json.contains("\"questionnaire_id\":\"questionnaire-v1\""));
     }
 }

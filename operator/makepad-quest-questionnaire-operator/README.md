@@ -49,6 +49,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- dismiss --session-id maia-spatial-session-001 --endpoint http://127.0.0.1:8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- start-session --session-id target-session-001 --participant-ref P001 --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- mark-timing-event --session-id target-session-001 --marker-name condition_start --marker-detail "Operator marker" --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-questionnaire --session-id target-session-001 --participant-ref P001 --study-id target-study --questionnaire-id target-questionnaire-v1 --open-stage target:intro --screen-sequence target:intro,target:rating --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- stop-session --session-id target-session-001 --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- post-command --file path\to\private-command.json --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- proof-run --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787 --out artifacts\operator-proof-run
@@ -59,12 +60,12 @@ matching CLI flags. `status` is the CLI equivalent of **Poll**. The GUI's
 Quest controls map to `tooling-status`, `devices`, `device-status`, and
 `bridge-forward`.
 
-The `start-session`, `mark-timing-event`, `stop-session`, and `post-command`
-commands are CLI-first downstream runtime helpers. They post to the same
-low-rate `POST /v1/command` bridge route without launching the questionnaire
-panel directly. Keep private runtime protocol ids, package names, APK hashes,
-and study-specific stage maps in local/private fixtures rather than in this
-public operator repo.
+The `start-session`, `mark-timing-event`, `open-questionnaire`,
+`stop-session`, and `post-command` commands are CLI-first downstream runtime
+helpers. They post to the same low-rate `POST /v1/command` bridge route
+without launching the questionnaire panel directly from Windows. Keep private
+runtime protocol ids, package names, APK hashes, and study-specific stage maps
+in local/private fixtures rather than in this public operator repo.
 
 The `install-target-apk` and `launch-target-runtime` helpers are setup and
 foregrounding tools only. They do not launch the questionnaire panel and do not
