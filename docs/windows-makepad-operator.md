@@ -71,6 +71,7 @@ matches the GUI surface:
 | Launch target runtime | `launch-target-runtime --serial <serial> --package <package> [--activity <activity>] [--json]` |
 | Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--write-receipt] [--json]` |
 | Write session manifest | `write-session-manifest --out <manifest.json> [--artifact <label=path>] [--json]` |
+| Verify session manifest | `verify-session-manifest --path <manifest.json> [--base-dir <dir>] [--json]` |
 | Open Block 1 | `open-block --block 1 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 2 | `open-block --block 2 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
@@ -145,6 +146,12 @@ snapshots, verification receipts, pulled session bundle directories, command
 audits, and other local evidence. The manifest records its own protocol id and
 timestamp, hashes file artifacts that are present, and records a deterministic
 file count, byte count, and tree SHA-256 for directory artifacts.
+
+Run `verify-session-manifest --path <manifest.json>` when reopening a local
+run folder or before handing data to downstream analysis. It recomputes present
+file hashes and directory tree hashes and fails if any artifact has changed
+since the manifest was written. Relative artifact paths are resolved from the
+current working directory unless `--base-dir <dir>` is provided.
 
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide

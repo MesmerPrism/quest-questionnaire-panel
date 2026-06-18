@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -33,6 +34,9 @@ const DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES: &[&str] = &[
     "session_snapshot.json",
     "legacy_outputs_manifest.json",
 ];
+const OPERATOR_SESSION_MANIFEST_PROTOCOL: &str = "quest.questionnaire.operator.session_manifest.v1";
+const OPERATOR_SESSION_MANIFEST_VERIFICATION_PROTOCOL: &str =
+    "quest.questionnaire.operator.session_manifest_verification.v1";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeCommonArgs {
@@ -255,6 +259,11 @@ pub enum CliCommand {
         receipt_file: Option<PathBuf>,
         json: bool,
     },
+    VerifySessionManifest {
+        path: PathBuf,
+        base_dir: Option<PathBuf>,
+        json: bool,
+    },
     WriteSessionManifest {
         out: PathBuf,
         session: OperatorSessionManifestArgs,
@@ -416,6 +425,11 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             receipt_file.as_deref(),
             json,
         ),
+        CliCommand::VerifySessionManifest {
+            path,
+            base_dir,
+            json,
+        } => verify_session_manifest_command(&path, base_dir.as_deref(), json),
         CliCommand::WriteSessionManifest {
             out,
             session,
@@ -726,7 +740,7 @@ pub struct ManifestArtifactArg {
     pub path: PathBuf,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct OperatorSessionManifest {
     protocol_version: String,
     recorded_at_unix_ms: String,
@@ -740,7 +754,7 @@ struct OperatorSessionManifest {
     artifacts: Vec<OperatorSessionManifestArtifact>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct OperatorSessionManifestArtifact {
     label: String,
     path: String,
@@ -759,6 +773,55 @@ struct OperatorSessionManifestArtifact {
     tree_sha256: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+struct OperatorSessionManifestVerificationReport {
+    protocol_version: String,
+    verified_at_unix_ms: String,
+    manifest_path: String,
+    manifest_protocol_version: String,
+    accepted: bool,
+    issue: String,
+    session_id: String,
+    participant_ref: String,
+    study_id: String,
+    runtime_package: String,
+    runtime_build_tag: String,
+    artifact_checks: Vec<OperatorSessionManifestArtifactCheck>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct OperatorSessionManifestArtifactCheck {
+    label: String,
+    path: String,
+    resolved_path: String,
+    manifest_exists: bool,
+    actual_exists: bool,
+    manifest_kind: String,
+    actual_kind: String,
+    valid: bool,
+    issue: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_file_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_file_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_total_size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_total_size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_tree_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_tree_sha256: Option<String>,
+}
+
 pub fn write_session_manifest_command(
     out: &Path,
     session: OperatorSessionManifestArgs,
@@ -766,7 +829,7 @@ pub fn write_session_manifest_command(
     json: bool,
 ) -> Result<String, String> {
     let manifest = OperatorSessionManifest {
-        protocol_version: "quest.questionnaire.operator.session_manifest.v1".to_string(),
+        protocol_version: OPERATOR_SESSION_MANIFEST_PROTOCOL.to_string(),
         recorded_at_unix_ms: unix_ms().to_string(),
         session_id: session.session_id,
         participant_ref: session.participant_ref,
@@ -789,6 +852,250 @@ pub fn write_session_manifest_command(
             "Wrote operator session manifest: {}",
             out.display()
         ))
+    }
+}
+
+pub fn verify_session_manifest_command(
+    path: &Path,
+    base_dir: Option<&Path>,
+    json: bool,
+) -> Result<String, String> {
+    let report = verify_session_manifest(path, base_dir);
+    if report.accepted {
+        if json {
+            serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
+        } else {
+            Ok(format!(
+                "Operator session manifest verification passed for {} ({} artifacts checked).",
+                path.display(),
+                report.artifact_checks.len()
+            ))
+        }
+    } else if json {
+        Err(serde_json::to_string_pretty(&report).map_err(|err| err.to_string())?)
+    } else {
+        Err(format!(
+            "Operator session manifest verification failed for {}:\n- {}",
+            path.display(),
+            session_manifest_issues(&report).join("\n- ")
+        ))
+    }
+}
+
+fn verify_session_manifest(
+    path: &Path,
+    base_dir: Option<&Path>,
+) -> OperatorSessionManifestVerificationReport {
+    let base_dir = base_dir
+        .map(Path::to_path_buf)
+        .or_else(|| env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let manifest_path = path.display().to_string();
+    let mut report = OperatorSessionManifestVerificationReport {
+        protocol_version: OPERATOR_SESSION_MANIFEST_VERIFICATION_PROTOCOL.to_string(),
+        verified_at_unix_ms: unix_ms().to_string(),
+        manifest_path,
+        manifest_protocol_version: String::new(),
+        accepted: false,
+        issue: String::new(),
+        session_id: String::new(),
+        participant_ref: String::new(),
+        study_id: String::new(),
+        runtime_package: String::new(),
+        runtime_build_tag: String::new(),
+        artifact_checks: Vec::new(),
+    };
+
+    let manifest = match fs::read_to_string(path) {
+        Ok(text) => match serde_json::from_str::<OperatorSessionManifest>(&text) {
+            Ok(manifest) => manifest,
+            Err(err) => {
+                report.issue = format!("could not parse operator session manifest: {err}");
+                return report;
+            }
+        },
+        Err(err) => {
+            report.issue = format!("could not read operator session manifest: {err}");
+            return report;
+        }
+    };
+
+    report.manifest_protocol_version = manifest.protocol_version.clone();
+    report.session_id = manifest.session_id.clone();
+    report.participant_ref = manifest.participant_ref.clone();
+    report.study_id = manifest.study_id.clone();
+    report.runtime_package = manifest.runtime_package.clone();
+    report.runtime_build_tag = manifest.runtime_build_tag.clone();
+
+    if manifest.protocol_version != OPERATOR_SESSION_MANIFEST_PROTOCOL {
+        report.issue = format!(
+            "unexpected manifest protocol: {}",
+            manifest.protocol_version
+        );
+    }
+
+    report.artifact_checks = manifest
+        .artifacts
+        .iter()
+        .map(|artifact| verify_session_manifest_artifact(artifact, &base_dir))
+        .collect();
+    report.accepted =
+        report.issue.is_empty() && report.artifact_checks.iter().all(|artifact| artifact.valid);
+    report
+}
+
+fn verify_session_manifest_artifact(
+    artifact: &OperatorSessionManifestArtifact,
+    base_dir: &Path,
+) -> OperatorSessionManifestArtifactCheck {
+    let resolved_path = resolve_manifest_artifact_path(&artifact.path, base_dir);
+    let actual_exists = resolved_path.exists();
+    let actual_kind = actual_manifest_artifact_kind(&resolved_path);
+    let mut check = OperatorSessionManifestArtifactCheck {
+        label: artifact.label.clone(),
+        path: artifact.path.clone(),
+        resolved_path: resolved_path.display().to_string(),
+        manifest_exists: artifact.exists,
+        actual_exists,
+        manifest_kind: artifact.kind.clone(),
+        actual_kind,
+        valid: true,
+        issue: String::new(),
+        expected_size_bytes: artifact.size_bytes,
+        actual_size_bytes: None,
+        expected_sha256: artifact.sha256.clone(),
+        actual_sha256: None,
+        expected_file_count: artifact.file_count,
+        actual_file_count: None,
+        expected_total_size_bytes: artifact.total_size_bytes,
+        actual_total_size_bytes: None,
+        expected_tree_sha256: artifact.tree_sha256.clone(),
+        actual_tree_sha256: None,
+    };
+
+    if artifact.label.trim().is_empty() {
+        mark_manifest_artifact_invalid(&mut check, "artifact label is empty");
+        return check;
+    }
+
+    if artifact.exists != actual_exists {
+        mark_manifest_artifact_invalid(&mut check, "artifact existence changed");
+        return check;
+    }
+
+    match artifact.kind.as_str() {
+        "missing" => {
+            if artifact.exists || actual_exists {
+                mark_manifest_artifact_invalid(&mut check, "missing artifact now exists");
+            }
+        }
+        "file" => {
+            if !resolved_path.is_file() {
+                mark_manifest_artifact_invalid(&mut check, "artifact is not a file");
+                return check;
+            }
+            if !artifact.issue.is_empty() {
+                mark_manifest_artifact_invalid(&mut check, &artifact.issue);
+                return check;
+            }
+            match file_digest(&resolved_path) {
+                Ok(digest) => {
+                    check.actual_size_bytes = Some(digest.size_bytes);
+                    check.actual_sha256 = Some(digest.sha256.clone());
+                    if artifact.size_bytes != Some(digest.size_bytes) {
+                        mark_manifest_artifact_invalid(&mut check, "file size mismatch");
+                    } else if artifact.sha256.as_deref() != Some(digest.sha256.as_str()) {
+                        mark_manifest_artifact_invalid(&mut check, "file sha256 mismatch");
+                    }
+                }
+                Err(err) => mark_manifest_artifact_invalid(&mut check, &err),
+            }
+        }
+        "directory" => {
+            if !resolved_path.is_dir() {
+                mark_manifest_artifact_invalid(&mut check, "artifact is not a directory");
+                return check;
+            }
+            if !artifact.issue.is_empty() {
+                mark_manifest_artifact_invalid(&mut check, &artifact.issue);
+                return check;
+            }
+            match directory_digest(&resolved_path) {
+                Ok(digest) => {
+                    check.actual_file_count = Some(digest.file_count);
+                    check.actual_total_size_bytes = Some(digest.total_size_bytes);
+                    check.actual_tree_sha256 = Some(digest.tree_sha256.clone());
+                    if artifact.file_count != Some(digest.file_count) {
+                        mark_manifest_artifact_invalid(&mut check, "directory file count mismatch");
+                    } else if artifact.total_size_bytes != Some(digest.total_size_bytes) {
+                        mark_manifest_artifact_invalid(&mut check, "directory total size mismatch");
+                    } else if artifact.tree_sha256.as_deref() != Some(digest.tree_sha256.as_str()) {
+                        mark_manifest_artifact_invalid(
+                            &mut check,
+                            "directory tree sha256 mismatch",
+                        );
+                    }
+                }
+                Err(err) => mark_manifest_artifact_invalid(&mut check, &err),
+            }
+        }
+        _ => mark_manifest_artifact_invalid(&mut check, "unknown artifact kind"),
+    }
+
+    check
+}
+
+fn resolve_manifest_artifact_path(path: &str, base_dir: &Path) -> PathBuf {
+    let artifact_path = PathBuf::from(path);
+    if artifact_path.is_absolute() {
+        artifact_path
+    } else {
+        base_dir.join(artifact_path)
+    }
+}
+
+fn actual_manifest_artifact_kind(path: &Path) -> String {
+    if path.is_dir() {
+        "directory".to_string()
+    } else if path.is_file() {
+        "file".to_string()
+    } else if path.exists() {
+        "other".to_string()
+    } else {
+        "missing".to_string()
+    }
+}
+
+fn mark_manifest_artifact_invalid(check: &mut OperatorSessionManifestArtifactCheck, issue: &str) {
+    check.valid = false;
+    check.issue = issue.to_string();
+}
+
+fn session_manifest_issues(report: &OperatorSessionManifestVerificationReport) -> Vec<String> {
+    let mut issues = Vec::new();
+    if !report.issue.is_empty() {
+        issues.push(report.issue.clone());
+    }
+    for artifact in report
+        .artifact_checks
+        .iter()
+        .filter(|artifact| !artifact.valid)
+    {
+        let label = if artifact.label.is_empty() {
+            artifact.path.as_str()
+        } else {
+            artifact.label.as_str()
+        };
+        if artifact.issue.is_empty() {
+            issues.push(format!("{label} failed verification"));
+        } else {
+            issues.push(format!("{label}: {}", artifact.issue));
+        }
+    }
+    if issues.is_empty() {
+        vec!["unknown session manifest verification issue".to_string()]
+    } else {
+        issues
     }
 }
 
@@ -2337,6 +2644,29 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 json,
             })
         }
+        "verify-session-manifest" => {
+            let mut path: Option<PathBuf> = None;
+            let mut base_dir: Option<PathBuf> = None;
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--path" | "--manifest" => {
+                        path = Some(PathBuf::from(next_value(&mut iter, "--path")?))
+                    }
+                    "--base-dir" => {
+                        base_dir = Some(PathBuf::from(next_value(&mut iter, "--base-dir")?))
+                    }
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown verify-session-manifest argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::VerifySessionManifest {
+                path: path.ok_or_else(|| "verify-session-manifest requires --path".to_string())?,
+                base_dir,
+                json,
+            })
+        }
         "write-session-manifest" => {
             let mut out: Option<PathBuf> = None;
             let mut session = OperatorSessionManifestArgs::default();
@@ -3077,6 +3407,7 @@ fn help_text() -> String {
             .to_string(),
         "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
         "  verify-session-bundle --path FOLDER [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
+        "  verify-session-manifest --path FILE [--base-dir DIR] [--json]".to_string(),
         "  write-session-manifest --out FILE [--session-id ID] [--participant-ref REF] [--study-id ID] [--dataset-id ID] [--runtime-package PACKAGE] [--runtime-build-tag TAG] [--source-scene-path PATH] [--artifact LABEL=PATH] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
@@ -3404,6 +3735,28 @@ mod tests {
     }
 
     #[test]
+    fn parses_verify_session_manifest_command() {
+        let command = parse_args(vec![
+            "verify-session-manifest".to_string(),
+            "--path".to_string(),
+            "study-data/session-manifest.json".to_string(),
+            "--base-dir".to_string(),
+            "study-data".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::VerifySessionManifest {
+                path: PathBuf::from("study-data/session-manifest.json"),
+                base_dir: Some(PathBuf::from("study-data")),
+                json: true,
+            }
+        );
+    }
+
+    #[test]
     fn verifies_complete_session_bundle() {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-ok");
         write_complete_session_bundle(&bundle_dir);
@@ -3475,6 +3828,77 @@ mod tests {
         assert!(manifest.contains("\"tree_sha256\""));
         assert!(manifest.contains("\"label\": \"missing_receipt\""));
         assert!(manifest.contains("\"kind\": \"missing\""));
+        fs::remove_dir_all(&manifest_dir).unwrap();
+    }
+
+    #[test]
+    fn verifies_session_manifest_artifact_fingerprints() {
+        let manifest_dir = temp_test_dir("quest-operator-session-manifest-verify");
+        let artifact_path = manifest_dir.join("pre-device.json");
+        let bundle_path = manifest_dir.join("pulled-bundle");
+        let manifest_path = manifest_dir.join("operator-session-manifest.json");
+        fs::create_dir_all(&manifest_dir).unwrap();
+        fs::create_dir_all(&bundle_path).unwrap();
+        fs::write(&artifact_path, "{\"ok\":true}\n").unwrap();
+        fs::write(bundle_path.join("session_events.csv"), "event\n").unwrap();
+
+        write_session_manifest_command(
+            &manifest_path,
+            OperatorSessionManifestArgs {
+                session_id: "session-1".to_string(),
+                participant_ref: "P001".to_string(),
+                runtime_package: "io.github.example.target".to_string(),
+                ..OperatorSessionManifestArgs::default()
+            },
+            vec![
+                ManifestArtifactArg {
+                    label: "pre_device".to_string(),
+                    path: artifact_path.clone(),
+                },
+                ManifestArtifactArg {
+                    label: "pulled_bundle".to_string(),
+                    path: bundle_path.clone(),
+                },
+            ],
+            false,
+        )
+        .unwrap();
+
+        let output = verify_session_manifest_command(&manifest_path, None, true).unwrap();
+
+        assert!(output.contains("\"accepted\": true"));
+        assert!(output.contains("\"actual_sha256\""));
+        assert!(output.contains("\"actual_tree_sha256\""));
+        fs::remove_dir_all(&manifest_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_manifest_directory_fingerprint_drift() {
+        let manifest_dir = temp_test_dir("quest-operator-session-manifest-drift");
+        let bundle_path = manifest_dir.join("pulled-bundle");
+        let manifest_path = manifest_dir.join("operator-session-manifest.json");
+        fs::create_dir_all(&bundle_path).unwrap();
+        fs::write(bundle_path.join("session_events.csv"), "event\n").unwrap();
+
+        write_session_manifest_command(
+            &manifest_path,
+            OperatorSessionManifestArgs::default(),
+            vec![ManifestArtifactArg {
+                label: "pulled_bundle".to_string(),
+                path: bundle_path.clone(),
+            }],
+            false,
+        )
+        .unwrap();
+        fs::write(bundle_path.join("session_events.csv"), "changed\n").unwrap();
+
+        let error = verify_session_manifest_command(&manifest_path, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(
+            error.contains("directory total size mismatch")
+                || error.contains("directory tree sha256 mismatch")
+        );
         fs::remove_dir_all(&manifest_dir).unwrap();
     }
 

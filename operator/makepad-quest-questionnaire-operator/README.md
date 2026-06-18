@@ -148,6 +148,12 @@ audits, and other local evidence. The manifest records its own protocol id and
 timestamp, hashes file artifacts that are present, and records a deterministic
 file count, byte count, and tree SHA-256 for directory artifacts.
 
+Run `verify-session-manifest --path <manifest.json>` when reopening a local
+run folder or before handing data to downstream analysis. It recomputes present
+file hashes and directory tree hashes and fails if any artifact has changed
+since the manifest was written. Relative artifact paths are resolved from the
+current working directory unless `--base-dir <dir>` is provided.
+
 The `pull-session` HTTP helper is separate from that ADB copy step. It sends a
 low-rate runtime command with an `export_request` section so the on-Quest
 runtime can declare or prepare the app-private `files/runtime_csv` bundle. It
