@@ -291,6 +291,136 @@ pub struct RuntimeCapabilities {
     pub lsl_clock_alignment: Option<bool>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RuntimeStatusExpectation {
+    pub runtime_kind: Option<String>,
+    pub runtime_package: Option<String>,
+    pub operator_protocol: Option<String>,
+    pub required_actions: Vec<String>,
+    pub require_app_private_session_bundle: bool,
+    pub require_explicit_pull: bool,
+    pub require_questionnaire_panel_launch: bool,
+    pub require_questionnaire_result_callback_ingest: bool,
+    pub require_lsl_clock_alignment: bool,
+}
+
+pub fn validate_runtime_status(
+    status: &BridgeStatusResponse,
+    expectation: &RuntimeStatusExpectation,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+
+    if let Some(expected) = non_empty_option(&expectation.runtime_kind) {
+        match status
+            .target
+            .as_ref()
+            .and_then(|target| target.runtime_kind.as_deref())
+            .filter(|value| !value.trim().is_empty())
+        {
+            Some(actual) if actual == expected => {}
+            Some(actual) => issues.push(format!(
+                "runtime kind mismatch: expected `{expected}`, got `{actual}`"
+            )),
+            None => issues.push(format!("runtime kind missing; expected `{expected}`")),
+        }
+    }
+
+    if let Some(expected) = non_empty_option(&expectation.runtime_package) {
+        match status
+            .target
+            .as_ref()
+            .and_then(|target| target.runtime_package.as_deref())
+            .filter(|value| !value.trim().is_empty())
+        {
+            Some(actual) if actual == expected => {}
+            Some(actual) => issues.push(format!(
+                "runtime package mismatch: expected `{expected}`, got `{actual}`"
+            )),
+            None => issues.push(format!("runtime package missing; expected `{expected}`")),
+        }
+    }
+
+    if let Some(expected) = non_empty_option(&expectation.operator_protocol) {
+        let top_level = status.protocol_version.as_deref();
+        let contract = status
+            .runtime_contract
+            .as_ref()
+            .and_then(|contract| contract.operator_protocol.as_deref());
+        if top_level != Some(expected) && contract != Some(expected) {
+            issues.push(format!(
+                "operator protocol mismatch: expected `{expected}`, got status `{}` and contract `{}`",
+                top_level.unwrap_or("missing"),
+                contract.unwrap_or("missing")
+            ));
+        }
+    }
+
+    let capabilities = status.capabilities.as_ref();
+    for action in expectation
+        .required_actions
+        .iter()
+        .filter(|value| !value.trim().is_empty())
+    {
+        if !capabilities
+            .map(|capabilities| {
+                capabilities
+                    .command_actions
+                    .iter()
+                    .any(|item| item == action)
+            })
+            .unwrap_or(false)
+        {
+            issues.push(format!("required action `{action}` is not advertised"));
+        }
+    }
+
+    require_capability(
+        capabilities.and_then(|capabilities| capabilities.app_private_session_bundle),
+        expectation.require_app_private_session_bundle,
+        "app-private session bundle",
+        &mut issues,
+    );
+    require_capability(
+        capabilities.and_then(|capabilities| capabilities.explicit_pull_required),
+        expectation.require_explicit_pull,
+        "explicit pull/export",
+        &mut issues,
+    );
+    require_capability(
+        capabilities.and_then(|capabilities| capabilities.questionnaire_panel_launch),
+        expectation.require_questionnaire_panel_launch,
+        "questionnaire panel launch",
+        &mut issues,
+    );
+    require_capability(
+        capabilities.and_then(|capabilities| capabilities.questionnaire_result_callback_ingest),
+        expectation.require_questionnaire_result_callback_ingest,
+        "questionnaire result callback ingest",
+        &mut issues,
+    );
+    require_capability(
+        capabilities.and_then(|capabilities| capabilities.lsl_clock_alignment),
+        expectation.require_lsl_clock_alignment,
+        "LSL clock alignment",
+        &mut issues,
+    );
+
+    issues
+}
+
+fn non_empty_option(value: &Option<String>) -> Option<&str> {
+    value
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn require_capability(actual: Option<bool>, required: bool, label: &str, issues: &mut Vec<String>) {
+    if required && actual != Some(true) {
+        issues.push(format!("{label} capability is not advertised"));
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ForegroundState {
     pub xr_app_foreground: Option<bool>,
@@ -726,6 +856,91 @@ mod tests {
                 "Runtime: unity_quest_apk / com.example.peripersonal; recording: active; questionnaire: available"
             )
         );
+    }
+
+    #[test]
+    fn runtime_status_preflight_accepts_matching_contract() {
+        let status: BridgeStatusResponse = serde_json::from_str(r#"{
+            "protocol_version": "viscereality.peripersonal.operator.v1",
+            "target": {
+                "runtime_kind": "unity_quest_apk",
+                "runtime_package": "com.example.peripersonal"
+            },
+            "runtime_contract": {
+                "operator_protocol": "viscereality.peripersonal.operator.v1"
+            },
+            "capabilities": {
+                "command_actions": ["start_session", "stop_session", "open_questionnaire", "pull_session"],
+                "app_private_session_bundle": true,
+                "explicit_pull_required": true,
+                "questionnaire_panel_launch": true,
+                "questionnaire_result_callback_ingest": true,
+                "lsl_clock_alignment": true
+            },
+            "foreground": {}
+        }"#).unwrap();
+        let expectation = RuntimeStatusExpectation {
+            runtime_kind: Some("unity_quest_apk".to_string()),
+            runtime_package: Some("com.example.peripersonal".to_string()),
+            operator_protocol: Some("viscereality.peripersonal.operator.v1".to_string()),
+            required_actions: vec![
+                "start_session".to_string(),
+                "open_questionnaire".to_string(),
+            ],
+            require_app_private_session_bundle: true,
+            require_explicit_pull: true,
+            require_questionnaire_panel_launch: true,
+            require_questionnaire_result_callback_ingest: true,
+            require_lsl_clock_alignment: true,
+        };
+
+        assert!(validate_runtime_status(&status, &expectation).is_empty());
+    }
+
+    #[test]
+    fn runtime_status_preflight_reports_mismatches() {
+        let status: BridgeStatusResponse = serde_json::from_str(
+            r#"{
+            "protocol_version": "wrong.protocol",
+            "target": {
+                "runtime_kind": "other_runtime",
+                "runtime_package": "com.example.other"
+            },
+            "capabilities": {
+                "command_actions": ["start_session"],
+                "explicit_pull_required": false
+            },
+            "foreground": {}
+        }"#,
+        )
+        .unwrap();
+        let expectation = RuntimeStatusExpectation {
+            runtime_kind: Some("unity_quest_apk".to_string()),
+            runtime_package: Some("com.example.peripersonal".to_string()),
+            operator_protocol: Some("viscereality.peripersonal.operator.v1".to_string()),
+            required_actions: vec!["open_questionnaire".to_string()],
+            require_explicit_pull: true,
+            require_questionnaire_panel_launch: true,
+            ..RuntimeStatusExpectation::default()
+        };
+        let issues = validate_runtime_status(&status, &expectation);
+
+        assert!(issues
+            .iter()
+            .any(|issue| issue.contains("runtime kind mismatch")));
+        assert!(issues
+            .iter()
+            .any(|issue| issue.contains("runtime package mismatch")));
+        assert!(issues
+            .iter()
+            .any(|issue| issue.contains("operator protocol mismatch")));
+        assert!(issues.iter().any(|issue| issue.contains("required action")));
+        assert!(issues
+            .iter()
+            .any(|issue| issue.contains("explicit pull/export")));
+        assert!(issues
+            .iter()
+            .any(|issue| issue.contains("questionnaire panel launch")));
     }
 
     #[test]

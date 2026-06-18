@@ -9,10 +9,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::device;
 use crate::protocol::{
-    block_by_number, endpoint_url, BridgeStatusResponse, OperatorCommandRequest,
-    RuntimeExportRequestSpec, RuntimeOperatorCommandRequest, RuntimePanelLaunchSpec,
-    RuntimeProvenanceSpec, RuntimeQuestionnaireStateSpec, RuntimeSessionSpec, RuntimeTargetSpec,
-    DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION,
+    block_by_number, endpoint_url, validate_runtime_status, BridgeStatusResponse,
+    OperatorCommandRequest, RuntimeExportRequestSpec, RuntimeOperatorCommandRequest,
+    RuntimePanelLaunchSpec, RuntimeProvenanceSpec, RuntimeQuestionnaireStateSpec,
+    RuntimeSessionSpec, RuntimeStatusExpectation, RuntimeTargetSpec, DEFAULT_RUNTIME_KIND,
+    DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION,
 };
 
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:8787";
@@ -186,6 +187,16 @@ pub enum CliCommand {
     Status {
         endpoint: String,
     },
+    PreflightRuntime {
+        common: RuntimeCommonArgs,
+        required_actions: Vec<String>,
+        require_app_private_session_bundle: bool,
+        require_explicit_pull: bool,
+        require_questionnaire_panel_launch: bool,
+        require_questionnaire_result_callback_ingest: bool,
+        require_lsl_clock_alignment: bool,
+        json: bool,
+    },
     ToolingStatus {
         json: bool,
     },
@@ -302,6 +313,25 @@ pub fn main() -> i32 {
 pub fn run(args: Vec<String>) -> Result<String, String> {
     match parse_args(args)? {
         CliCommand::Status { endpoint } => get_status(&endpoint),
+        CliCommand::PreflightRuntime {
+            common,
+            required_actions,
+            require_app_private_session_bundle,
+            require_explicit_pull,
+            require_questionnaire_panel_launch,
+            require_questionnaire_result_callback_ingest,
+            require_lsl_clock_alignment,
+            json,
+        } => preflight_runtime(
+            common,
+            required_actions,
+            require_app_private_session_bundle,
+            require_explicit_pull,
+            require_questionnaire_panel_launch,
+            require_questionnaire_result_callback_ingest,
+            require_lsl_clock_alignment,
+            json,
+        ),
         CliCommand::ToolingStatus { json } => tooling_status(json),
         CliCommand::Devices { json } => devices(json),
         CliCommand::DeviceStatus { serial, json } => device_status(&serial, json),
@@ -513,6 +543,73 @@ pub fn pull_target_session(
 pub fn get_status(endpoint: &str) -> Result<String, String> {
     let url = endpoint_url(endpoint, "/v1/status")?;
     http_request("GET", &url, None)
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct RuntimePreflightReport {
+    protocol_version: String,
+    endpoint: String,
+    accepted: bool,
+    issues: Vec<String>,
+    runtime_summary: Option<String>,
+    status: BridgeStatusResponse,
+}
+
+pub fn preflight_runtime(
+    common: RuntimeCommonArgs,
+    required_actions: Vec<String>,
+    require_app_private_session_bundle: bool,
+    require_explicit_pull: bool,
+    require_questionnaire_panel_launch: bool,
+    require_questionnaire_result_callback_ingest: bool,
+    require_lsl_clock_alignment: bool,
+    json: bool,
+) -> Result<String, String> {
+    let raw = get_status(&common.endpoint)?;
+    let status = parse_status_json(&raw)?;
+    let expectation = RuntimeStatusExpectation {
+        runtime_kind: Some(common.target_runtime_kind.clone()),
+        runtime_package: non_empty_string(common.target_runtime_package.clone()),
+        operator_protocol: Some(common.protocol_version.clone()),
+        required_actions,
+        require_app_private_session_bundle,
+        require_explicit_pull,
+        require_questionnaire_panel_launch,
+        require_questionnaire_result_callback_ingest,
+        require_lsl_clock_alignment,
+    };
+    let issues = validate_runtime_status(&status, &expectation);
+    let accepted = issues.is_empty();
+    let runtime_summary = status.runtime_summary();
+    let report = RuntimePreflightReport {
+        protocol_version: "quest.questionnaire.operator.runtime-preflight.v1".to_string(),
+        endpoint: common.endpoint,
+        accepted,
+        issues,
+        runtime_summary,
+        status,
+    };
+
+    if accepted {
+        if json {
+            serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
+        } else {
+            Ok(format!(
+                "Target runtime preflight passed. {}",
+                report
+                    .runtime_summary
+                    .as_deref()
+                    .unwrap_or("Runtime status matched requested expectations.")
+            ))
+        }
+    } else if json {
+        Err(serde_json::to_string_pretty(&report).map_err(|err| err.to_string())?)
+    } else {
+        Err(format!(
+            "Target runtime preflight failed:\n- {}",
+            report.issues.join("\n- ")
+        ))
+    }
 }
 
 pub fn open_block(
@@ -1019,6 +1116,14 @@ fn json_string_field(value: &serde_json::Value, field: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+fn non_empty_string(value: String) -> Option<String> {
+    if value.trim().is_empty() {
+        None
+    } else {
+        Some(value)
+    }
+}
+
 fn parse_status_json(raw: &str) -> Result<BridgeStatusResponse, String> {
     serde_json::from_str::<BridgeStatusResponse>(raw)
         .map_err(|err| format!("Could not parse bridge status JSON: {err}"))
@@ -1079,6 +1184,53 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 }
             }
             Ok(CliCommand::Status { endpoint })
+        }
+        "preflight-runtime" => {
+            let mut common = RuntimeCommonArgs::default();
+            let mut required_actions = Vec::new();
+            let mut require_app_private_session_bundle = false;
+            let mut require_explicit_pull = false;
+            let mut require_questionnaire_panel_launch = false;
+            let mut require_questionnaire_result_callback_ingest = false;
+            let mut require_lsl_clock_alignment = false;
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                if parse_runtime_common_arg(&arg, &mut iter, &mut common)? {
+                    continue;
+                }
+                match arg.as_str() {
+                    "--require-action" => {
+                        let value = next_value(&mut iter, "--require-action")?;
+                        push_non_empty(&mut required_actions, value);
+                    }
+                    "--require-actions" => {
+                        let value = next_value(&mut iter, "--require-actions")?;
+                        extend_comma_list(&value, &mut required_actions);
+                    }
+                    "--require-app-private-session-bundle" => {
+                        require_app_private_session_bundle = true
+                    }
+                    "--require-explicit-pull" => require_explicit_pull = true,
+                    "--require-questionnaire-panel" => require_questionnaire_panel_launch = true,
+                    "--require-questionnaire-result-callback" => {
+                        require_questionnaire_result_callback_ingest = true
+                    }
+                    "--require-lsl-clock-alignment" => require_lsl_clock_alignment = true,
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown preflight-runtime argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::PreflightRuntime {
+                common,
+                required_actions,
+                require_app_private_session_bundle,
+                require_explicit_pull,
+                require_questionnaire_panel_launch,
+                require_questionnaire_result_callback_ingest,
+                require_lsl_clock_alignment,
+                json,
+            })
         }
         "tooling-status" => {
             let mut json = false;
@@ -1768,6 +1920,19 @@ fn extend_screen_sequence(raw: &str, screen_sequence: &mut Vec<String>) {
     }
 }
 
+fn extend_comma_list(raw: &str, values: &mut Vec<String>) {
+    for value in raw.split(',') {
+        push_non_empty(values, value.to_string());
+    }
+}
+
+fn push_non_empty(values: &mut Vec<String>, value: String) {
+    let value = value.trim();
+    if !value.is_empty() {
+        values.push(value.to_string());
+    }
+}
+
 fn http_request(method: &str, url: &str, body: Option<&str>) -> Result<String, String> {
     let parsed = HttpUrl::parse(url)?;
     let mut stream = TcpStream::connect((parsed.host.as_str(), parsed.port)).map_err(|err| {
@@ -1887,6 +2052,7 @@ fn help_text() -> String {
         String::new(),
         "Commands:".to_string(),
         "  status [--endpoint http://127.0.0.1:8787]".to_string(),
+        "  preflight-runtime [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--require-actions A,B] [--require-action ACTION] [--require-app-private-session-bundle] [--require-explicit-pull] [--require-questionnaire-panel] [--require-questionnaire-result-callback] [--require-lsl-clock-alignment] [--json]".to_string(),
         "  tooling-status [--json]".to_string(),
         "  devices [--json]".to_string(),
         "  device-status --serial SERIAL [--json]".to_string(),
@@ -2042,6 +2208,67 @@ mod tests {
                 json: true,
             }
         );
+    }
+
+    #[test]
+    fn parses_preflight_runtime_command() {
+        let command = parse_args(vec![
+            "preflight-runtime".to_string(),
+            "--endpoint".to_string(),
+            "http://127.0.0.1:8787".to_string(),
+            "--protocol-version".to_string(),
+            "viscereality.peripersonal.operator.v1".to_string(),
+            "--runtime-kind".to_string(),
+            "unity_quest_apk".to_string(),
+            "--runtime-package".to_string(),
+            "com.example.peripersonal".to_string(),
+            "--require-actions".to_string(),
+            "start_session,open_questionnaire".to_string(),
+            "--require-action".to_string(),
+            "pull_session".to_string(),
+            "--require-app-private-session-bundle".to_string(),
+            "--require-explicit-pull".to_string(),
+            "--require-questionnaire-panel".to_string(),
+            "--require-questionnaire-result-callback".to_string(),
+            "--require-lsl-clock-alignment".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        match command {
+            CliCommand::PreflightRuntime {
+                common,
+                required_actions,
+                require_app_private_session_bundle,
+                require_explicit_pull,
+                require_questionnaire_panel_launch,
+                require_questionnaire_result_callback_ingest,
+                require_lsl_clock_alignment,
+                json,
+            } => {
+                assert_eq!(
+                    common.protocol_version,
+                    "viscereality.peripersonal.operator.v1"
+                );
+                assert_eq!(common.target_runtime_kind, "unity_quest_apk");
+                assert_eq!(common.target_runtime_package, "com.example.peripersonal");
+                assert_eq!(
+                    required_actions,
+                    vec![
+                        "start_session".to_string(),
+                        "open_questionnaire".to_string(),
+                        "pull_session".to_string()
+                    ]
+                );
+                assert!(require_app_private_session_bundle);
+                assert!(require_explicit_pull);
+                assert!(require_questionnaire_panel_launch);
+                assert!(require_questionnaire_result_callback_ingest);
+                assert!(require_lsl_clock_alignment);
+                assert!(json);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
     }
 
     #[test]
