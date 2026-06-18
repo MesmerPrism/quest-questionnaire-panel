@@ -58,6 +58,20 @@ unity-caller-plugin/build/unity-caller-artifacts/
   res/xml/questionnaire_result_paths.xml
 ```
 
+For Gradle-based Unity Android builds, prefer copying only `plugins/` and
+declaring dependency coordinates from an app-owned `.androidlib` Gradle module:
+
+```gradle
+dependencies {
+    api 'androidx.core:core:1.8.0'
+    api 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+}
+```
+
+Copying `runtime-deps/` into a Unity project that already resolves AndroidX or
+Kotlin through Gradle can produce duplicate classes. Keep `runtime-deps/` for
+offline/manual packaging lanes that do not already resolve those coordinates.
+
 Copy the generated artifacts into the Unity app only when wiring the Android
 caller bridge intentionally. The app must still declare its own narrow
 `FileProvider` and private callback receiver in its Android manifest; do not

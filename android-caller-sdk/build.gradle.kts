@@ -24,6 +24,5 @@ android {
 
 dependencies {
     api(project(":questionnaire-contract-core"))
-    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.unity)
 }
-

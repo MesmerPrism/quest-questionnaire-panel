@@ -30,7 +30,7 @@ val unityCallerRuntimeDeps by configurations.creating {
 dependencies {
     implementation(project(":android-caller-sdk"))
     unityCallerRuntimeDeps("org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.get()}")
-    unityCallerRuntimeDeps(libs.androidx.core.ktx)
+    unityCallerRuntimeDeps(libs.androidx.core.unity)
 }
 
 tasks.register<Sync>("packageUnityCallerArtifacts") {
