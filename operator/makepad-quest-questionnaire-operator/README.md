@@ -140,6 +140,13 @@ or pass `--receipt-file <path>` to write the JSON receipt elsewhere. Receipts
 include each expected file's byte size and SHA-256 digest so the accepted bundle
 can be matched later without reopening the Quest.
 
+Use `write-session-manifest --out <manifest.json>` after local verification to
+write a Windows-side session snapshot that points at the operator artifacts for
+the run. Pass repeated `--artifact label=<file>` values for device-status
+snapshots, verification receipts, command audits, and other local evidence. The
+manifest records its own protocol id and timestamp, and hashes file artifacts
+that are present.
+
 The `pull-session` HTTP helper is separate from that ADB copy step. It sends a
 low-rate runtime command with an `export_request` section so the on-Quest
 runtime can declare or prepare the app-private `files/runtime_csv` bundle. It

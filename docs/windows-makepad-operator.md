@@ -70,6 +70,7 @@ matches the GUI surface:
 | Install target APK | `install-target-apk --serial <serial> --apk <apk-path> [--json]` |
 | Launch target runtime | `launch-target-runtime --serial <serial> --package <package> [--activity <activity>] [--json]` |
 | Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--write-receipt] [--json]` |
+| Write session manifest | `write-session-manifest --out <manifest.json> [--artifact <label=file>] [--json]` |
 | Open Block 1 | `open-block --block 1 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 2 | `open-block --block 2 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
@@ -136,6 +137,13 @@ it does not contact the headset. Add `--write-receipt` to leave
 `--receipt-file <path>` to place that JSON receipt in an audit folder. Receipts
 include each expected file's byte size and SHA-256 digest so the accepted bundle
 can be matched later without reopening the Quest.
+
+Use `write-session-manifest --out <manifest.json>` after local verification to
+write a Windows-side session snapshot that points at the operator artifacts for
+the run. Pass repeated `--artifact label=<file>` values for device-status
+snapshots, verification receipts, command audits, and other local evidence. The
+manifest records its own protocol id and timestamp, and hashes file artifacts
+that are present.
 
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide

@@ -255,6 +255,12 @@ pub enum CliCommand {
         receipt_file: Option<PathBuf>,
         json: bool,
     },
+    WriteSessionManifest {
+        out: PathBuf,
+        session: OperatorSessionManifestArgs,
+        artifacts: Vec<ManifestArtifactArg>,
+        json: bool,
+    },
     OpenBlock {
         endpoint: String,
         block: u8,
@@ -410,6 +416,12 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             receipt_file.as_deref(),
             json,
         ),
+        CliCommand::WriteSessionManifest {
+            out,
+            session,
+            artifacts,
+            json,
+        } => write_session_manifest_command(&out, session, artifacts, json),
         CliCommand::OpenBlock {
             endpoint,
             block,
@@ -695,6 +707,131 @@ struct SessionBundleFileCheck {
     size_bytes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     sha256: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OperatorSessionManifestArgs {
+    pub session_id: String,
+    pub participant_ref: String,
+    pub study_id: String,
+    pub dataset_id: String,
+    pub runtime_package: String,
+    pub runtime_build_tag: String,
+    pub source_scene_path: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ManifestArtifactArg {
+    pub label: String,
+    pub path: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct OperatorSessionManifest {
+    protocol_version: String,
+    recorded_at_unix_ms: String,
+    session_id: String,
+    participant_ref: String,
+    study_id: String,
+    dataset_id: String,
+    runtime_package: String,
+    runtime_build_tag: String,
+    source_scene_path: String,
+    artifacts: Vec<OperatorSessionManifestArtifact>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct OperatorSessionManifestArtifact {
+    label: String,
+    path: String,
+    exists: bool,
+    kind: String,
+    issue: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sha256: Option<String>,
+}
+
+pub fn write_session_manifest_command(
+    out: &Path,
+    session: OperatorSessionManifestArgs,
+    artifacts: Vec<ManifestArtifactArg>,
+    json: bool,
+) -> Result<String, String> {
+    let manifest = OperatorSessionManifest {
+        protocol_version: "quest.questionnaire.operator.session_manifest.v1".to_string(),
+        recorded_at_unix_ms: unix_ms().to_string(),
+        session_id: session.session_id,
+        participant_ref: session.participant_ref,
+        study_id: session.study_id,
+        dataset_id: session.dataset_id,
+        runtime_package: session.runtime_package,
+        runtime_build_tag: session.runtime_build_tag,
+        source_scene_path: session.source_scene_path,
+        artifacts: artifacts
+            .iter()
+            .map(|artifact| session_manifest_artifact(artifact))
+            .collect(),
+    };
+    write_json_file(out, &manifest, "operator session manifest")?;
+
+    if json {
+        serde_json::to_string_pretty(&manifest).map_err(|err| err.to_string())
+    } else {
+        Ok(format!(
+            "Wrote operator session manifest: {}",
+            out.display()
+        ))
+    }
+}
+
+fn session_manifest_artifact(input: &ManifestArtifactArg) -> OperatorSessionManifestArtifact {
+    let path = &input.path;
+    if !path.exists() {
+        return OperatorSessionManifestArtifact {
+            label: input.label.clone(),
+            path: path.display().to_string(),
+            exists: false,
+            kind: "missing".to_string(),
+            issue: "artifact path was not found".to_string(),
+            size_bytes: None,
+            sha256: None,
+        };
+    }
+
+    if path.is_dir() {
+        return OperatorSessionManifestArtifact {
+            label: input.label.clone(),
+            path: path.display().to_string(),
+            exists: true,
+            kind: "directory".to_string(),
+            issue: "directory artifact is recorded by path only".to_string(),
+            size_bytes: None,
+            sha256: None,
+        };
+    }
+
+    match file_digest(path) {
+        Ok(digest) => OperatorSessionManifestArtifact {
+            label: input.label.clone(),
+            path: path.display().to_string(),
+            exists: true,
+            kind: "file".to_string(),
+            issue: String::new(),
+            size_bytes: Some(digest.size_bytes),
+            sha256: Some(digest.sha256),
+        },
+        Err(err) => OperatorSessionManifestArtifact {
+            label: input.label.clone(),
+            path: path.display().to_string(),
+            exists: true,
+            kind: "file".to_string(),
+            issue: err,
+            size_bytes: None,
+            sha256: None,
+        },
+    }
 }
 
 pub fn verify_session_bundle_command(
@@ -2102,6 +2239,53 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 json,
             })
         }
+        "write-session-manifest" => {
+            let mut out: Option<PathBuf> = None;
+            let mut session = OperatorSessionManifestArgs::default();
+            let mut artifacts = Vec::new();
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--out" => out = Some(PathBuf::from(next_value(&mut iter, "--out")?)),
+                    "--session-id" | "--session" => {
+                        session.session_id = next_value(&mut iter, "--session-id")?
+                    }
+                    "--participant-ref" | "--participant" => {
+                        session.participant_ref = next_value(&mut iter, "--participant-ref")?
+                    }
+                    "--study-id" | "--study" => {
+                        session.study_id = next_value(&mut iter, "--study-id")?
+                    }
+                    "--dataset-id" | "--dataset" => {
+                        session.dataset_id = next_value(&mut iter, "--dataset-id")?
+                    }
+                    "--runtime-package" | "--package" => {
+                        session.runtime_package = next_value(&mut iter, "--runtime-package")?
+                    }
+                    "--runtime-build-tag" => {
+                        session.runtime_build_tag = next_value(&mut iter, "--runtime-build-tag")?
+                    }
+                    "--source-scene-path" => {
+                        session.source_scene_path = next_value(&mut iter, "--source-scene-path")?
+                    }
+                    "--artifact" => {
+                        artifacts.push(parse_manifest_artifact(&next_value(
+                            &mut iter,
+                            "--artifact",
+                        )?));
+                    }
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown write-session-manifest argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::WriteSessionManifest {
+                out: out.ok_or_else(|| "write-session-manifest requires --out".to_string())?,
+                session,
+                artifacts,
+                json,
+            })
+        }
         "open-block" => {
             let mut endpoint = DEFAULT_ENDPOINT.to_string();
             let mut block: Option<u8> = None;
@@ -2636,6 +2820,31 @@ fn push_non_empty(values: &mut Vec<String>, value: String) {
     }
 }
 
+fn parse_manifest_artifact(raw: &str) -> ManifestArtifactArg {
+    let trimmed = raw.trim();
+    if let Some((label, path)) = trimmed.split_once('=') {
+        let label = label.trim();
+        let path = path.trim();
+        return ManifestArtifactArg {
+            label: if label.is_empty() {
+                "artifact".to_string()
+            } else {
+                label.to_string()
+            },
+            path: PathBuf::from(path),
+        };
+    }
+
+    let path = PathBuf::from(trimmed);
+    let label = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("artifact")
+        .to_string();
+    ManifestArtifactArg { label, path }
+}
+
 fn http_request(method: &str, url: &str, body: Option<&str>) -> Result<String, String> {
     let parsed = HttpUrl::parse(url)?;
     let mut stream = TcpStream::connect((parsed.host.as_str(), parsed.port)).map_err(|err| {
@@ -2770,6 +2979,7 @@ fn help_text() -> String {
             .to_string(),
         "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
         "  verify-session-bundle --path FOLDER [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
+        "  write-session-manifest --out FILE [--session-id ID] [--participant-ref REF] [--study-id ID] [--dataset-id ID] [--runtime-package PACKAGE] [--runtime-build-tag TAG] [--source-scene-path PATH] [--artifact LABEL=FILE] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
         "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--runtime-build-tag TAG] [--source-scene-path PATH] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
@@ -3052,6 +3262,50 @@ mod tests {
     }
 
     #[test]
+    fn parses_write_session_manifest_command() {
+        let command = parse_args(vec![
+            "write-session-manifest".to_string(),
+            "--out".to_string(),
+            "study-data/session-manifest.json".to_string(),
+            "--session-id".to_string(),
+            "session-1".to_string(),
+            "--participant-ref".to_string(),
+            "P001".to_string(),
+            "--runtime-package".to_string(),
+            "io.github.example.target".to_string(),
+            "--artifact".to_string(),
+            "pre_device=study-data/pre-device.json".to_string(),
+            "--artifact".to_string(),
+            "study-data/operator_verification_receipt.json".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        match command {
+            CliCommand::WriteSessionManifest {
+                out,
+                session,
+                artifacts,
+                json,
+            } => {
+                assert_eq!(out, PathBuf::from("study-data/session-manifest.json"));
+                assert_eq!(session.session_id, "session-1");
+                assert_eq!(session.participant_ref, "P001");
+                assert_eq!(session.runtime_package, "io.github.example.target");
+                assert_eq!(artifacts.len(), 2);
+                assert_eq!(artifacts[0].label, "pre_device");
+                assert_eq!(
+                    artifacts[0].path,
+                    PathBuf::from("study-data/pre-device.json")
+                );
+                assert_eq!(artifacts[1].label, "operator_verification_receipt.json");
+                assert!(json);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
     fn verifies_complete_session_bundle() {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-ok");
         write_complete_session_bundle(&bundle_dir);
@@ -3060,6 +3314,53 @@ mod tests {
 
         assert!(output.contains("Session bundle verification passed"));
         fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn writes_session_manifest_with_artifact_hashes() {
+        let manifest_dir = temp_test_dir("quest-operator-session-manifest");
+        let artifact_path = manifest_dir.join("pre-device.json");
+        let manifest_path = manifest_dir.join("operator-session-manifest.json");
+        fs::create_dir_all(&manifest_dir).unwrap();
+        fs::write(
+            &artifact_path,
+            "{\"protocol_version\":\"quest.questionnaire.operator.device_status.v1\"}\n",
+        )
+        .unwrap();
+
+        let output = write_session_manifest_command(
+            &manifest_path,
+            OperatorSessionManifestArgs {
+                session_id: "session-1".to_string(),
+                participant_ref: "P001".to_string(),
+                study_id: "study-1".to_string(),
+                runtime_package: "io.github.example.target".to_string(),
+                ..OperatorSessionManifestArgs::default()
+            },
+            vec![
+                ManifestArtifactArg {
+                    label: "pre_device".to_string(),
+                    path: artifact_path.clone(),
+                },
+                ManifestArtifactArg {
+                    label: "missing_receipt".to_string(),
+                    path: manifest_dir.join("missing-receipt.json"),
+                },
+            ],
+            true,
+        )
+        .unwrap();
+        let manifest = fs::read_to_string(&manifest_path).unwrap();
+
+        assert!(output.contains("quest.questionnaire.operator.session_manifest.v1"));
+        assert!(manifest.contains("\"session_id\": \"session-1\""));
+        assert!(manifest.contains("\"label\": \"pre_device\""));
+        assert!(manifest.contains("\"kind\": \"file\""));
+        assert!(manifest.contains("\"sha256\""));
+        assert!(manifest.contains("\"size_bytes\""));
+        assert!(manifest.contains("\"label\": \"missing_receipt\""));
+        assert!(manifest.contains("\"kind\": \"missing\""));
+        fs::remove_dir_all(&manifest_dir).unwrap();
     }
 
     #[test]
