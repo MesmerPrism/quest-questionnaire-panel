@@ -98,6 +98,14 @@ pub const GUI_COMMAND_SURFACE: &[CommandSurfaceItem] = &[
         cli_equivalent: "--condition-id",
     },
     CommandSurfaceItem {
+        gui_control: "Runtime build tag field",
+        cli_equivalent: "--runtime-build-tag",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime source scene field",
+        cli_equivalent: "--source-scene-path",
+    },
+    CommandSurfaceItem {
         gui_control: "Runtime questionnaire field",
         cli_equivalent: "--questionnaire-id",
     },

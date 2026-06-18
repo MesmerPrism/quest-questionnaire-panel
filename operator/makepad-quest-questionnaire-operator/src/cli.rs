@@ -123,6 +123,8 @@ impl RuntimeSessionArgs {
 pub struct RuntimeProvenanceArgs {
     pub unity_project: String,
     pub unity_editor: String,
+    pub runtime_build_tag: String,
+    pub source_scene_path: String,
     pub apk_sha256: String,
     pub app_version_name: String,
     pub app_version_code: i32,
@@ -134,6 +136,8 @@ impl RuntimeProvenanceArgs {
         RuntimeProvenanceSpec {
             unity_project: self.unity_project.clone(),
             unity_editor: self.unity_editor.clone(),
+            runtime_build_tag: self.runtime_build_tag.clone(),
+            source_scene_path: self.source_scene_path.clone(),
             apk_sha256: self.apk_sha256.clone(),
             app_version_name: self.app_version_name.clone(),
             app_version_code: self.app_version_code,
@@ -1521,6 +1525,12 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                     "--unity-editor" => {
                         provenance.unity_editor = next_value(&mut iter, "--unity-editor")?
                     }
+                    "--runtime-build-tag" => {
+                        provenance.runtime_build_tag = next_value(&mut iter, "--runtime-build-tag")?
+                    }
+                    "--source-scene-path" => {
+                        provenance.source_scene_path = next_value(&mut iter, "--source-scene-path")?
+                    }
                     "--apk-sha256" => {
                         provenance.apk_sha256 = next_value(&mut iter, "--apk-sha256")?
                     }
@@ -2068,7 +2078,7 @@ fn help_text() -> String {
         "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
-        "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
+        "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--runtime-build-tag TAG] [--source-scene-path PATH] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  stop-session --session-id ID [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  pull-session --session-id ID [--remote-relative files/runtime_csv] [--quest-package PACKAGE] [--runtime-package PACKAGE] [--expected-file NAME] [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  mark-timing-event --session-id ID --marker-name NAME [--marker-detail TEXT] [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
@@ -2302,6 +2312,10 @@ mod tests {
             "target_quest_apk".to_string(),
             "--condition-id".to_string(),
             "condition-a".to_string(),
+            "--runtime-build-tag".to_string(),
+            "apk-condition-a".to_string(),
+            "--source-scene-path".to_string(),
+            "Assets/Scenes/Space.unity".to_string(),
             "--source-commit".to_string(),
             "abc123".to_string(),
             "--command-name".to_string(),
@@ -2327,6 +2341,8 @@ mod tests {
                 assert_eq!(session.session_id, "session-1");
                 assert_eq!(session.participant_ref, "P001");
                 assert_eq!(session.condition_id, "condition-a");
+                assert_eq!(provenance.runtime_build_tag, "apk-condition-a");
+                assert_eq!(provenance.source_scene_path, "Assets/Scenes/Space.unity");
                 assert_eq!(provenance.source_commit, "abc123");
             }
             other => panic!("unexpected command: {other:?}"),

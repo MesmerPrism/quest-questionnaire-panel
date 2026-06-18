@@ -48,7 +48,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 3 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- dismiss --session-id maia-spatial-session-001 --endpoint http://127.0.0.1:8787
-cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- start-session --session-id target-session-001 --participant-ref P001 --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- start-session --session-id target-session-001 --participant-ref P001 --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --runtime-build-tag peripersonal-apk-condition-a --source-scene-path Assets/Scenes/Space.unity --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- mark-timing-event --session-id target-session-001 --marker-name condition_start --marker-detail "Operator marker" --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-questionnaire --session-id target-session-001 --participant-ref P001 --study-id target-study --questionnaire-id target-questionnaire-v1 --open-stage target:intro --screen-sequence target:intro,target:rating --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- stop-session --session-id target-session-001 --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
@@ -72,6 +72,12 @@ panel directly from Windows. Keep private runtime protocol ids, package names,
 APK hashes, and study-specific stage maps in local/private fixtures rather
 than in this public operator repo.
 
+For peripersonal APK sessions, pass `--runtime-build-tag` and
+`--source-scene-path Assets/Scenes/Space.unity` on `start-session` so Unity
+persists the exact APK variant label in the pulled session bundle. These are
+recording provenance fields only; they do not select conditions inside the
+Unity app.
+
 `preflight-runtime` is the CLI-only target-runtime safety check. It polls
 `GET /v1/status` and fails if the advertised runtime kind, package, operator
 protocol, required actions, or requested capabilities do not match the expected
@@ -82,8 +88,8 @@ reads the generic top-level `makepad_gui_fields` object, with keys matching the
 GUI field names such as `endpoint`, `session`, `participant`, `adb_serial`,
 `host_port`, `quest_port`, `runtime_protocol`, `runtime_kind`,
 `runtime_package`, `runtime_study`, `runtime_condition`,
-`runtime_questionnaire`, `runtime_stage`, `runtime_marker`, and
-`runtime_remote`.
+`runtime_build_tag`, `runtime_source_scene`, `runtime_questionnaire`,
+`runtime_stage`, `runtime_marker`, and `runtime_remote`.
 
 `post-command` remains CLI-only for replaying reviewed private fixture JSON.
 

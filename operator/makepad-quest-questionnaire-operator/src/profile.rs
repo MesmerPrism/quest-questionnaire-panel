@@ -43,6 +43,10 @@ pub struct OperatorGuiProfileFields {
     #[serde(default)]
     pub runtime_condition: String,
     #[serde(default)]
+    pub runtime_build_tag: String,
+    #[serde(default)]
+    pub runtime_source_scene: String,
+    #[serde(default)]
     pub runtime_questionnaire: String,
     #[serde(default)]
     pub runtime_stage: String,
@@ -104,6 +108,8 @@ mod tests {
                     "runtime_package": "io.github.example.target",
                     "runtime_study": "example-study",
                     "runtime_condition": "condition-a",
+                    "runtime_build_tag": "apk-condition-a",
+                    "runtime_source_scene": "Assets/Scenes/Space.unity",
                     "runtime_questionnaire": "questionnaire-v1",
                     "runtime_stage": "example:post_condition",
                     "runtime_marker": "condition_start",
@@ -120,6 +126,14 @@ mod tests {
         assert_eq!(
             profile.makepad_gui_fields.runtime_remote,
             "files/runtime_csv/participant-P001/session-001"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.runtime_build_tag,
+            "apk-condition-a"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.runtime_source_scene,
+            "Assets/Scenes/Space.unity"
         );
     }
 

@@ -278,6 +278,31 @@ script_mod! {
                                             width: Fill
                                             height: Fit
                                             flow: Down
+                                            FieldLabel{text: "Build tag"}
+                                            runtime_build_tag_input := Field{
+                                                empty_text: "apk variant"
+                                            }
+                                        }
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Source scene"}
+                                            runtime_source_scene_input := Field{
+                                                text: "Assets/Scenes/Space.unity"
+                                            }
+                                        }
+                                    }
+
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
                                             FieldLabel{text: "Questionnaire"}
                                             runtime_questionnaire_input := Field{
                                                 text: "target-questionnaire-v1"
@@ -630,6 +655,12 @@ impl App {
         self.set_profile_field(cx, ids!(runtime_package_input), &fields.runtime_package);
         self.set_profile_field(cx, ids!(runtime_study_input), &fields.runtime_study);
         self.set_profile_field(cx, ids!(runtime_condition_input), &fields.runtime_condition);
+        self.set_profile_field(cx, ids!(runtime_build_tag_input), &fields.runtime_build_tag);
+        self.set_profile_field(
+            cx,
+            ids!(runtime_source_scene_input),
+            &fields.runtime_source_scene,
+        );
         self.set_profile_field(
             cx,
             ids!(runtime_questionnaire_input),
@@ -725,7 +756,7 @@ impl App {
             self.runtime_protocol(cx),
             self.runtime_target(cx),
             self.runtime_session(cx),
-            RuntimeProvenanceSpec::default(),
+            self.runtime_provenance(cx),
         );
         self.send_command_request(cx, url, body, "Starting runtime session");
     }
@@ -852,6 +883,14 @@ impl App {
             condition_id: self.field_text(cx, ids!(runtime_condition_input)),
             language_code: self.field_text(cx, ids!(language_input)),
             ..RuntimeSessionSpec::default()
+        }
+    }
+
+    fn runtime_provenance(&self, cx: &Cx) -> RuntimeProvenanceSpec {
+        RuntimeProvenanceSpec {
+            runtime_build_tag: self.field_text(cx, ids!(runtime_build_tag_input)),
+            source_scene_path: self.field_text(cx, ids!(runtime_source_scene_input)),
+            ..RuntimeProvenanceSpec::default()
         }
     }
 

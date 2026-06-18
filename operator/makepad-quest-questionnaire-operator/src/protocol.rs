@@ -649,9 +649,12 @@ pub struct RuntimeSessionSpec {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RuntimeProvenanceSpec {
     pub unity_project: String,
     pub unity_editor: String,
+    pub runtime_build_tag: String,
+    pub source_scene_path: String,
     pub apk_sha256: String,
     pub app_version_name: String,
     pub app_version_code: i32,
@@ -959,6 +962,8 @@ mod tests {
             },
             RuntimeProvenanceSpec {
                 unity_editor: "6000.x".to_string(),
+                runtime_build_tag: "apk-condition-a".to_string(),
+                source_scene_path: "Assets/Scenes/Space.unity".to_string(),
                 source_commit: "abc123".to_string(),
                 ..RuntimeProvenanceSpec::default()
             },
@@ -967,6 +972,14 @@ mod tests {
         assert_eq!(request.action, RuntimeOperatorAction::StartSession);
         assert_eq!(request.target.runtime_kind, DEFAULT_RUNTIME_KIND);
         assert_eq!(request.session.session_id, "session-1");
+        assert_eq!(
+            request.runtime_provenance.runtime_build_tag,
+            "apk-condition-a"
+        );
+        assert_eq!(
+            request.runtime_provenance.source_scene_path,
+            "Assets/Scenes/Space.unity"
+        );
         assert_eq!(request.runtime_provenance.source_commit, "abc123");
     }
 
