@@ -40,7 +40,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- devices --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- device-status --serial <quest-serial> --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- bridge-forward --serial <quest-serial> --host-port 8787 --device-port 8787
-cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- verify-target-apk --apk path\to\target-runtime.apk --sha256 <expected-sha256> --json
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- verify-target-apk --apk path\to\target-runtime.apk --sha256 <expected-sha256> --out artifacts\target-apk-verification.json --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- install-target-apk --serial <quest-serial> --apk path\to\target-runtime.apk --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- launch-target-runtime --serial <quest-serial> --package io.github.example.target --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- pull-target-session --serial <quest-serial> --package io.github.example.target --remote-relative files/runtime_csv/participant-P001/session-001 --out artifacts\device-session-pull --verify-bundle --write-receipt --json
@@ -109,7 +109,8 @@ GUI field names such as `endpoint`, `session`, `participant`, `adb_serial`,
 Run `verify-target-apk --apk <apk> --sha256 <expected-sha256>` before
 installing a selected target runtime when the study catalog has an approved
 artifact hash. It is a local file check only: it records byte size and SHA-256
-and fails on a mismatch before any headset or ADB operation is attempted.
+and fails on a mismatch before any headset or ADB operation is attempted. Add
+`--out <report.json>` to preserve the same report as local operator evidence.
 
 The `install-target-apk` and `launch-target-runtime` helpers are setup and
 foregrounding tools only. They do not launch the questionnaire panel and do not

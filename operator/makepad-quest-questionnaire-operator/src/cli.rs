@@ -239,6 +239,7 @@ pub enum CliCommand {
     VerifyTargetApk {
         apk: PathBuf,
         expected_sha256: Option<String>,
+        out: Option<PathBuf>,
         json: bool,
     },
     LaunchTargetRuntime {
@@ -393,8 +394,9 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
         CliCommand::VerifyTargetApk {
             apk,
             expected_sha256,
+            out,
             json,
-        } => verify_target_apk_command(&apk, expected_sha256.as_deref(), json),
+        } => verify_target_apk_command(&apk, expected_sha256.as_deref(), out.as_deref(), json),
         CliCommand::LaunchTargetRuntime {
             serial,
             package_name,
@@ -626,23 +628,39 @@ struct TargetApkVerificationReport {
 pub fn verify_target_apk_command(
     apk: &Path,
     expected_sha256: Option<&str>,
+    out: Option<&Path>,
     json: bool,
 ) -> Result<String, String> {
     let report = verify_target_apk(apk, expected_sha256);
+    if let Some(path) = out {
+        write_json_file(path, &report, "target APK verification report")?;
+    }
+
     if report.accepted {
         if json {
             serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
         } else if let Some(sha256) = report.sha256.as_deref() {
-            Ok(format!(
+            let mut message = format!(
                 "Target APK verification passed for {} (sha256 {}).",
                 apk.display(),
                 sha256
-            ))
+            );
+            if let Some(path) = out {
+                message.push_str(&format!(
+                    "\nWrote target APK verification report: {}",
+                    path.display()
+                ));
+            }
+            Ok(message)
         } else {
-            Ok(format!(
-                "Target APK verification passed for {}.",
-                apk.display()
-            ))
+            let mut message = format!("Target APK verification passed for {}.", apk.display());
+            if let Some(path) = out {
+                message.push_str(&format!(
+                    "\nWrote target APK verification report: {}",
+                    path.display()
+                ));
+            }
+            Ok(message)
         }
     } else if json {
         Err(serde_json::to_string_pretty(&report).map_err(|err| err.to_string())?)
@@ -2649,6 +2667,7 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
         "verify-target-apk" => {
             let mut apk: Option<PathBuf> = None;
             let mut expected_sha256: Option<String> = None;
+            let mut out: Option<PathBuf> = None;
             let mut json = false;
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
@@ -2656,6 +2675,7 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                     "--sha256" | "--expected-sha256" => {
                         expected_sha256 = Some(next_value(&mut iter, "--sha256")?)
                     }
+                    "--out" => out = Some(PathBuf::from(next_value(&mut iter, "--out")?)),
                     "--json" => json = true,
                     "-h" | "--help" => return Ok(CliCommand::Help),
                     _ => return Err(format!("Unknown verify-target-apk argument: {arg}")),
@@ -2664,6 +2684,7 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
             Ok(CliCommand::VerifyTargetApk {
                 apk: apk.ok_or_else(|| "verify-target-apk requires --apk".to_string())?,
                 expected_sha256,
+                out,
                 json,
             })
         }
@@ -3548,7 +3569,8 @@ fn help_text() -> String {
             device::DEFAULT_PANEL_APK_PATH
         ),
         "  install-target-apk --serial SERIAL --apk target.apk [--json]".to_string(),
-        "  verify-target-apk --apk target.apk [--sha256 SHA256] [--json]".to_string(),
+        "  verify-target-apk --apk target.apk [--sha256 SHA256] [--out report.json] [--json]"
+            .to_string(),
         "  launch-target-runtime --serial SERIAL --package PACKAGE [--activity ACTIVITY] [--json]"
             .to_string(),
         "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
@@ -3655,6 +3677,8 @@ mod tests {
             "target-runtime.apk".to_string(),
             "--sha256".to_string(),
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+            "--out".to_string(),
+            "study-data/audit/target-apk-verification.json".to_string(),
             "--json".to_string(),
         ])
         .unwrap();
@@ -3666,6 +3690,9 @@ mod tests {
                 expected_sha256: Some(
                     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string()
                 ),
+                out: Some(PathBuf::from(
+                    "study-data/audit/target-apk-verification.json"
+                )),
                 json: true,
             }
         );
@@ -3945,7 +3972,8 @@ mod tests {
         fs::write(&apk_path, "not a real apk; verifier fixture\n").unwrap();
         let digest = file_digest(&apk_path).unwrap();
 
-        let output = verify_target_apk_command(&apk_path, Some(&digest.sha256), true).unwrap();
+        let output =
+            verify_target_apk_command(&apk_path, Some(&digest.sha256), None, true).unwrap();
 
         assert!(output.contains("\"accepted\": true"));
         assert!(output.contains("\"size_bytes\""));
@@ -3960,7 +3988,8 @@ mod tests {
         fs::create_dir_all(&apk_dir).unwrap();
         fs::write(&apk_path, "not a real apk; mismatch fixture\n").unwrap();
 
-        let error = verify_target_apk_command(&apk_path, Some(&"0".repeat(64)), true).unwrap_err();
+        let error =
+            verify_target_apk_command(&apk_path, Some(&"0".repeat(64)), None, true).unwrap_err();
 
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("APK SHA-256 mismatch"));
@@ -3974,11 +4003,30 @@ mod tests {
         fs::create_dir_all(&apk_dir).unwrap();
         fs::write(&apk_path, "not a real apk; bad hash fixture\n").unwrap();
 
-        let error =
-            verify_target_apk_command(&apk_path, Some("sha256-placeholder"), true).unwrap_err();
+        let error = verify_target_apk_command(&apk_path, Some("sha256-placeholder"), None, true)
+            .unwrap_err();
 
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("expected SHA-256"));
+        fs::remove_dir_all(&apk_dir).unwrap();
+    }
+
+    #[test]
+    fn writes_target_apk_verification_report() {
+        let apk_dir = temp_test_dir("quest-operator-target-apk-report");
+        let apk_path = apk_dir.join("target-runtime.apk");
+        let report_path = apk_dir.join("audit").join("target-apk-verification.json");
+        fs::create_dir_all(&apk_dir).unwrap();
+        fs::write(&apk_path, "not a real apk; report fixture\n").unwrap();
+        let digest = file_digest(&apk_path).unwrap();
+
+        verify_target_apk_command(&apk_path, Some(&digest.sha256), Some(&report_path), false)
+            .unwrap();
+
+        let report = fs::read_to_string(&report_path).unwrap();
+        assert!(report.contains("quest.questionnaire.operator.target_apk_verification.v1"));
+        assert!(report.contains("\"accepted\": true"));
+        assert!(report.contains(&digest.sha256));
         fs::remove_dir_all(&apk_dir).unwrap();
     }
 
