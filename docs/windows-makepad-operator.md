@@ -127,8 +127,9 @@ it does not contact the headset. Add `--write-receipt` to leave
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide
 Unity/Quest runtime state and `clock_alignment_samples.csv` for LSL clock-probe
-echo evidence. Keep those timestamp-sensitive samples in LSL/CSV, not in JSON
-HTTP command payloads.
+echo evidence, plus `legacy_outputs_manifest.json` for metadata-only pointers
+to legacy Unity output files. Keep timestamp-sensitive samples in LSL/CSV, not
+in JSON HTTP command payloads.
 
 When `--audit-dir` is supplied, runtime HTTP helpers append
 `command_audit.jsonl` with the command request, bridge response, timing, and

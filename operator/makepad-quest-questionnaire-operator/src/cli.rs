@@ -30,6 +30,7 @@ const DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES: &[&str] = &[
     "questionnaire_results.jsonl",
     "session_settings.json",
     "session_snapshot.json",
+    "legacy_outputs_manifest.json",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -921,6 +922,7 @@ fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), Strin
         "session_snapshot.json" => {
             validate_json_protocol(path, "viscereality.peripersonal.session_snapshot.v1")
         }
+        "legacy_outputs_manifest.json" => validate_legacy_outputs_manifest(path),
         _ => Ok(()),
     }
 }
@@ -963,6 +965,34 @@ fn validate_json_protocol(path: &Path, expected_protocol: &str) -> Result<(), St
     } else {
         Err(format!(
             "protocol_version must be {expected_protocol}, got {protocol}"
+        ))
+    }
+}
+
+fn validate_legacy_outputs_manifest(path: &Path) -> Result<(), String> {
+    let text =
+        fs::read_to_string(path).map_err(|err| format!("could not read JSON file: {err}"))?;
+    let value = serde_json::from_str::<serde_json::Value>(&text)
+        .map_err(|err| format!("could not parse JSON document: {err}"))?;
+    let protocol = value
+        .get("protocol_version")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if protocol != "viscereality.peripersonal.legacy_outputs_manifest.v1" {
+        return Err(format!(
+            "protocol_version must be viscereality.peripersonal.legacy_outputs_manifest.v1, got {protocol}"
+        ));
+    }
+
+    let content_policy = value
+        .get("content_policy")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if content_policy == "file_metadata_only" {
+        Ok(())
+    } else {
+        Err(format!(
+            "content_policy must be file_metadata_only, got {content_policy}"
         ))
     }
 }
@@ -2968,6 +2998,42 @@ mod tests {
     }
 
     #[test]
+    fn rejects_session_bundle_with_bad_legacy_manifest_protocol() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-legacy-manifest");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("legacy_outputs_manifest.json"),
+            "{\"protocol_version\":\"wrong.protocol\"}\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("legacy_outputs_manifest.json"));
+        assert!(error.contains("viscereality.peripersonal.legacy_outputs_manifest.v1"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_legacy_manifest_without_metadata_only_policy() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-legacy-policy");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("legacy_outputs_manifest.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.legacy_outputs_manifest.v1\",\"content_policy\":\"full_copy\"}\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("legacy_outputs_manifest.json"));
+        assert!(error.contains("content_policy must be file_metadata_only"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
     fn parses_preflight_runtime_command() {
         let command = parse_args(vec![
             "preflight-runtime".to_string(),
@@ -3334,6 +3400,11 @@ mod tests {
         fs::write(
             bundle_dir.join("session_snapshot.json"),
             "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\"}\n",
+        )
+        .unwrap();
+        fs::write(
+            bundle_dir.join("legacy_outputs_manifest.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.legacy_outputs_manifest.v1\",\"content_policy\":\"file_metadata_only\"}\n",
         )
         .unwrap();
     }
