@@ -128,6 +128,8 @@ pose, breathing, sphere, timing, and performance data stays in the Unity
 session CSV bundle. Controller rows are observational setup data: disconnected,
 inactive, or absent controllers should be preserved in the snapshot rather than
 treated as a failed run.
+In the GUI, fill the Status out field before pressing Status to write the same
+snapshot while also updating the device panel.
 
 The generic `open-questionnaire` helper builds the low-rate command envelope
 for a target runtime bridge. It does not create result URIs, use ADB for panel

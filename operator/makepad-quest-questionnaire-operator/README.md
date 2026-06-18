@@ -99,7 +99,7 @@ path such as `files/runtime_csv/participant-P001/session-001` and fills the
 The GUI can also load a local operator profile JSON by path. The loader only
 reads the generic top-level `makepad_gui_fields` object, with keys matching the
 GUI field names such as `endpoint`, `session`, `participant`, `adb_serial`,
-`host_port`, `quest_port`, `runtime_protocol`, `runtime_kind`,
+`device_status_out`, `host_port`, `quest_port`, `runtime_protocol`, `runtime_kind`,
 `runtime_package`, `runtime_study`, `runtime_condition`,
 `runtime_build_tag`, `runtime_source_scene`, `runtime_questionnaire`,
 `runtime_stage`, `runtime_marker`, `runtime_remote`, `target_apk_path`,
@@ -133,6 +133,8 @@ pose, breathing, sphere, timing, and performance data stays in the Unity
 session CSV bundle. Controller rows are observational setup data: disconnected,
 inactive, or absent controllers should be preserved in the snapshot rather than
 treated as a failed run.
+In the GUI, fill **Status out** before pressing **Status** to write the same
+snapshot while also updating the device panel.
 
 The `pull-target-session` helper is the explicit export step for target runtime
 session evidence. It pulls from the target app's app-specific Quest storage

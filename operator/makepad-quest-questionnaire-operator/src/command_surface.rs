@@ -34,6 +34,10 @@ pub const GUI_COMMAND_SURFACE: &[CommandSurfaceItem] = &[
         cli_equivalent: "--serial",
     },
     CommandSurfaceItem {
+        gui_control: "Device status out field",
+        cli_equivalent: "--out",
+    },
+    CommandSurfaceItem {
         gui_control: "Panel APK field",
         cli_equivalent: "--apk",
     },

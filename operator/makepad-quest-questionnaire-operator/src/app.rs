@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use makepad_widgets::*;
 use serde::Serialize;
 
-use crate::cli::{pull_target_session as pull_target_session_command, verify_target_apk_command};
+use crate::cli::{
+    device_status as device_status_command, pull_target_session as pull_target_session_command,
+    verify_target_apk_command,
+};
 use crate::device;
 use crate::profile::{load_operator_gui_profile, OperatorGuiProfileFields};
 use crate::protocol::{
@@ -157,6 +160,11 @@ script_mod! {
                                     FieldLabel{text: "ADB serial"}
                                     device_serial_input := Field{
                                         empty_text: "Quest serial"
+                                    }
+
+                                    FieldLabel{text: "Status out"}
+                                    device_status_out_input := Field{
+                                        empty_text: "optional device-status JSON"
                                     }
 
                                     FieldLabel{text: "Panel APK"}
@@ -580,27 +588,43 @@ impl App {
 
     fn refresh_device_status(&self, cx: &mut Cx) {
         let serial = self.field_text(cx, ids!(device_serial_input));
-        match device::get_device_snapshot(&serial) {
-            Ok(snapshot) => {
-                self.ui
-                    .label(cx, ids!(device_snapshot_value))
-                    .set_text(cx, &device::format_snapshot_text(&snapshot));
-                if let Some(component) = snapshot
-                    .foreground_component
-                    .as_ref()
-                    .or(snapshot.focused_window.as_ref())
-                {
+        let out_text = self.field_text(cx, ids!(device_status_out_input));
+        let out_path = if out_text.is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(out_text))
+        };
+        match device_status_command(&serial, out_path.as_deref(), true) {
+            Ok(raw) => match serde_json::from_str::<device::QuestSnapshot>(&raw) {
+                Ok(snapshot) => {
                     self.ui
-                        .label(cx, ids!(foreground_value))
-                        .set_text(cx, &format!("Foreground: {component}"));
+                        .label(cx, ids!(device_snapshot_value))
+                        .set_text(cx, &device::format_snapshot_text(&snapshot));
+                    if let Some(component) = snapshot
+                        .foreground_component
+                        .as_ref()
+                        .or(snapshot.focused_window.as_ref())
+                    {
+                        self.ui
+                            .label(cx, ids!(foreground_value))
+                            .set_text(cx, &format!("Foreground: {component}"));
+                    }
+                    let detail = out_path
+                        .as_ref()
+                        .map(|path| format!("ADB snapshot written to {}.", path.display()))
+                        .unwrap_or_else(|| "ADB snapshot refreshed.".to_string());
+                    self.set_status(cx, "Quest status", &detail);
+                    self.set_last_response(cx, &raw);
                 }
-                self.set_status(cx, "Quest status", "ADB snapshot refreshed.");
-                self.set_last_response(
-                    cx,
-                    &serde_json::to_string_pretty(&snapshot)
-                        .unwrap_or_else(|_| "Snapshot refreshed.".to_string()),
-                );
-            }
+                Err(err) => {
+                    self.set_status(
+                        cx,
+                        "Quest error",
+                        &format!("Could not parse snapshot: {err}"),
+                    );
+                    self.set_last_response(cx, &raw);
+                }
+            },
             Err(err) => {
                 self.ui
                     .label(cx, ids!(device_snapshot_value))
@@ -849,6 +873,7 @@ impl App {
         self.set_profile_field(cx, ids!(participant_input), &fields.participant);
         self.set_profile_field(cx, ids!(language_input), &fields.language);
         self.set_profile_field(cx, ids!(device_serial_input), &fields.adb_serial);
+        self.set_profile_field(cx, ids!(device_status_out_input), &fields.device_status_out);
         self.set_profile_field(cx, ids!(host_port_input), &fields.host_port);
         self.set_profile_field(cx, ids!(device_port_input), &fields.quest_port);
         self.set_profile_field(cx, ids!(runtime_apk_input), &fields.target_apk_path);

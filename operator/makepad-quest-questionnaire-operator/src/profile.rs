@@ -29,6 +29,8 @@ pub struct OperatorGuiProfileFields {
     #[serde(default)]
     pub adb_serial: String,
     #[serde(default, deserialize_with = "deserialize_stringish")]
+    pub device_status_out: String,
+    #[serde(default, deserialize_with = "deserialize_stringish")]
     pub host_port: String,
     #[serde(default, deserialize_with = "deserialize_stringish")]
     pub quest_port: String,
@@ -109,6 +111,7 @@ mod tests {
                     "participant": "P001",
                     "language": "en",
                     "adb_serial": "<quest-serial>",
+                    "device_status_out": "artifacts/device-status/pre-run.json",
                     "host_port": 8787,
                     "quest_port": "8787",
                     "target_apk_path": "artifacts/target-runtime.apk",
@@ -135,6 +138,10 @@ mod tests {
         assert_eq!(profile.makepad_gui_fields.endpoint, "http://127.0.0.1:8787");
         assert_eq!(profile.makepad_gui_fields.host_port, "8787");
         assert_eq!(profile.makepad_gui_fields.quest_port, "8787");
+        assert_eq!(
+            profile.makepad_gui_fields.device_status_out,
+            "artifacts/device-status/pre-run.json"
+        );
         assert_eq!(
             profile.makepad_gui_fields.target_apk_path,
             "artifacts/target-runtime.apk"
