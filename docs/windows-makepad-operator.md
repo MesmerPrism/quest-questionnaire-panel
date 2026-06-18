@@ -104,7 +104,9 @@ records headset battery/wake/display state, focused app/window when ADB exposes
 it, screen brightness, music volume, proximity state, and controller
 battery/connection state. This is an explicit operator snapshot; high-rate
 pose, breathing, sphere, timing, and performance data stays in the Unity
-session CSV bundle.
+session CSV bundle. Controller rows are observational setup data: disconnected,
+inactive, or absent controllers should be preserved in the snapshot rather than
+treated as a failed run.
 
 The generic `open-questionnaire` helper builds the low-rate command envelope
 for a target runtime bridge. It does not create result URIs, use ADB for panel
@@ -131,7 +133,9 @@ known CSV headers including runtime-state environment/pose/breathing columns,
 settings/snapshot protocol ids, and non-empty questionnaire JSONL rows locally;
 it does not contact the headset. Add `--write-receipt` to leave
 `operator_verification_receipt.json` in a successfully verified bundle, or
-`--receipt-file <path>` to place that JSON receipt in an audit folder.
+`--receipt-file <path>` to place that JSON receipt in an audit folder. Receipts
+include each expected file's byte size and SHA-256 digest so the accepted bundle
+can be matched later without reopening the Quest.
 
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide

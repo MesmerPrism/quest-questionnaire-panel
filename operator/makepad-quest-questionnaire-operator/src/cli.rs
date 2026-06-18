@@ -6,6 +6,7 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::device;
 use crate::protocol::{
@@ -690,6 +691,10 @@ struct SessionBundleFileCheck {
     present: bool,
     valid: bool,
     issue: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sha256: Option<String>,
 }
 
 pub fn verify_session_bundle_command(
@@ -743,6 +748,8 @@ fn verify_session_bundle(
             present: false,
             valid: false,
             issue: "session bundle folder was not found".to_string(),
+            size_bytes: None,
+            sha256: None,
         });
     } else if let Ok(entries) = fs::read_dir(path) {
         for entry in entries.flatten() {
@@ -766,15 +773,33 @@ fn verify_session_bundle(
 
         let mut valid = present;
         let mut issue = String::new();
+        let mut size_bytes = None;
+        let mut sha256 = None;
         if safe_file.is_none() {
             valid = false;
             issue = "expected file name must be a plain file name".to_string();
         } else if !present {
             issue = "required file is missing".to_string();
         } else if let Some(name) = safe_file.as_deref() {
-            if let Err(err) = validate_known_session_file(&path.join(name), name) {
+            let file_path = path.join(name);
+            match file_digest(&file_path) {
+                Ok(digest) => {
+                    size_bytes = Some(digest.size_bytes);
+                    sha256 = Some(digest.sha256);
+                }
+                Err(err) => {
+                    valid = false;
+                    issue = err;
+                }
+            }
+            if valid {
+                if let Err(err) = validate_known_session_file(&file_path, name) {
+                    valid = false;
+                    issue = err;
+                }
+            } else if issue.is_empty() {
                 valid = false;
-                issue = err;
+                issue = "required file failed validation".to_string();
             }
         }
 
@@ -783,6 +808,8 @@ fn verify_session_bundle(
             present,
             valid,
             issue,
+            size_bytes,
+            sha256,
         });
     }
 
@@ -818,6 +845,45 @@ fn session_bundle_issues(report: &SessionBundleVerificationReport) -> Vec<String
     } else {
         issues
     }
+}
+
+struct FileDigest {
+    size_bytes: u64,
+    sha256: String,
+}
+
+fn file_digest(path: &Path) -> Result<FileDigest, String> {
+    let mut file = fs::File::open(path).map_err(|err| format!("could not read file: {err}"))?;
+    let size_bytes = file
+        .metadata()
+        .map_err(|err| format!("could not read file metadata: {err}"))?
+        .len();
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|err| format!("could not hash file: {err}"))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+
+    Ok(FileDigest {
+        size_bytes,
+        sha256: hex_lower(&hasher.finalize()),
+    })
+}
+
+fn hex_lower(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push(HEX[(byte >> 4) as usize] as char);
+        output.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    output
 }
 
 fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), String> {
@@ -3004,11 +3070,21 @@ mod tests {
 
         let output = verify_session_bundle_command(&bundle_dir, &[], true, None, true).unwrap();
         let receipt = fs::read_to_string(&receipt_path).unwrap();
+        let report = verify_session_bundle(&bundle_dir, &[]);
+        let event_check = report
+            .file_checks
+            .iter()
+            .find(|check| check.file == "session_events.csv")
+            .unwrap();
 
         assert!(output.contains("\"receipt_path\""));
         assert!(receipt.contains("\"protocol_version\""));
         assert!(receipt.contains("\"accepted\": true"));
         assert!(receipt.contains("\"receipt_written_at_unix_ms\""));
+        assert!(receipt.contains("\"size_bytes\""));
+        assert!(receipt.contains("\"sha256\""));
+        assert!(event_check.size_bytes.unwrap() > 0);
+        assert_eq!(event_check.sha256.as_deref().unwrap().len(), 64);
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 

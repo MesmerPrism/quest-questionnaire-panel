@@ -871,6 +871,13 @@ mod tests {
     }
 
     #[test]
+    fn accepts_empty_controller_statuses() {
+        let controllers = parse_controller_statuses("No active controller devices\n");
+
+        assert!(controllers.is_empty());
+    }
+
+    #[test]
     fn parses_window_focus_component() {
         let output = "mCurrentFocus=Window{abc u0 io.github.example/.MainActivity}\nmFocusedApp=ActivityRecord{def u0 io.github.other/.OtherActivity t1}";
 

@@ -116,7 +116,9 @@ records headset battery/wake/display state, focused app/window when ADB exposes
 it, screen brightness, music volume, proximity state, and controller
 battery/connection state. This is an explicit operator snapshot; high-rate
 pose, breathing, sphere, timing, and performance data stays in the Unity
-session CSV bundle.
+session CSV bundle. Controller rows are observational setup data: disconnected,
+inactive, or absent controllers should be preserved in the snapshot rather than
+treated as a failed run.
 
 The `pull-target-session` helper is the explicit export step for target runtime
 session evidence. It pulls from the target app's app-specific Quest storage
@@ -134,7 +136,9 @@ Unity files are present, validates known CSV headers including
 columns, checks session settings/snapshot protocol ids, and parses non-empty
 questionnaire JSONL rows. Add `--write-receipt` to write
 `operator_verification_receipt.json` into a successfully verified local bundle,
-or pass `--receipt-file <path>` to write the JSON receipt elsewhere.
+or pass `--receipt-file <path>` to write the JSON receipt elsewhere. Receipts
+include each expected file's byte size and SHA-256 digest so the accepted bundle
+can be matched later without reopening the Quest.
 
 The `pull-session` HTTP helper is separate from that ADB copy step. It sends a
 low-rate runtime command with an `export_request` section so the on-Quest

@@ -10,6 +10,7 @@ publish = false
 makepad-widgets = { git = "https://github.com/MesmerPrism/makepad.git", rev = "520bd23e5d7392316ba4e487e0726d47edb22198" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 
 [lib]
 name = "makepad_quest_questionnaire_operator"
