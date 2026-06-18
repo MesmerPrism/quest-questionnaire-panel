@@ -933,11 +933,16 @@ impl App {
 
     fn apply_status_response(&self, cx: &mut Cx, response: BridgeStatusResponse, raw: &str) {
         self.render_foreground(cx, &response.foreground);
-        let detail = response
+        let mut detail = response
             .message
             .as_deref()
-            .unwrap_or("Bridge status received.");
-        self.set_status(cx, "Bridge connected", detail);
+            .unwrap_or("Bridge status received.")
+            .to_string();
+        if let Some(runtime_summary) = response.runtime_summary() {
+            detail.push_str(" | ");
+            detail.push_str(&runtime_summary);
+        }
+        self.set_status(cx, "Bridge connected", &detail);
         self.set_last_response(cx, raw);
     }
 

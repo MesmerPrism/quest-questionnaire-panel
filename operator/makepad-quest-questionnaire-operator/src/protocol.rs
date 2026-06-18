@@ -180,11 +180,66 @@ pub struct CallerHint {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BridgeStatusResponse {
     pub protocol_version: Option<String>,
+    pub target: Option<RuntimeStatusTarget>,
+    pub runtime_contract: Option<RuntimeStatusContract>,
+    pub capabilities: Option<RuntimeCapabilities>,
     pub bridge: Option<BridgeInfo>,
     pub foreground: ForegroundState,
     pub last_command: Option<LastCommand>,
     pub last_result: Option<LastResult>,
     pub message: Option<String>,
+    pub recording_active: Option<bool>,
+    pub session_dir: Option<String>,
+}
+
+impl BridgeStatusResponse {
+    pub fn runtime_summary(&self) -> Option<String> {
+        let mut parts = Vec::new();
+        if let Some(target) = &self.target {
+            let kind = target
+                .runtime_kind
+                .as_deref()
+                .filter(|value| !value.trim().is_empty());
+            let package = target
+                .runtime_package
+                .as_deref()
+                .filter(|value| !value.trim().is_empty());
+            match (kind, package) {
+                (Some(kind), Some(package)) => {
+                    parts.push(format!("Runtime: {kind} / {package}"));
+                }
+                (Some(kind), None) => parts.push(format!("Runtime: {kind}")),
+                (None, Some(package)) => parts.push(format!("Runtime package: {package}")),
+                (None, None) => {}
+            }
+        }
+
+        if let Some(recording_active) = self.recording_active {
+            parts.push(format!(
+                "recording: {}",
+                if recording_active { "active" } else { "idle" }
+            ));
+        }
+
+        if let Some(capabilities) = &self.capabilities {
+            if let Some(questionnaire_panel_launch) = capabilities.questionnaire_panel_launch {
+                parts.push(format!(
+                    "questionnaire: {}",
+                    if questionnaire_panel_launch {
+                        "available"
+                    } else {
+                        "not available"
+                    }
+                ));
+            }
+        }
+
+        if parts.is_empty() {
+            None
+        } else {
+            Some(parts.join("; "))
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -194,6 +249,8 @@ pub struct BridgeCommandResponse {
     pub message: Option<String>,
     pub foreground: ForegroundState,
     pub last_result: Option<LastResult>,
+    pub recording_active: Option<bool>,
+    pub session_dir: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -201,6 +258,37 @@ pub struct BridgeInfo {
     pub app: Option<String>,
     pub version: Option<String>,
     pub device_label: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct RuntimeStatusTarget {
+    pub runtime_kind: Option<String>,
+    pub runtime_package: Option<String>,
+    pub bridge_endpoint: Option<String>,
+    pub quest_selector: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct RuntimeStatusContract {
+    pub operator_protocol: Option<String>,
+    pub questionnaire_protocol: Option<String>,
+    pub questionnaire_result_callback_protocol: Option<String>,
+    pub storage_root: Option<String>,
+    pub session_storage_policy: Option<String>,
+    pub operator_transport: Option<String>,
+    pub timing_transport: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct RuntimeCapabilities {
+    #[serde(default)]
+    pub command_actions: Vec<String>,
+    pub additive_recording: Option<bool>,
+    pub app_private_session_bundle: Option<bool>,
+    pub explicit_pull_required: Option<bool>,
+    pub questionnaire_panel_launch: Option<bool>,
+    pub questionnaire_result_callback_ingest: Option<bool>,
+    pub lsl_clock_alignment: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -564,6 +652,80 @@ mod tests {
     #[test]
     fn endpoint_url_rejects_missing_scheme() {
         assert!(endpoint_url("127.0.0.1:8787", "/v1/status").is_err());
+    }
+
+    #[test]
+    fn parses_target_runtime_status_contract() {
+        let raw = r#"{
+            "protocol_version": "viscereality.peripersonal.operator.v1",
+            "target": {
+                "runtime_kind": "unity_quest_apk",
+                "runtime_package": "com.example.peripersonal",
+                "bridge_endpoint": "",
+                "quest_selector": ""
+            },
+            "runtime_contract": {
+                "operator_protocol": "viscereality.peripersonal.operator.v1",
+                "questionnaire_protocol": "quest.questionnaire.v1",
+                "questionnaire_result_callback_protocol": "viscereality.peripersonal.questionnaire_result_callback.v1",
+                "storage_root": "runtime_csv",
+                "session_storage_policy": "app_private_only",
+                "operator_transport": "http_loopback_adb_forward",
+                "timing_transport": "lsl_sussex_clock_probe"
+            },
+            "capabilities": {
+                "command_actions": ["start_session", "stop_session", "open_questionnaire"],
+                "additive_recording": true,
+                "app_private_session_bundle": true,
+                "explicit_pull_required": true,
+                "questionnaire_panel_launch": true,
+                "questionnaire_result_callback_ingest": true,
+                "lsl_clock_alignment": true
+            },
+            "bridge": {
+                "app": "peripersonal-unity-quest-apk",
+                "version": "1.0",
+                "device_label": "quest-lab"
+            },
+            "foreground": {
+                "xr_app_foreground": true,
+                "panel_foreground": false,
+                "foreground_package": "com.example.peripersonal",
+                "foreground_activity": "",
+                "questionnaire_id": "",
+                "open_stage": ""
+            },
+            "last_command": null,
+            "last_result": null,
+            "message": "Peripersonal Unity bridge ready.",
+            "recording_active": true,
+            "session_dir": "/data/user/0/com.example.peripersonal/files/runtime_csv/participant-P001/session-001"
+        }"#;
+
+        let status: BridgeStatusResponse = serde_json::from_str(raw).unwrap();
+        let target = status.target.as_ref().unwrap();
+        let contract = status.runtime_contract.as_ref().unwrap();
+        let capabilities = status.capabilities.as_ref().unwrap();
+
+        assert_eq!(target.runtime_kind.as_deref(), Some("unity_quest_apk"));
+        assert_eq!(
+            target.runtime_package.as_deref(),
+            Some("com.example.peripersonal")
+        );
+        assert_eq!(
+            contract.operator_protocol.as_deref(),
+            Some("viscereality.peripersonal.operator.v1")
+        );
+        assert!(capabilities
+            .command_actions
+            .contains(&"open_questionnaire".to_string()));
+        assert_eq!(capabilities.explicit_pull_required, Some(true));
+        assert_eq!(
+            status.runtime_summary().as_deref(),
+            Some(
+                "Runtime: unity_quest_apk / com.example.peripersonal; recording: active; questionnaire: available"
+            )
+        );
     }
 
     #[test]

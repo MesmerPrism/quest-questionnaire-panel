@@ -139,6 +139,46 @@ POST /v1/command
 }
 ```
 
+Target-runtime bridges may additionally advertise their downstream runtime
+contract and capabilities. The GUI parses these fields when present and shows a
+runtime summary after **Poll**:
+
+```json
+{
+  "protocol_version": "viscereality.peripersonal.operator.v1",
+  "target": {
+    "runtime_kind": "unity_quest_apk",
+    "runtime_package": "com.example.target",
+    "bridge_endpoint": "",
+    "quest_selector": ""
+  },
+  "runtime_contract": {
+    "operator_protocol": "viscereality.peripersonal.operator.v1",
+    "questionnaire_protocol": "quest.questionnaire.v1",
+    "questionnaire_result_callback_protocol": "viscereality.peripersonal.questionnaire_result_callback.v1",
+    "storage_root": "runtime_csv",
+    "session_storage_policy": "app_private_only",
+    "operator_transport": "http_loopback_adb_forward",
+    "timing_transport": "lsl_sussex_clock_probe"
+  },
+  "capabilities": {
+    "command_actions": [
+      "start_session",
+      "stop_session",
+      "mark_timing_event",
+      "open_questionnaire",
+      "pull_session"
+    ],
+    "additive_recording": true,
+    "app_private_session_bundle": true,
+    "explicit_pull_required": true,
+    "questionnaire_panel_launch": true,
+    "questionnaire_result_callback_ingest": true,
+    "lsl_clock_alignment": true
+  }
+}
+```
+
 `POST /v1/command` receives a command body with a `panel_request` section that
 maps directly to the existing panel launch fields:
 
