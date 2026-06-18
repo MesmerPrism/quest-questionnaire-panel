@@ -1693,14 +1693,7 @@ fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), Strin
 }
 
 fn validate_csv_header_contains(path: &Path, required_columns: &[&str]) -> Result<(), String> {
-    let text = fs::read_to_string(path).map_err(|err| format!("could not read CSV file: {err}"))?;
-    let header = text
-        .lines()
-        .next()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .ok_or_else(|| "CSV header is missing".to_string())?;
-    let columns = header.split(',').collect::<Vec<_>>();
+    let columns = csv_header_columns(path)?;
     let missing = required_columns
         .iter()
         .filter(|column| !columns.iter().any(|actual| actual == *column))
@@ -1714,6 +1707,17 @@ fn validate_csv_header_contains(path: &Path, required_columns: &[&str]) -> Resul
             missing.join(", ")
         ))
     }
+}
+
+fn csv_header_columns(path: &Path) -> Result<Vec<String>, String> {
+    let text = fs::read_to_string(path).map_err(|err| format!("could not read CSV file: {err}"))?;
+    let header = text
+        .lines()
+        .next()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .ok_or_else(|| "CSV header is missing".to_string())?;
+    Ok(header.split(',').map(str::to_string).collect())
 }
 
 fn validate_json_protocol(path: &Path, expected_protocol: &str) -> Result<(), String> {
@@ -1753,6 +1757,7 @@ fn validate_session_schema(path: &Path) -> Result<(), String> {
         .get("files")
         .and_then(serde_json::Value::as_array)
         .ok_or_else(|| "files array is missing".to_string())?;
+    validate_schema_expected_file_entries(files)?;
     validate_schema_array_contains(
         files,
         "runtime_state_samples.csv",
@@ -1785,7 +1790,89 @@ fn validate_session_schema(path: &Path) -> Result<(), String> {
         &["recorded_at_utc", "request_id", "stage", "result_json"],
     )?;
     schema_file(files, "session_schema.json")?;
+    let bundle_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    validate_schema_csv_headers_match(files, bundle_dir)?;
     Ok(())
+}
+
+fn validate_schema_expected_file_entries(files: &[serde_json::Value]) -> Result<(), String> {
+    for expected_file in DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES {
+        schema_file(files, expected_file)?;
+    }
+    Ok(())
+}
+
+fn validate_schema_csv_headers_match(
+    files: &[serde_json::Value],
+    bundle_dir: &Path,
+) -> Result<(), String> {
+    for file in files {
+        let format = file
+            .get("format")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        if format != "csv" {
+            continue;
+        }
+
+        let schema_path = file
+            .get("path")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        let safe_name = safe_expected_file_name(schema_path)
+            .ok_or_else(|| format!("schema file path must be a plain file name: {schema_path}"))?;
+        let csv_path = bundle_dir.join(&safe_name);
+        if !csv_path.is_file() {
+            continue;
+        }
+
+        let schema_columns = schema_string_array(file, "columns", schema_path)?;
+        let header_columns = csv_header_columns(&csv_path)?;
+        validate_schema_columns_match_header(schema_path, &schema_columns, &header_columns)?;
+    }
+
+    Ok(())
+}
+
+fn validate_schema_columns_match_header(
+    schema_path: &str,
+    schema_columns: &[String],
+    header_columns: &[String],
+) -> Result<(), String> {
+    if schema_columns == header_columns {
+        return Ok(());
+    }
+
+    let missing_from_schema = header_columns
+        .iter()
+        .filter(|column| !schema_columns.iter().any(|actual| actual == *column))
+        .cloned()
+        .collect::<Vec<_>>();
+    let missing_from_header = schema_columns
+        .iter()
+        .filter(|column| !header_columns.iter().any(|actual| actual == *column))
+        .cloned()
+        .collect::<Vec<_>>();
+
+    if missing_from_schema.is_empty() && missing_from_header.is_empty() {
+        return Err(format!(
+            "{schema_path} schema column order does not match CSV header"
+        ));
+    }
+
+    let schema_issue = if missing_from_schema.is_empty() {
+        "none".to_string()
+    } else {
+        missing_from_schema.join(", ")
+    };
+    let header_issue = if missing_from_header.is_empty() {
+        "none".to_string()
+    } else {
+        missing_from_header.join(", ")
+    };
+    Err(format!(
+        "{schema_path} schema columns do not match CSV header (missing from schema: {schema_issue}; missing from CSV header: {header_issue})"
+    ))
 }
 
 fn validate_schema_array_contains(
@@ -1795,17 +1882,10 @@ fn validate_schema_array_contains(
     required_values: &[&str],
 ) -> Result<(), String> {
     let file = schema_file(files, path)?;
-    let values = file
-        .get(array_name)
-        .and_then(serde_json::Value::as_array)
-        .ok_or_else(|| format!("{path} schema is missing {array_name} array"))?;
+    let values = schema_string_array(file, array_name, path)?;
     let missing = required_values
         .iter()
-        .filter(|required| {
-            !values
-                .iter()
-                .any(|value| value.as_str() == Some(**required))
-        })
+        .filter(|required| !values.iter().any(|value| value == **required))
         .map(|value| (*value).to_string())
         .collect::<Vec<_>>();
     if missing.is_empty() {
@@ -1816,6 +1896,26 @@ fn validate_schema_array_contains(
             missing.join(", ")
         ))
     }
+}
+
+fn schema_string_array(
+    file: &serde_json::Value,
+    array_name: &str,
+    path: &str,
+) -> Result<Vec<String>, String> {
+    let values = file
+        .get(array_name)
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| format!("{path} schema is missing {array_name} array"))?;
+    values
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .map(str::to_string)
+                .ok_or_else(|| format!("{path} schema {array_name} array must contain strings"))
+        })
+        .collect()
 }
 
 fn schema_file<'a>(
@@ -4337,9 +4437,64 @@ mod tests {
     fn rejects_session_bundle_with_bad_session_schema() {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-schema");
         write_complete_session_bundle(&bundle_dir);
+        let schema = serde_json::json!({
+            "protocol_version": "viscereality.peripersonal.session_schema.v1",
+            "files": [
+                {
+                    "path": "session_events.csv"
+                },
+                {
+                    "path": "signals_long.csv"
+                },
+                {
+                    "path": "breathing_trace.csv"
+                },
+                {
+                    "path": "runtime_state_samples.csv",
+                    "format": "csv",
+                    "columns": [
+                        "recorded_at_utc",
+                        "sample_reason",
+                        "screen_refresh_rate_hz",
+                        "xr_loaded_device_name",
+                        "head_pos_x",
+                        "left_controller_valid",
+                        "right_controller_valid"
+                    ]
+                },
+                {
+                    "path": "clock_alignment_samples.csv",
+                    "columns": [
+                        "probe_sequence",
+                        "probe_source_lsl_seconds",
+                        "quest_receive_lsl_seconds",
+                        "quest_echo_lsl_seconds"
+                    ]
+                },
+                {
+                    "path": "timing_markers.csv"
+                },
+                {
+                    "path": "questionnaire_results.jsonl",
+                    "fields": ["recorded_at_utc", "request_id", "stage", "result_json"]
+                },
+                {
+                    "path": "session_settings.json"
+                },
+                {
+                    "path": "session_snapshot.json"
+                },
+                {
+                    "path": "session_schema.json"
+                },
+                {
+                    "path": "legacy_outputs_manifest.json"
+                }
+            ]
+        });
         fs::write(
             bundle_dir.join("session_schema.json"),
-            "{\"protocol_version\":\"viscereality.peripersonal.session_schema.v1\",\"files\":[{\"path\":\"runtime_state_samples.csv\",\"columns\":[\"recorded_at_utc\"]}]}\n",
+            format!("{}\n", serde_json::to_string(&schema).unwrap()),
         )
         .unwrap();
 
@@ -4347,7 +4502,8 @@ mod tests {
 
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("session_schema.json"));
-        assert!(error.contains("left_controller_valid"));
+        assert!(error.contains("schema columns do not match CSV header"));
+        assert!(error.contains("missing from schema"));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
@@ -4715,34 +4871,47 @@ mod tests {
 
     fn write_complete_session_bundle(bundle_dir: &Path) {
         fs::create_dir_all(bundle_dir).unwrap();
+        let session_events_header =
+            "participant_id,session_id,dataset_id,recorded_at_utc,event_name,event_detail,result";
+        let signals_header =
+            "participant_id,session_id,dataset_id,recorded_at_utc,source_timestamp_utc,source,signal_group,signal_name,value_numeric,value_text,unit,sequence";
+        let breathing_header =
+            "participant_id,session_id,dataset_id,recorded_at_utc,source_timestamp_utc,breath_volume01,sphere_radius_progress01,sphere_radius_raw,controller_calibrated";
+        let runtime_state_header =
+            "participant_id,session_id,dataset_id,recorded_at_utc,sample_sequence,sample_reason,quest_realtime_seconds,application_identifier,application_version,unity_version,runtime_platform,screen_width_px,screen_height_px,screen_refresh_rate_hz,screen_dpi,screen_orientation,screen_sleep_timeout,quality_level,quality_level_name,v_sync_count,time_scale,fixed_delta_time_seconds,xr_enabled,xr_device_active,xr_loaded_device_name,xr_eye_texture_width,xr_eye_texture_height,performance_issue_flags,breathing_drive,sphere_radius,camera_present,head_pos_x,left_controller_valid,right_controller_valid";
+        let clock_alignment_header =
+            "participant_id,session_id,dataset_id,probe_sequence,recorded_at_utc,probe_source_lsl_seconds,quest_received_at_utc,quest_receive_lsl_seconds,quest_echo_lsl_seconds";
+        let timing_markers_header =
+            "participant_id,session_id,dataset_id,recorded_at_utc,marker_name,marker_detail,sample_sequence,source_lsl_timestamp_seconds,quest_local_clock_seconds,value01,aux_value";
+
         fs::write(
             bundle_dir.join("session_events.csv"),
-            "participant_id,session_id,dataset_id,recorded_at_utc,event_name,event_detail,result\n",
+            format!("{session_events_header}\n"),
         )
         .unwrap();
         fs::write(
             bundle_dir.join("signals_long.csv"),
-            "participant_id,session_id,dataset_id,recorded_at_utc,source_timestamp_utc,source,signal_group,signal_name,value_numeric,value_text,unit,sequence\n",
+            format!("{signals_header}\n"),
         )
         .unwrap();
         fs::write(
             bundle_dir.join("breathing_trace.csv"),
-            "participant_id,session_id,dataset_id,recorded_at_utc,source_timestamp_utc,breath_volume01,sphere_radius_progress01,sphere_radius_raw,controller_calibrated\n",
+            format!("{breathing_header}\n"),
         )
         .unwrap();
         fs::write(
             bundle_dir.join("runtime_state_samples.csv"),
-            "participant_id,session_id,dataset_id,recorded_at_utc,sample_sequence,sample_reason,quest_realtime_seconds,application_identifier,application_version,unity_version,runtime_platform,screen_width_px,screen_height_px,screen_refresh_rate_hz,screen_dpi,screen_orientation,screen_sleep_timeout,quality_level,quality_level_name,v_sync_count,time_scale,fixed_delta_time_seconds,xr_enabled,xr_device_active,xr_loaded_device_name,xr_eye_texture_width,xr_eye_texture_height,performance_issue_flags,breathing_drive,sphere_radius,camera_present,head_pos_x,left_controller_valid,right_controller_valid\n",
+            format!("{runtime_state_header}\n"),
         )
         .unwrap();
         fs::write(
             bundle_dir.join("clock_alignment_samples.csv"),
-            "participant_id,session_id,dataset_id,probe_sequence,recorded_at_utc,probe_source_lsl_seconds,quest_received_at_utc,quest_receive_lsl_seconds,quest_echo_lsl_seconds\n",
+            format!("{clock_alignment_header}\n"),
         )
         .unwrap();
         fs::write(
             bundle_dir.join("timing_markers.csv"),
-            "participant_id,session_id,dataset_id,recorded_at_utc,marker_name,marker_detail,sample_sequence,source_lsl_timestamp_seconds,quest_local_clock_seconds,value01,aux_value\n",
+            format!("{timing_markers_header}\n"),
         )
         .unwrap();
         fs::write(bundle_dir.join("questionnaire_results.jsonl"), "").unwrap();
@@ -4756,13 +4925,69 @@ mod tests {
             "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\"}\n",
         )
         .unwrap();
+        let schema = serde_json::json!({
+            "protocol_version": "viscereality.peripersonal.session_schema.v1",
+            "files": [
+                {
+                    "path": "session_events.csv",
+                    "format": "csv",
+                    "columns": test_csv_columns(session_events_header)
+                },
+                {
+                    "path": "signals_long.csv",
+                    "format": "csv",
+                    "columns": test_csv_columns(signals_header)
+                },
+                {
+                    "path": "breathing_trace.csv",
+                    "format": "csv",
+                    "columns": test_csv_columns(breathing_header)
+                },
+                {
+                    "path": "runtime_state_samples.csv",
+                    "format": "csv",
+                    "columns": test_csv_columns(runtime_state_header)
+                },
+                {
+                    "path": "clock_alignment_samples.csv",
+                    "format": "csv",
+                    "columns": test_csv_columns(clock_alignment_header)
+                },
+                {
+                    "path": "timing_markers.csv",
+                    "format": "csv",
+                    "columns": test_csv_columns(timing_markers_header)
+                },
+                {
+                    "path": "questionnaire_results.jsonl",
+                    "format": "jsonl",
+                    "fields": ["recorded_at_utc", "request_id", "stage", "result_json"]
+                },
+                {
+                    "path": "session_settings.json",
+                    "format": "json",
+                    "protocol_version": "viscereality.peripersonal.session_settings.v1"
+                },
+                {
+                    "path": "session_snapshot.json",
+                    "format": "json",
+                    "protocol_version": "viscereality.peripersonal.session_snapshot.v1"
+                },
+                {
+                    "path": "session_schema.json",
+                    "format": "json",
+                    "protocol_version": "viscereality.peripersonal.session_schema.v1"
+                },
+                {
+                    "path": "legacy_outputs_manifest.json",
+                    "format": "json",
+                    "protocol_version": "viscereality.peripersonal.legacy_outputs_manifest.v1"
+                }
+            ]
+        });
         fs::write(
             bundle_dir.join("session_schema.json"),
-            "{\"protocol_version\":\"viscereality.peripersonal.session_schema.v1\",\"files\":[\
-             {\"path\":\"runtime_state_samples.csv\",\"columns\":[\"recorded_at_utc\",\"sample_reason\",\"screen_refresh_rate_hz\",\"xr_loaded_device_name\",\"head_pos_x\",\"left_controller_valid\",\"right_controller_valid\"]},\
-             {\"path\":\"clock_alignment_samples.csv\",\"columns\":[\"probe_sequence\",\"probe_source_lsl_seconds\",\"quest_receive_lsl_seconds\",\"quest_echo_lsl_seconds\"]},\
-             {\"path\":\"questionnaire_results.jsonl\",\"fields\":[\"recorded_at_utc\",\"request_id\",\"stage\",\"result_json\"]},\
-             {\"path\":\"session_schema.json\",\"protocol_version\":\"viscereality.peripersonal.session_schema.v1\"}]}\n",
+            format!("{}\n", serde_json::to_string(&schema).unwrap()),
         )
         .unwrap();
         fs::write(
@@ -4770,5 +4995,9 @@ mod tests {
             "{\"protocol_version\":\"viscereality.peripersonal.legacy_outputs_manifest.v1\",\"content_policy\":\"file_metadata_only\"}\n",
         )
         .unwrap();
+    }
+
+    fn test_csv_columns(header: &str) -> Vec<String> {
+        header.split(',').map(str::to_string).collect()
     }
 }

@@ -150,7 +150,8 @@ treating it as study evidence. The verifier checks that the expected additive
 Unity files are present, validates known CSV headers including
 `runtime_state_samples.csv` environment, performance, pose, and breathing
 columns, checks session settings/snapshot/schema protocol ids and schema
-entries, and parses non-empty questionnaire JSONL rows. Add `--write-receipt` to write
+entries, compares schema column arrays with the pulled CSV headers, and parses
+non-empty questionnaire JSONL rows. Add `--write-receipt` to write
 `operator_verification_receipt.json` into a successfully verified local bundle,
 or pass `--receipt-file <path>` to write the JSON receipt elsewhere. Receipts
 include each expected file's byte size and SHA-256 digest so the accepted bundle
