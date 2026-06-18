@@ -451,6 +451,13 @@ enum PendingRequest {
     Command,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RuntimePreflightApproval {
+    protocol_version: String,
+    runtime_kind: String,
+    runtime_package: String,
+}
+
 #[derive(Script, ScriptHook)]
 pub struct App {
     #[live]
@@ -461,6 +468,8 @@ pub struct App {
     active_request_id: Option<LiveId>,
     #[rust]
     pending_request: Option<PendingRequest>,
+    #[rust]
+    runtime_preflight_approval: Option<RuntimePreflightApproval>,
 }
 
 impl App {
@@ -774,6 +783,10 @@ impl App {
     }
 
     fn send_runtime_start_request(&mut self, cx: &mut Cx) {
+        if !self.require_matching_runtime_preflight(cx) {
+            return;
+        }
+
         let url = match self.command_url(cx) {
             Some(url) => url,
             None => return,
@@ -791,6 +804,10 @@ impl App {
     }
 
     fn send_runtime_marker_request(&mut self, cx: &mut Cx) {
+        if !self.require_matching_runtime_preflight(cx) {
+            return;
+        }
+
         let url = match self.command_url(cx) {
             Some(url) => url,
             None => return,
@@ -810,6 +827,10 @@ impl App {
     }
 
     fn send_runtime_open_request(&mut self, cx: &mut Cx) {
+        if !self.require_matching_runtime_preflight(cx) {
+            return;
+        }
+
         let url = match self.command_url(cx) {
             Some(url) => url,
             None => return,
@@ -826,6 +847,10 @@ impl App {
     }
 
     fn send_runtime_stop_request(&mut self, cx: &mut Cx) {
+        if !self.require_matching_runtime_preflight(cx) {
+            return;
+        }
+
         let url = match self.command_url(cx) {
             Some(url) => url,
             None => return,
@@ -842,6 +867,10 @@ impl App {
     }
 
     fn send_runtime_pull_request(&mut self, cx: &mut Cx) {
+        if !self.require_matching_runtime_preflight(cx) {
+            return;
+        }
+
         let url = match self.command_url(cx) {
             Some(url) => url,
             None => return,
@@ -902,6 +931,34 @@ impl App {
             self.field_text(cx, ids!(endpoint_input)),
             self.field_text(cx, ids!(device_serial_input)),
         )
+    }
+
+    fn runtime_preflight_key(&self, cx: &Cx) -> RuntimePreflightApproval {
+        RuntimePreflightApproval {
+            protocol_version: self.runtime_protocol(cx),
+            runtime_kind: self.runtime_kind(cx),
+            runtime_package: self.field_text(cx, ids!(runtime_package_input)),
+        }
+    }
+
+    fn has_matching_runtime_preflight(&self, cx: &Cx) -> bool {
+        self.runtime_preflight_approval
+            .as_ref()
+            .map(|approval| approval == &self.runtime_preflight_key(cx))
+            .unwrap_or(false)
+    }
+
+    fn require_matching_runtime_preflight(&self, cx: &mut Cx) -> bool {
+        if self.has_matching_runtime_preflight(cx) {
+            return true;
+        }
+
+        self.set_status(
+            cx,
+            "Runtime preflight required",
+            "Run Target Runtime Preflight after Forward/Poll and before Start/Mark/Open Q/Stop/Pull.",
+        );
+        false
     }
 
     fn runtime_session(&self, cx: &Cx) -> RuntimeSessionSpec {
@@ -1035,7 +1092,7 @@ impl App {
     }
 
     fn apply_runtime_preflight_response(
-        &self,
+        &mut self,
         cx: &mut Cx,
         response: BridgeStatusResponse,
         raw: &str,
@@ -1043,6 +1100,7 @@ impl App {
         self.render_foreground(cx, &response.foreground);
         let issues = validate_runtime_status(&response, &self.runtime_status_expectation(cx));
         if issues.is_empty() {
+            self.runtime_preflight_approval = Some(self.runtime_preflight_key(cx));
             let mut detail =
                 "Target runtime matches expected protocol and capabilities.".to_string();
             if let Some(runtime_summary) = response.runtime_summary() {
@@ -1051,6 +1109,7 @@ impl App {
             }
             self.set_status(cx, "Runtime preflight passed", &detail);
         } else {
+            self.runtime_preflight_approval = None;
             self.set_status(
                 cx,
                 "Runtime preflight failed",

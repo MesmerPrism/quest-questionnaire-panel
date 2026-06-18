@@ -69,11 +69,12 @@ polls `GET /v1/status` and applies the same target-runtime checks as the
 `preflight-runtime` CLI helper. Fill in the target runtime protocol, kind,
 package, study, condition, questionnaire, stage, marker, and remote session
 folder fields for the selected target APK, then run **Preflight** after
-`Forward`/`Poll` and before mutating runtime commands. These controls post to
-the same low-rate `POST /v1/command` bridge route without launching the
-questionnaire panel directly from Windows. Keep private runtime protocol ids,
-package names, APK hashes, and study-specific stage maps in local/private
-fixtures rather than in this public operator repo.
+`Forward`/`Poll` and before mutating runtime commands. The GUI runtime command
+buttons require a passed preflight for the current protocol/kind/package fields.
+These controls post to the same low-rate `POST /v1/command` bridge route
+without launching the questionnaire panel directly from Windows. Keep private
+runtime protocol ids, package names, APK hashes, and study-specific stage maps
+in local/private fixtures rather than in this public operator repo.
 
 For peripersonal APK sessions, pass `--runtime-build-tag` and
 `--source-scene-path Assets/Scenes/Space.unity` on `start-session` so Unity
