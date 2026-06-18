@@ -1680,12 +1680,8 @@ fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), Strin
             ],
         ),
         "questionnaire_results.jsonl" => validate_questionnaire_results_jsonl(path),
-        "session_settings.json" => {
-            validate_json_protocol(path, "viscereality.peripersonal.session_settings.v1")
-        }
-        "session_snapshot.json" => {
-            validate_json_protocol(path, "viscereality.peripersonal.session_snapshot.v1")
-        }
+        "session_settings.json" => validate_session_settings(path),
+        "session_snapshot.json" => validate_session_snapshot(path),
         "session_schema.json" => validate_session_schema(path),
         "legacy_outputs_manifest.json" => validate_legacy_outputs_manifest(path),
         _ => Ok(()),
@@ -1720,11 +1716,38 @@ fn csv_header_columns(path: &Path) -> Result<Vec<String>, String> {
     Ok(header.split(',').map(str::to_string).collect())
 }
 
-fn validate_json_protocol(path: &Path, expected_protocol: &str) -> Result<(), String> {
+fn validate_session_settings(path: &Path) -> Result<(), String> {
+    let value = read_json_document(path)?;
+    validate_json_protocol_value(&value, "viscereality.peripersonal.session_settings.v1")?;
+    validate_json_string_equals(&value, "quest_storage_policy", "app_private_only")?;
+    validate_json_string_equals(&value, "windows_storage_policy", "explicit_pull_only")?;
+    required_json_string(&value, "schema_path")?;
+    required_json_bool(&value, "runtime_state_sampling_enabled")?;
+    Ok(())
+}
+
+fn validate_session_snapshot(path: &Path) -> Result<(), String> {
+    let value = read_json_document(path)?;
+    validate_json_protocol_value(&value, "viscereality.peripersonal.session_snapshot.v1")?;
+    required_json_string(&value, "settings_path")?;
+    required_json_string(&value, "snapshot_path")?;
+    required_json_string(&value, "schema_path")?;
+    required_json_string(&value, "legacy_outputs_manifest_path")?;
+    required_json_bool(&value, "recording_active")?;
+    Ok(())
+}
+
+fn read_json_document(path: &Path) -> Result<serde_json::Value, String> {
     let text =
         fs::read_to_string(path).map_err(|err| format!("could not read JSON file: {err}"))?;
-    let value = serde_json::from_str::<serde_json::Value>(&text)
-        .map_err(|err| format!("could not parse JSON document: {err}"))?;
+    serde_json::from_str::<serde_json::Value>(&text)
+        .map_err(|err| format!("could not parse JSON document: {err}"))
+}
+
+fn validate_json_protocol_value(
+    value: &serde_json::Value,
+    expected_protocol: &str,
+) -> Result<(), String> {
     let protocol = value
         .get("protocol_version")
         .and_then(serde_json::Value::as_str)
@@ -1736,6 +1759,39 @@ fn validate_json_protocol(path: &Path, expected_protocol: &str) -> Result<(), St
             "protocol_version must be {expected_protocol}, got {protocol}"
         ))
     }
+}
+
+fn validate_json_string_equals(
+    value: &serde_json::Value,
+    field: &str,
+    expected: &str,
+) -> Result<(), String> {
+    let actual = required_json_string(value, field)?;
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(format!("{field} must be {expected}, got {actual}"))
+    }
+}
+
+fn required_json_string(value: &serde_json::Value, field: &str) -> Result<String, String> {
+    let actual = value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .trim();
+    if actual.is_empty() {
+        Err(format!("{field} is required"))
+    } else {
+        Ok(actual.to_string())
+    }
+}
+
+fn required_json_bool(value: &serde_json::Value, field: &str) -> Result<bool, String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_bool)
+        .ok_or_else(|| format!("{field} must be a boolean"))
 }
 
 fn validate_session_schema(path: &Path) -> Result<(), String> {
@@ -4629,6 +4685,42 @@ mod tests {
     }
 
     #[test]
+    fn rejects_session_bundle_with_bad_session_settings_storage_policy() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-settings-policy");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("session_settings.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_settings.v1\",\"quest_storage_policy\":\"public_external\",\"windows_storage_policy\":\"explicit_pull_only\",\"schema_path\":\"session_schema.json\",\"runtime_state_sampling_enabled\":true}\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("session_settings.json"));
+        assert!(error.contains("quest_storage_policy must be app_private_only"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_missing_snapshot_schema_path() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-missing-snapshot-schema");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("session_snapshot.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\",\"settings_path\":\"session_settings.json\",\"snapshot_path\":\"session_snapshot.json\",\"legacy_outputs_manifest_path\":\"legacy_outputs_manifest.json\",\"recording_active\":false}\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("session_snapshot.json"));
+        assert!(error.contains("schema_path is required"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
     fn rejects_session_bundle_with_bad_legacy_manifest_protocol() {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-legacy-manifest");
         write_complete_session_bundle(&bundle_dir);
@@ -5038,12 +5130,12 @@ mod tests {
         fs::write(bundle_dir.join("questionnaire_results.jsonl"), "").unwrap();
         fs::write(
             bundle_dir.join("session_settings.json"),
-            "{\"protocol_version\":\"viscereality.peripersonal.session_settings.v1\"}\n",
+            "{\"protocol_version\":\"viscereality.peripersonal.session_settings.v1\",\"quest_storage_policy\":\"app_private_only\",\"windows_storage_policy\":\"explicit_pull_only\",\"schema_path\":\"session_schema.json\",\"runtime_state_sampling_enabled\":true}\n",
         )
         .unwrap();
         fs::write(
             bundle_dir.join("session_snapshot.json"),
-            "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\"}\n",
+            "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\",\"settings_path\":\"session_settings.json\",\"snapshot_path\":\"session_snapshot.json\",\"schema_path\":\"session_schema.json\",\"legacy_outputs_manifest_path\":\"legacy_outputs_manifest.json\",\"recording_active\":false}\n",
         )
         .unwrap();
         let schema = serde_json::json!({
