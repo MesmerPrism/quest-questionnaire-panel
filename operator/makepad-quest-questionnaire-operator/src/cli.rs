@@ -811,6 +811,26 @@ fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), Strin
                 "sample_sequence",
                 "sample_reason",
                 "quest_realtime_seconds",
+                "application_identifier",
+                "application_version",
+                "unity_version",
+                "runtime_platform",
+                "screen_width_px",
+                "screen_height_px",
+                "screen_refresh_rate_hz",
+                "screen_dpi",
+                "screen_orientation",
+                "screen_sleep_timeout",
+                "quality_level",
+                "quality_level_name",
+                "v_sync_count",
+                "time_scale",
+                "fixed_delta_time_seconds",
+                "xr_enabled",
+                "xr_device_active",
+                "xr_loaded_device_name",
+                "xr_eye_texture_width",
+                "xr_eye_texture_height",
                 "performance_issue_flags",
                 "breathing_drive",
                 "sphere_radius",
@@ -2805,6 +2825,7 @@ mod tests {
 
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("sample_sequence"));
+        assert!(error.contains("application_identifier"));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
@@ -3153,7 +3174,7 @@ mod tests {
         .unwrap();
         fs::write(
             bundle_dir.join("runtime_state_samples.csv"),
-            "participant_id,session_id,dataset_id,recorded_at_utc,sample_sequence,sample_reason,quest_realtime_seconds,performance_issue_flags,breathing_drive,sphere_radius,camera_present,head_pos_x,left_controller_valid,right_controller_valid\n",
+            "participant_id,session_id,dataset_id,recorded_at_utc,sample_sequence,sample_reason,quest_realtime_seconds,application_identifier,application_version,unity_version,runtime_platform,screen_width_px,screen_height_px,screen_refresh_rate_hz,screen_dpi,screen_orientation,screen_sleep_timeout,quality_level,quality_level_name,v_sync_count,time_scale,fixed_delta_time_seconds,xr_enabled,xr_device_active,xr_loaded_device_name,xr_eye_texture_width,xr_eye_texture_height,performance_issue_flags,breathing_drive,sphere_radius,camera_present,head_pos_x,left_controller_valid,right_controller_valid\n",
         )
         .unwrap();
         fs::write(

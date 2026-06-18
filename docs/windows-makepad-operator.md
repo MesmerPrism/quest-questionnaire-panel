@@ -118,8 +118,9 @@ after the ADB copy. The command infers the pulled session folder as
 local pull layout is different. You can also run
 `verify-session-bundle --path <folder>` separately before accepting the export
 as study evidence. The verifier checks the expected additive Unity files,
-known CSV headers, settings/snapshot protocol ids, and non-empty questionnaire
-JSONL rows locally; it does not contact the headset.
+known CSV headers including runtime-state environment/pose/breathing columns,
+settings/snapshot protocol ids, and non-empty questionnaire JSONL rows locally;
+it does not contact the headset.
 
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide

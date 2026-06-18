@@ -121,8 +121,9 @@ concrete session folder and checks `<out>\<remote-folder-name>`; pass
 `verify-session-bundle` separately against the pulled session folder before
 treating it as study evidence. The verifier checks that the expected additive
 Unity files are present, validates known CSV headers including
-`runtime_state_samples.csv`, checks session settings/snapshot protocol ids, and
-parses non-empty questionnaire JSONL rows.
+`runtime_state_samples.csv` environment, performance, pose, and breathing
+columns, checks session settings/snapshot protocol ids, and parses non-empty
+questionnaire JSONL rows.
 
 The `pull-session` HTTP helper is separate from that ADB copy step. It sends a
 low-rate runtime command with an `export_request` section so the on-Quest
