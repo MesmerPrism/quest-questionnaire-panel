@@ -42,6 +42,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- bridge-forward --serial <quest-serial> --host-port 8787 --device-port 8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- verify-target-apk --apk path\to\target-runtime.apk --sha256 <expected-sha256> --out artifacts\target-apk-verification.json --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- verify-experiment-apk-manifest --manifest path\to\peripersonal-experiment-apk-manifest.json --out artifacts\peripersonal-experiment-apk-verification.json --json
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- write-experiment-operator-profiles --manifest path\to\peripersonal-experiment-apk-manifest.json --out-dir artifacts\operator-profiles --questionnaire-id <questionnaire-id> --open-stage <stage-id> --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- install-target-apk --serial <quest-serial> --apk path\to\target-runtime.apk --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- launch-target-runtime --serial <quest-serial> --package io.github.example.target --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- pull-target-session --serial <quest-serial> --package io.github.example.target --remote-relative files/runtime_csv/participant-P001/session-001 --out artifacts\device-session-pull --verify-bundle --write-receipt --json
@@ -124,6 +125,15 @@ four documented build tags/packages, and each APK file's byte size and SHA-256.
 Use `--out <report.json>` when the operator session manifest should fingerprint
 the complete four-APK catalog verification evidence. The check does not install
 or launch anything and does not alter participant-facing Unity behavior.
+
+After the manifest passes, run
+`write-experiment-operator-profiles --manifest <manifest.json> --out-dir <profiles>`
+to write one Makepad GUI profile per documented APK variant. Each generated
+profile fills the target APK path/hash, runtime package, condition id, build
+tag, source scene, verification-report path, and pull-output folder from the
+manifest while leaving session, participant, Quest serial, and remote session
+folder under operator control. Provide `--questionnaire-id` and `--open-stage`
+only when those study values have been reviewed for the run.
 
 The adjacent Install APK and Launch controls are explicit target-runtime setup
 helpers; Pull Files performs the explicit ADB copy into the GUI's Pull out

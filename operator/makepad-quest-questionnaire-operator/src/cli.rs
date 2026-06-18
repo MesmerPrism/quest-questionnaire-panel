@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::device;
+use crate::profile::{OperatorGuiProfile, OperatorGuiProfileFields};
 use crate::protocol::{
     block_by_number, endpoint_url, validate_runtime_status, BridgeStatusResponse,
     OperatorCommandRequest, RuntimeExportRequestSpec, RuntimeOperatorCommandRequest,
@@ -180,6 +181,10 @@ const PERIPERSONAL_EXPERIMENT_APK_BUILD_MANIFEST_PROTOCOL: &str =
     "viscereality.peripersonal.experiment_apk_build_manifest.v1";
 const PERIPERSONAL_EXPERIMENT_APK_MANIFEST_VERIFICATION_PROTOCOL: &str =
     "quest.questionnaire.operator.peripersonal_experiment_apk_manifest_verification.v1";
+const PERIPERSONAL_EXPERIMENT_OPERATOR_PROFILES_PROTOCOL: &str =
+    "quest.questionnaire.operator.peripersonal_experiment_operator_profiles.v1";
+const OPERATOR_GUI_PROFILE_PROTOCOL: &str = "quest.questionnaire.operator.gui_profile.v1";
+const PERIPERSONAL_OPERATOR_PROTOCOL_VERSION: &str = "viscereality.peripersonal.operator.v1";
 const PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH: &str = "Assets/Scenes/Space.unity";
 
 struct ExpectedExperimentApkVariant {
@@ -220,6 +225,45 @@ const EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS: &[ExpectedExperimentApkVari
         android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceRightOrbit",
     },
 ];
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExperimentOperatorProfileArgs {
+    pub endpoint: String,
+    pub runtime_protocol: String,
+    pub runtime_kind: String,
+    pub study_id: String,
+    pub questionnaire_id: String,
+    pub open_stage: String,
+    pub marker_name: String,
+    pub language_code: String,
+    pub adb_serial: String,
+    pub host_port: String,
+    pub quest_port: String,
+    pub device_status_out_dir: String,
+    pub target_apk_report_dir: String,
+    pub target_pull_out_dir: String,
+}
+
+impl Default for ExperimentOperatorProfileArgs {
+    fn default() -> Self {
+        Self {
+            endpoint: DEFAULT_ENDPOINT.to_string(),
+            runtime_protocol: PERIPERSONAL_OPERATOR_PROTOCOL_VERSION.to_string(),
+            runtime_kind: DEFAULT_RUNTIME_KIND.to_string(),
+            study_id: "peripersonal-space-experiment".to_string(),
+            questionnaire_id: String::new(),
+            open_stage: String::new(),
+            marker_name: "condition_start".to_string(),
+            language_code: "en".to_string(),
+            adb_serial: String::new(),
+            host_port: "8787".to_string(),
+            quest_port: "8787".to_string(),
+            device_status_out_dir: "artifacts/device-status".to_string(),
+            target_apk_report_dir: "artifacts/target-apk-verification".to_string(),
+            target_pull_out_dir: "artifacts/device-session-pull".to_string(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeCommonArgs {
@@ -428,6 +472,12 @@ pub enum CliCommand {
         out: Option<PathBuf>,
         json: bool,
     },
+    WriteExperimentOperatorProfiles {
+        manifest: PathBuf,
+        out_dir: PathBuf,
+        profile: ExperimentOperatorProfileArgs,
+        json: bool,
+    },
     LaunchTargetRuntime {
         serial: String,
         package_name: String,
@@ -588,6 +638,12 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             out,
             json,
         } => verify_experiment_apk_manifest_command(&manifest, out.as_deref(), json),
+        CliCommand::WriteExperimentOperatorProfiles {
+            manifest,
+            out_dir,
+            profile,
+            json,
+        } => write_experiment_operator_profiles_command(&manifest, &out_dir, profile, json),
         CliCommand::LaunchTargetRuntime {
             serial,
             package_name,
@@ -1335,6 +1391,220 @@ fn experiment_apk_manifest_issues(report: &ExperimentApkManifestVerificationRepo
         vec!["unknown verification issue".to_string()]
     } else {
         issues
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ExperimentOperatorProfilesReport {
+    protocol_version: String,
+    generated_at_unix_ms: String,
+    manifest_path: String,
+    output_dir: String,
+    accepted: bool,
+    issues: Vec<String>,
+    profile_count: usize,
+    profiles: Vec<ExperimentOperatorProfileReportItem>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ExperimentOperatorProfileReportItem {
+    profile_id: String,
+    profile_path: String,
+    condition_id: String,
+    build_tag: String,
+    android_package: String,
+    target_apk_path: String,
+    target_apk_sha256: String,
+}
+
+pub fn write_experiment_operator_profiles_command(
+    manifest: &Path,
+    out_dir: &Path,
+    profile: ExperimentOperatorProfileArgs,
+    json: bool,
+) -> Result<String, String> {
+    let report = write_experiment_operator_profiles(manifest, out_dir, profile);
+    if report.accepted {
+        if json {
+            serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
+        } else {
+            Ok(format!(
+                "Wrote {} peripersonal experiment operator profiles into {}.",
+                report.profile_count,
+                out_dir.display()
+            ))
+        }
+    } else if json {
+        Err(serde_json::to_string_pretty(&report).map_err(|err| err.to_string())?)
+    } else {
+        Err(format!(
+            "Could not write peripersonal experiment operator profiles:\n- {}",
+            if report.issues.is_empty() {
+                "unknown profile generation issue".to_string()
+            } else {
+                report.issues.join("\n- ")
+            }
+        ))
+    }
+}
+
+fn write_experiment_operator_profiles(
+    manifest_path: &Path,
+    out_dir: &Path,
+    profile_args: ExperimentOperatorProfileArgs,
+) -> ExperimentOperatorProfilesReport {
+    let mut report = ExperimentOperatorProfilesReport {
+        protocol_version: PERIPERSONAL_EXPERIMENT_OPERATOR_PROFILES_PROTOCOL.to_string(),
+        generated_at_unix_ms: unix_ms().to_string(),
+        manifest_path: manifest_path.display().to_string(),
+        output_dir: out_dir.display().to_string(),
+        accepted: false,
+        issues: Vec::new(),
+        profile_count: 0,
+        profiles: Vec::new(),
+    };
+
+    let verification = verify_experiment_apk_manifest(manifest_path);
+    if !verification.accepted {
+        report.issues = experiment_apk_manifest_issues(&verification);
+        return report;
+    }
+
+    let manifest = match read_experiment_apk_manifest(manifest_path) {
+        Ok(manifest) => manifest,
+        Err(err) => {
+            report.issues.push(err);
+            return report;
+        }
+    };
+
+    if let Err(err) = fs::create_dir_all(out_dir) {
+        report.issues.push(format!(
+            "could not create operator profile output folder {}: {err}",
+            out_dir.display()
+        ));
+        return report;
+    }
+
+    for variant in &manifest.variants {
+        let profile_id = format!("peripersonal-{}", variant.condition_id);
+        let profile_file_name = format!(
+            "{}.operator-profile.json",
+            safe_profile_file_stem(&variant.condition_id)
+        );
+        let profile_path = out_dir.join(profile_file_name);
+        let resolved_apk_path = resolve_experiment_apk_path(manifest_path, &variant.apk_path);
+        let target_apk_sha256 =
+            match normalize_manifest_sha256(&variant.sha256, "manifest APK SHA-256") {
+                Ok(value) => value,
+                Err(err) => {
+                    report.issues.push(format!("{}: {err}", variant.build_tag));
+                    continue;
+                }
+            };
+        let profile = OperatorGuiProfile {
+            protocol_version: OPERATOR_GUI_PROFILE_PROTOCOL.to_string(),
+            profile_id: profile_id.clone(),
+            profile_scope: "peripersonal_experiment_apk".to_string(),
+            makepad_gui_fields: OperatorGuiProfileFields {
+                endpoint: profile_args.endpoint.clone(),
+                session: String::new(),
+                participant: String::new(),
+                language: profile_args.language_code.clone(),
+                adb_serial: profile_args.adb_serial.clone(),
+                device_status_out: join_profile_artifact_path(
+                    &profile_args.device_status_out_dir,
+                    &format!("{}-pre.json", variant.condition_id),
+                ),
+                host_port: profile_args.host_port.clone(),
+                quest_port: profile_args.quest_port.clone(),
+                target_apk_path: resolved_apk_path.display().to_string(),
+                target_apk_sha256: target_apk_sha256.clone(),
+                target_apk_report: join_profile_artifact_path(
+                    &profile_args.target_apk_report_dir,
+                    &format!("{}.json", variant.condition_id),
+                ),
+                target_pull_out: join_profile_artifact_path(
+                    &profile_args.target_pull_out_dir,
+                    &variant.condition_id,
+                ),
+                runtime_protocol: profile_args.runtime_protocol.clone(),
+                runtime_kind: profile_args.runtime_kind.clone(),
+                runtime_package: variant.android_package.clone(),
+                runtime_study: profile_args.study_id.clone(),
+                runtime_condition: variant.condition_id.clone(),
+                runtime_build_tag: variant.build_tag.clone(),
+                runtime_source_scene: variant.source_scene_path.clone(),
+                runtime_questionnaire: profile_args.questionnaire_id.clone(),
+                runtime_stage: profile_args.open_stage.clone(),
+                runtime_marker: profile_args.marker_name.clone(),
+                runtime_remote: String::new(),
+            },
+        };
+
+        if let Err(err) = write_json_file(&profile_path, &profile, "operator GUI profile") {
+            report.issues.push(err);
+            continue;
+        }
+
+        report.profiles.push(ExperimentOperatorProfileReportItem {
+            profile_id,
+            profile_path: profile_path.display().to_string(),
+            condition_id: variant.condition_id.clone(),
+            build_tag: variant.build_tag.clone(),
+            android_package: variant.android_package.clone(),
+            target_apk_path: resolved_apk_path.display().to_string(),
+            target_apk_sha256,
+        });
+    }
+
+    report.profile_count = report.profiles.len();
+    report.accepted = report.issues.is_empty()
+        && report.profile_count == EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS.len();
+    if report.profile_count != EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS.len() {
+        report.issues.push(format!(
+            "expected {} operator profiles, wrote {}",
+            EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS.len(),
+            report.profile_count
+        ));
+        report.accepted = false;
+    }
+    report
+}
+
+fn read_experiment_apk_manifest(path: &Path) -> Result<ExperimentApkBuildManifest, String> {
+    let text = fs::read_to_string(path)
+        .map_err(|err| format!("could not read experiment APK manifest: {err}"))?;
+    serde_json::from_str::<ExperimentApkBuildManifest>(&text)
+        .map_err(|err| format!("could not parse experiment APK manifest: {err}"))
+}
+
+fn join_profile_artifact_path(root: &str, file_name: &str) -> String {
+    let root = root.trim();
+    if root.is_empty() {
+        String::new()
+    } else {
+        PathBuf::from(root).join(file_name).display().to_string()
+    }
+}
+
+fn safe_profile_file_stem(value: &str) -> String {
+    let stem = value
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string();
+    if stem.is_empty() {
+        "operator-profile".to_string()
+    } else {
+        stem
     }
 }
 
@@ -3781,6 +4051,80 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 json,
             })
         }
+        "write-experiment-operator-profiles" => {
+            let mut manifest: Option<PathBuf> = None;
+            let mut out_dir: Option<PathBuf> = None;
+            let mut profile = ExperimentOperatorProfileArgs::default();
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--manifest" | "--path" => {
+                        manifest = Some(PathBuf::from(next_value(&mut iter, "--manifest")?))
+                    }
+                    "--out-dir" | "--out" => {
+                        out_dir = Some(PathBuf::from(next_value(&mut iter, "--out-dir")?))
+                    }
+                    "--endpoint" => profile.endpoint = next_value(&mut iter, "--endpoint")?,
+                    "--runtime-protocol" | "--protocol-version" => {
+                        profile.runtime_protocol = next_value(&mut iter, "--runtime-protocol")?
+                    }
+                    "--runtime-kind" => {
+                        profile.runtime_kind = next_value(&mut iter, "--runtime-kind")?
+                    }
+                    "--study-id" | "--study" => {
+                        profile.study_id = next_value(&mut iter, "--study-id")?
+                    }
+                    "--questionnaire-id" | "--questionnaire" => {
+                        profile.questionnaire_id = next_value(&mut iter, "--questionnaire-id")?
+                    }
+                    "--open-stage" | "--stage" => {
+                        profile.open_stage = next_value(&mut iter, "--open-stage")?
+                    }
+                    "--marker-name" | "--marker" => {
+                        profile.marker_name = next_value(&mut iter, "--marker-name")?
+                    }
+                    "--language-code" | "--language" => {
+                        profile.language_code = next_value(&mut iter, "--language-code")?
+                    }
+                    "--adb-serial" | "--serial" => {
+                        profile.adb_serial = next_value(&mut iter, "--adb-serial")?
+                    }
+                    "--host-port" => profile.host_port = next_value(&mut iter, "--host-port")?,
+                    "--quest-port" | "--device-port" => {
+                        profile.quest_port = next_value(&mut iter, "--quest-port")?
+                    }
+                    "--device-status-out-dir" => {
+                        profile.device_status_out_dir =
+                            next_value(&mut iter, "--device-status-out-dir")?
+                    }
+                    "--target-apk-report-dir" => {
+                        profile.target_apk_report_dir =
+                            next_value(&mut iter, "--target-apk-report-dir")?
+                    }
+                    "--target-pull-out-dir" => {
+                        profile.target_pull_out_dir =
+                            next_value(&mut iter, "--target-pull-out-dir")?
+                    }
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => {
+                        return Err(format!(
+                            "Unknown write-experiment-operator-profiles argument: {arg}"
+                        ))
+                    }
+                }
+            }
+            Ok(CliCommand::WriteExperimentOperatorProfiles {
+                manifest: manifest.ok_or_else(|| {
+                    "write-experiment-operator-profiles requires --manifest".to_string()
+                })?,
+                out_dir: out_dir.ok_or_else(|| {
+                    "write-experiment-operator-profiles requires --out-dir".to_string()
+                })?,
+                profile,
+                json,
+            })
+        }
         "launch-target-runtime" => {
             let mut serial: Option<String> = None;
             let mut package_name: Option<String> = None;
@@ -4665,6 +5009,7 @@ fn help_text() -> String {
         "  verify-target-apk --apk target.apk [--sha256 SHA256] [--out report.json] [--json]"
             .to_string(),
         "  verify-experiment-apk-manifest --manifest peripersonal-experiment-apk-manifest.json [--out report.json] [--json]".to_string(),
+        "  write-experiment-operator-profiles --manifest peripersonal-experiment-apk-manifest.json --out-dir profiles [--endpoint URL] [--study-id ID] [--questionnaire-id ID] [--open-stage STAGE] [--json]".to_string(),
         "  launch-target-runtime --serial SERIAL --package PACKAGE [--activity ACTIVITY] [--json]"
             .to_string(),
         "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
@@ -4814,6 +5159,45 @@ mod tests {
                 out: Some(PathBuf::from(
                     "study-data/audit/peripersonal-experiment-apk-verification.json"
                 )),
+                json: true,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_write_experiment_operator_profiles_command() {
+        let command = parse_args(vec![
+            "write-experiment-operator-profiles".to_string(),
+            "--manifest".to_string(),
+            "Builds/PeripersonalExperimentApks/latest/peripersonal-experiment-apk-manifest.json"
+                .to_string(),
+            "--out-dir".to_string(),
+            "operator-profiles".to_string(),
+            "--endpoint".to_string(),
+            "http://127.0.0.1:8787".to_string(),
+            "--study-id".to_string(),
+            "peripersonal-study".to_string(),
+            "--questionnaire-id".to_string(),
+            "peripersonal-questionnaire-v1".to_string(),
+            "--open-stage".to_string(),
+            "peripersonal:post_condition".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::WriteExperimentOperatorProfiles {
+                manifest: PathBuf::from(
+                    "Builds/PeripersonalExperimentApks/latest/peripersonal-experiment-apk-manifest.json"
+                ),
+                out_dir: PathBuf::from("operator-profiles"),
+                profile: ExperimentOperatorProfileArgs {
+                    study_id: "peripersonal-study".to_string(),
+                    questionnaire_id: "peripersonal-questionnaire-v1".to_string(),
+                    open_stage: "peripersonal:post_condition".to_string(),
+                    ..ExperimentOperatorProfileArgs::default()
+                },
                 json: true,
             }
         );
@@ -5198,6 +5582,99 @@ mod tests {
 
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("APK SHA-256 mismatch"));
+        fs::remove_dir_all(&manifest_dir).unwrap();
+    }
+
+    #[test]
+    fn writes_peripersonal_experiment_operator_profiles() {
+        let manifest_dir = temp_test_dir("quest-operator-experiment-profiles-ok");
+        let manifest_path = manifest_dir.join("peripersonal-experiment-apk-manifest.json");
+        let profiles_dir = manifest_dir.join("operator-profiles");
+        fs::create_dir_all(&manifest_dir).unwrap();
+        let variants = peripersonal_experiment_apk_fixture_variants(&manifest_dir);
+        write_peripersonal_experiment_apk_manifest(&manifest_path, variants);
+
+        let output = write_experiment_operator_profiles_command(
+            &manifest_path,
+            &profiles_dir,
+            ExperimentOperatorProfileArgs {
+                questionnaire_id: "peripersonal-questionnaire-v1".to_string(),
+                open_stage: "peripersonal:post_condition".to_string(),
+                ..ExperimentOperatorProfileArgs::default()
+            },
+            true,
+        )
+        .unwrap();
+
+        assert!(output.contains("\"accepted\": true"));
+        assert!(output.contains("\"profile_count\": 4"));
+        let profile_path = profiles_dir.join("peri-personal-left-2.operator-profile.json");
+        let profile = crate::profile::load_operator_gui_profile(&profile_path).unwrap();
+        assert_eq!(profile.protocol_version, OPERATOR_GUI_PROFILE_PROTOCOL);
+        assert_eq!(profile.profile_id, "peripersonal-peri-personal-left-2");
+        assert_eq!(
+            profile.makepad_gui_fields.runtime_protocol,
+            PERIPERSONAL_OPERATOR_PROTOCOL_VERSION
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.runtime_package,
+            "com.Viscereality.ViscerealityPeriPersonalSpaceLeft"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.runtime_build_tag,
+            "apk/2025-12-10/viscereality-peri-personal-left-2"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.runtime_source_scene,
+            PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.runtime_questionnaire,
+            "peripersonal-questionnaire-v1"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.runtime_stage,
+            "peripersonal:post_condition"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.target_apk_path,
+            manifest_dir
+                .join("peri-personal-left-2.apk")
+                .display()
+                .to_string()
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.target_apk_report,
+            PathBuf::from("artifacts/target-apk-verification")
+                .join("peri-personal-left-2.json")
+                .display()
+                .to_string()
+        );
+        assert!(profile.makepad_gui_fields.runtime_remote.is_empty());
+        fs::remove_dir_all(&manifest_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_operator_profile_generation_for_invalid_manifest() {
+        let manifest_dir = temp_test_dir("quest-operator-experiment-profiles-invalid");
+        let manifest_path = manifest_dir.join("peripersonal-experiment-apk-manifest.json");
+        let profiles_dir = manifest_dir.join("operator-profiles");
+        fs::create_dir_all(&manifest_dir).unwrap();
+        let mut variants = peripersonal_experiment_apk_fixture_variants(&manifest_dir);
+        variants[0]["sha256"] = serde_json::Value::String("0".repeat(64));
+        write_peripersonal_experiment_apk_manifest(&manifest_path, variants);
+
+        let error = write_experiment_operator_profiles_command(
+            &manifest_path,
+            &profiles_dir,
+            ExperimentOperatorProfileArgs::default(),
+            true,
+        )
+        .unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("APK SHA-256 mismatch"));
+        assert!(!profiles_dir.exists());
         fs::remove_dir_all(&manifest_dir).unwrap();
     }
 

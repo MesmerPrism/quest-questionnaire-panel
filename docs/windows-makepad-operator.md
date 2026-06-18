@@ -69,6 +69,7 @@ matches the GUI surface:
 | Install Panel | `install-panel --serial <serial> --apk <apk-path> [--json]` |
 | Verify target APK | `verify-target-apk --apk <apk-path> [--sha256 <expected-sha256>] [--out <report.json>] [--json]` |
 | Verify experiment APK manifest | `verify-experiment-apk-manifest --manifest <manifest.json> [--out <report.json>] [--json]` |
+| Write experiment operator profiles | `write-experiment-operator-profiles --manifest <manifest.json> --out-dir <profiles> [--questionnaire-id <id>] [--open-stage <stage>] [--json]` |
 | Install target APK | `install-target-apk --serial <serial> --apk <apk-path> [--json]` |
 | Launch target runtime | `launch-target-runtime --serial <serial> --package <package> [--activity <activity>] [--json]` |
 | Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--write-receipt] [--json]` |
@@ -127,6 +128,15 @@ source-scene contract, the four documented build tags/packages, and each APK's
 recorded byte size and SHA-256. Use `--out <report.json>` when the operator
 session manifest should reference the full four-APK catalog verification
 evidence. It performs no ADB, install, launch, or questionnaire action.
+
+After that local verification passes, run
+`write-experiment-operator-profiles --manifest <manifest.json> --out-dir <profiles>`
+to create one Makepad-loadable profile per documented APK variant. The generated
+profiles copy package, APK path/hash, condition id, build tag, and source scene
+from the manifest, plus local report/pull-output paths. Session id, participant
+ref, Quest serial, and remote session folder stay blank so the operator fills
+them for the actual run. Pass `--questionnaire-id` and `--open-stage` only when
+the study-specific questionnaire values have been reviewed.
 
 Use `device-status --serial <quest-serial> --json --out <snapshot.json>` before
 and after a run when you need a Quest-side setup snapshot. It writes a
