@@ -43,7 +43,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- install-target-apk --serial <quest-serial> --apk path\to\target-runtime.apk --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- launch-target-runtime --serial <quest-serial> --package io.github.example.target --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- pull-target-session --serial <quest-serial> --package io.github.example.target --remote-relative files/runtime_csv/participant-P001/session-001 --out artifacts\device-session-pull --json
-cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- preflight-runtime --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --runtime-package io.github.example.target --require-actions start_session,open_questionnaire,pull_session --require-explicit-pull --json
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- preflight-runtime --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --runtime-package io.github.example.target --source-scene-path Assets/Scenes/Space.unity --require-actions start_session,open_questionnaire,pull_session --require-explicit-pull --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 1 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 3 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
@@ -67,10 +67,11 @@ envelopes as `start-session`, `mark-timing-event`, `open-questionnaire`,
 `stop-session`, and `pull-session`. It also has a **Preflight** button that
 polls `GET /v1/status` and applies the same target-runtime checks as the
 `preflight-runtime` CLI helper. Fill in the target runtime protocol, kind,
-package, study, condition, questionnaire, stage, marker, and remote session
-folder fields for the selected target APK, then run **Preflight** after
+package, source scene, study, condition, questionnaire, stage, marker, and
+remote session folder fields for the selected target APK, then run **Preflight** after
 `Forward`/`Poll` and before mutating runtime commands. The GUI runtime command
-buttons require a passed preflight for the current protocol/kind/package fields.
+buttons require a passed preflight for the current protocol/kind/package/source
+scene fields.
 These controls post to the same low-rate `POST /v1/command` bridge route
 without launching the questionnaire panel directly from Windows. Keep private
 runtime protocol ids, package names, APK hashes, and study-specific stage maps
@@ -84,8 +85,8 @@ Unity app.
 
 `preflight-runtime` is the CLI-only target-runtime safety check. It polls
 `GET /v1/status` and fails if the advertised runtime kind, package, operator
-protocol, required actions, or requested capabilities do not match the expected
-target before you send mutating runtime commands.
+protocol, source scene, required actions, or requested capabilities do not
+match the expected target before you send mutating runtime commands.
 
 When the target runtime reports an Android app-specific `session_dir` in
 `GET /v1/status` or a command response, the GUI derives the ADB pull-relative
@@ -171,6 +172,7 @@ runtime summary after **Poll**:
   "target": {
     "runtime_kind": "unity_quest_apk",
     "runtime_package": "com.example.target",
+    "source_scene_path": "Assets/Scenes/Space.unity",
     "bridge_endpoint": "",
     "quest_selector": ""
   },

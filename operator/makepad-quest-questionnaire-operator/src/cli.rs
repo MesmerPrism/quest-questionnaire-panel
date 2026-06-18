@@ -193,6 +193,7 @@ pub enum CliCommand {
     },
     PreflightRuntime {
         common: RuntimeCommonArgs,
+        source_scene_path: String,
         required_actions: Vec<String>,
         require_app_private_session_bundle: bool,
         require_explicit_pull: bool,
@@ -319,6 +320,7 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
         CliCommand::Status { endpoint } => get_status(&endpoint),
         CliCommand::PreflightRuntime {
             common,
+            source_scene_path,
             required_actions,
             require_app_private_session_bundle,
             require_explicit_pull,
@@ -328,6 +330,7 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             json,
         } => preflight_runtime(
             common,
+            source_scene_path,
             required_actions,
             require_app_private_session_bundle,
             require_explicit_pull,
@@ -561,6 +564,7 @@ struct RuntimePreflightReport {
 
 pub fn preflight_runtime(
     common: RuntimeCommonArgs,
+    source_scene_path: String,
     required_actions: Vec<String>,
     require_app_private_session_bundle: bool,
     require_explicit_pull: bool,
@@ -574,6 +578,7 @@ pub fn preflight_runtime(
     let expectation = RuntimeStatusExpectation {
         runtime_kind: Some(common.target_runtime_kind.clone()),
         runtime_package: non_empty_string(common.target_runtime_package.clone()),
+        source_scene_path: non_empty_string(source_scene_path),
         operator_protocol: Some(common.protocol_version.clone()),
         required_actions,
         require_app_private_session_bundle,
@@ -1191,6 +1196,7 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
         }
         "preflight-runtime" => {
             let mut common = RuntimeCommonArgs::default();
+            let mut source_scene_path = String::new();
             let mut required_actions = Vec::new();
             let mut require_app_private_session_bundle = false;
             let mut require_explicit_pull = false;
@@ -1211,6 +1217,9 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                         let value = next_value(&mut iter, "--require-actions")?;
                         extend_comma_list(&value, &mut required_actions);
                     }
+                    "--source-scene-path" => {
+                        source_scene_path = next_value(&mut iter, "--source-scene-path")?
+                    }
                     "--require-app-private-session-bundle" => {
                         require_app_private_session_bundle = true
                     }
@@ -1227,6 +1236,7 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
             }
             Ok(CliCommand::PreflightRuntime {
                 common,
+                source_scene_path,
                 required_actions,
                 require_app_private_session_bundle,
                 require_explicit_pull,
@@ -2062,7 +2072,7 @@ fn help_text() -> String {
         String::new(),
         "Commands:".to_string(),
         "  status [--endpoint http://127.0.0.1:8787]".to_string(),
-        "  preflight-runtime [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--require-actions A,B] [--require-action ACTION] [--require-app-private-session-bundle] [--require-explicit-pull] [--require-questionnaire-panel] [--require-questionnaire-result-callback] [--require-lsl-clock-alignment] [--json]".to_string(),
+        "  preflight-runtime [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--source-scene-path PATH] [--require-actions A,B] [--require-action ACTION] [--require-app-private-session-bundle] [--require-explicit-pull] [--require-questionnaire-panel] [--require-questionnaire-result-callback] [--require-lsl-clock-alignment] [--json]".to_string(),
         "  tooling-status [--json]".to_string(),
         "  devices [--json]".to_string(),
         "  device-status --serial SERIAL [--json]".to_string(),
@@ -2232,6 +2242,8 @@ mod tests {
             "unity_quest_apk".to_string(),
             "--runtime-package".to_string(),
             "com.example.peripersonal".to_string(),
+            "--source-scene-path".to_string(),
+            "Assets/Scenes/Space.unity".to_string(),
             "--require-actions".to_string(),
             "start_session,open_questionnaire".to_string(),
             "--require-action".to_string(),
@@ -2248,6 +2260,7 @@ mod tests {
         match command {
             CliCommand::PreflightRuntime {
                 common,
+                source_scene_path,
                 required_actions,
                 require_app_private_session_bundle,
                 require_explicit_pull,
@@ -2262,6 +2275,7 @@ mod tests {
                 );
                 assert_eq!(common.target_runtime_kind, "unity_quest_apk");
                 assert_eq!(common.target_runtime_package, "com.example.peripersonal");
+                assert_eq!(source_scene_path, "Assets/Scenes/Space.unity");
                 assert_eq!(
                     required_actions,
                     vec![

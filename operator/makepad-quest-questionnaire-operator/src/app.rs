@@ -457,6 +457,7 @@ struct RuntimePreflightApproval {
     protocol_version: String,
     runtime_kind: String,
     runtime_package: String,
+    source_scene_path: String,
 }
 
 #[derive(Script, ScriptHook)]
@@ -939,6 +940,7 @@ impl App {
             protocol_version: self.runtime_protocol(cx),
             runtime_kind: self.runtime_kind(cx),
             runtime_package: self.field_text(cx, ids!(runtime_package_input)),
+            source_scene_path: self.field_text(cx, ids!(runtime_source_scene_input)),
         }
     }
 
@@ -1013,6 +1015,7 @@ impl App {
         RuntimeStatusExpectation {
             runtime_kind: Some(self.runtime_kind(cx)),
             runtime_package: Some(self.field_text(cx, ids!(runtime_package_input))),
+            source_scene_path: Some(self.field_text(cx, ids!(runtime_source_scene_input))),
             operator_protocol: Some(self.runtime_protocol(cx)),
             required_actions: vec![
                 "start_session".to_string(),

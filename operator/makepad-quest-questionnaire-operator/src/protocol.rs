@@ -204,6 +204,10 @@ impl BridgeStatusResponse {
                 .runtime_package
                 .as_deref()
                 .filter(|value| !value.trim().is_empty());
+            let source_scene_path = target
+                .source_scene_path
+                .as_deref()
+                .filter(|value| !value.trim().is_empty());
             match (kind, package) {
                 (Some(kind), Some(package)) => {
                     parts.push(format!("Runtime: {kind} / {package}"));
@@ -211,6 +215,9 @@ impl BridgeStatusResponse {
                 (Some(kind), None) => parts.push(format!("Runtime: {kind}")),
                 (None, Some(package)) => parts.push(format!("Runtime package: {package}")),
                 (None, None) => {}
+            }
+            if let Some(source_scene_path) = source_scene_path {
+                parts.push(format!("scene: {source_scene_path}"));
             }
         }
 
@@ -264,6 +271,7 @@ pub struct BridgeInfo {
 pub struct RuntimeStatusTarget {
     pub runtime_kind: Option<String>,
     pub runtime_package: Option<String>,
+    pub source_scene_path: Option<String>,
     pub bridge_endpoint: Option<String>,
     pub quest_selector: Option<String>,
 }
@@ -295,6 +303,7 @@ pub struct RuntimeCapabilities {
 pub struct RuntimeStatusExpectation {
     pub runtime_kind: Option<String>,
     pub runtime_package: Option<String>,
+    pub source_scene_path: Option<String>,
     pub operator_protocol: Option<String>,
     pub required_actions: Vec<String>,
     pub require_app_private_session_bundle: bool,
@@ -337,6 +346,21 @@ pub fn validate_runtime_status(
                 "runtime package mismatch: expected `{expected}`, got `{actual}`"
             )),
             None => issues.push(format!("runtime package missing; expected `{expected}`")),
+        }
+    }
+
+    if let Some(expected) = non_empty_option(&expectation.source_scene_path) {
+        match status
+            .target
+            .as_ref()
+            .and_then(|target| target.source_scene_path.as_deref())
+            .filter(|value| !value.trim().is_empty())
+        {
+            Some(actual) if actual == expected => {}
+            Some(actual) => issues.push(format!(
+                "source scene mismatch: expected `{expected}`, got `{actual}`"
+            )),
+            None => issues.push(format!("source scene missing; expected `{expected}`")),
         }
     }
 
@@ -867,6 +891,7 @@ mod tests {
             "target": {
                 "runtime_kind": "unity_quest_apk",
                 "runtime_package": "com.example.peripersonal",
+                "source_scene_path": "Assets/Scenes/Space.unity",
                 "bridge_endpoint": "",
                 "quest_selector": ""
             },
@@ -919,6 +944,10 @@ mod tests {
             Some("com.example.peripersonal")
         );
         assert_eq!(
+            target.source_scene_path.as_deref(),
+            Some("Assets/Scenes/Space.unity")
+        );
+        assert_eq!(
             contract.operator_protocol.as_deref(),
             Some("viscereality.peripersonal.operator.v1")
         );
@@ -929,7 +958,7 @@ mod tests {
         assert_eq!(
             status.runtime_summary().as_deref(),
             Some(
-                "Runtime: unity_quest_apk / com.example.peripersonal; recording: active; questionnaire: available"
+                "Runtime: unity_quest_apk / com.example.peripersonal; scene: Assets/Scenes/Space.unity; recording: active; questionnaire: available"
             )
         );
     }
@@ -940,7 +969,8 @@ mod tests {
             "protocol_version": "viscereality.peripersonal.operator.v1",
             "target": {
                 "runtime_kind": "unity_quest_apk",
-                "runtime_package": "com.example.peripersonal"
+                "runtime_package": "com.example.peripersonal",
+                "source_scene_path": "Assets/Scenes/Space.unity"
             },
             "runtime_contract": {
                 "operator_protocol": "viscereality.peripersonal.operator.v1"
@@ -958,6 +988,7 @@ mod tests {
         let expectation = RuntimeStatusExpectation {
             runtime_kind: Some("unity_quest_apk".to_string()),
             runtime_package: Some("com.example.peripersonal".to_string()),
+            source_scene_path: Some("Assets/Scenes/Space.unity".to_string()),
             operator_protocol: Some("viscereality.peripersonal.operator.v1".to_string()),
             required_actions: vec![
                 "start_session".to_string(),
@@ -980,7 +1011,8 @@ mod tests {
             "protocol_version": "wrong.protocol",
             "target": {
                 "runtime_kind": "other_runtime",
-                "runtime_package": "com.example.other"
+                "runtime_package": "com.example.other",
+                "source_scene_path": "Assets/Scenes/Other.unity"
             },
             "capabilities": {
                 "command_actions": ["start_session"],
@@ -993,6 +1025,7 @@ mod tests {
         let expectation = RuntimeStatusExpectation {
             runtime_kind: Some("unity_quest_apk".to_string()),
             runtime_package: Some("com.example.peripersonal".to_string()),
+            source_scene_path: Some("Assets/Scenes/Space.unity".to_string()),
             operator_protocol: Some("viscereality.peripersonal.operator.v1".to_string()),
             required_actions: vec!["open_questionnaire".to_string()],
             require_explicit_pull: true,
@@ -1007,6 +1040,9 @@ mod tests {
         assert!(issues
             .iter()
             .any(|issue| issue.contains("runtime package mismatch")));
+        assert!(issues
+            .iter()
+            .any(|issue| issue.contains("source scene mismatch")));
         assert!(issues
             .iter()
             .any(|issue| issue.contains("operator protocol mismatch")));
