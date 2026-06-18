@@ -39,6 +39,8 @@ pub struct OperatorGuiProfileFields {
     #[serde(default)]
     pub target_apk_report: String,
     #[serde(default)]
+    pub target_pull_out: String,
+    #[serde(default)]
     pub runtime_protocol: String,
     #[serde(default)]
     pub runtime_kind: String,
@@ -112,6 +114,7 @@ mod tests {
                     "target_apk_path": "artifacts/target-runtime.apk",
                     "target_apk_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                     "target_apk_report": "artifacts/target-apk-verification.json",
+                    "target_pull_out": "artifacts/device-session-pull",
                     "runtime_protocol": "example.runtime.operator.v1",
                     "runtime_kind": "unity_quest_apk",
                     "runtime_package": "io.github.example.target",
@@ -143,6 +146,10 @@ mod tests {
         assert_eq!(
             profile.makepad_gui_fields.target_apk_report,
             "artifacts/target-apk-verification.json"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.target_pull_out,
+            "artifacts/device-session-pull"
         );
         assert_eq!(
             profile.makepad_gui_fields.runtime_remote,

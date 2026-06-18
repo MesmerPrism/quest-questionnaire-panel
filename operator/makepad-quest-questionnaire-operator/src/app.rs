@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use makepad_widgets::*;
 use serde::Serialize;
 
-use crate::cli::verify_target_apk_command;
+use crate::cli::{pull_target_session as pull_target_session_command, verify_target_apk_command};
 use crate::device;
 use crate::profile::{load_operator_gui_profile, OperatorGuiProfileFields};
 use crate::protocol::{
@@ -248,6 +248,15 @@ script_mod! {
                                         height: Fit
                                         flow: Right
                                         spacing: 8.0
+                                        runtime_install_apk_button := SecondaryButton{text: "Install APK"}
+                                        runtime_launch_button := SecondaryButton{text: "Launch"}
+                                    }
+
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
                                         View{
                                             width: Fill
                                             height: Fit
@@ -368,6 +377,12 @@ script_mod! {
                                         }
                                     }
 
+                                    FieldLabel{text: "Pull out"}
+                                    runtime_pull_out_input := Field{
+                                        text: "artifacts/device-session-pull"
+                                        empty_text: "local output folder"
+                                    }
+
                                     View{
                                         width: Fill
                                         height: Fit
@@ -386,6 +401,7 @@ script_mod! {
                                         spacing: 8.0
                                         runtime_stop_button := SecondaryButton{text: "Stop"}
                                         runtime_pull_button := SecondaryButton{text: "Pull"}
+                                        runtime_pull_files_button := SecondaryButton{text: "Pull Files"}
                                     }
                                 }
                             }
@@ -649,28 +665,46 @@ impl App {
         }
     }
 
-    fn verify_runtime_apk(&self, cx: &mut Cx) {
+    fn runtime_apk_verification_inputs(
+        &self,
+        cx: &Cx,
+    ) -> Result<(PathBuf, Option<String>, Option<PathBuf>), String> {
         let apk_text = self.field_text(cx, ids!(runtime_apk_input));
         if apk_text.is_empty() {
-            self.set_status(cx, "APK verify error", "Target APK path is empty.");
-            return;
+            return Err("Target APK path is empty.".to_string());
         }
 
-        let apk = PathBuf::from(&apk_text);
         let expected_text = self.field_text(cx, ids!(runtime_apk_sha256_input));
         let expected_sha256 = if expected_text.is_empty() {
             None
         } else {
-            Some(expected_text.as_str())
+            Some(expected_text)
         };
         let report_text = self.field_text(cx, ids!(runtime_apk_report_input));
         let report_path = if report_text.is_empty() {
             None
         } else {
-            Some(PathBuf::from(&report_text))
+            Some(PathBuf::from(report_text))
         };
 
-        match verify_target_apk_command(&apk, expected_sha256, report_path.as_deref(), true) {
+        Ok((PathBuf::from(apk_text), expected_sha256, report_path))
+    }
+
+    fn verify_runtime_apk(&self, cx: &mut Cx) {
+        let (apk, expected_sha256, report_path) = match self.runtime_apk_verification_inputs(cx) {
+            Ok(inputs) => inputs,
+            Err(err) => {
+                self.set_status(cx, "APK verify error", &err);
+                return;
+            }
+        };
+
+        match verify_target_apk_command(
+            &apk,
+            expected_sha256.as_deref(),
+            report_path.as_deref(),
+            true,
+        ) {
             Ok(output) => {
                 self.set_status(cx, "APK verified", &format!("{}", apk.display()));
                 self.set_last_response(cx, &output);
@@ -681,6 +715,100 @@ impl App {
                     "APK verify error",
                     "Verification failed; see Last Response.",
                 );
+                self.set_last_response(cx, &err);
+            }
+        }
+    }
+
+    fn install_runtime_apk(&self, cx: &mut Cx) {
+        let serial = self.field_text(cx, ids!(device_serial_input));
+        let (apk, expected_sha256, report_path) = match self.runtime_apk_verification_inputs(cx) {
+            Ok(inputs) => inputs,
+            Err(err) => {
+                self.set_status(cx, "Install error", &err);
+                return;
+            }
+        };
+
+        let verification = match verify_target_apk_command(
+            &apk,
+            expected_sha256.as_deref(),
+            report_path.as_deref(),
+            true,
+        ) {
+            Ok(output) => output,
+            Err(err) => {
+                self.set_status(
+                    cx,
+                    "APK verify error",
+                    "Verification failed before install.",
+                );
+                self.set_last_response(cx, &err);
+                return;
+            }
+        };
+
+        match device::install_apk(&serial, &apk) {
+            Ok(run) => {
+                self.set_status(cx, "Target installed", &format!("{}", apk.display()));
+                let install_json = serde_json::to_string_pretty(&run)
+                    .unwrap_or_else(|_| "Target APK installed.".to_string());
+                self.set_last_response(cx, &format!("{verification}\n\n{install_json}"));
+            }
+            Err(err) => {
+                self.set_status(cx, "Install error", &err);
+                self.set_last_response(cx, &err);
+            }
+        }
+    }
+
+    fn launch_runtime(&self, cx: &mut Cx) {
+        let serial = self.field_text(cx, ids!(device_serial_input));
+        let package = self.field_text(cx, ids!(runtime_package_input));
+        match device::launch_package(&serial, &package, None) {
+            Ok(run) => {
+                self.set_status(cx, "Runtime launch", &package);
+                self.set_last_response(
+                    cx,
+                    &serde_json::to_string_pretty(&run)
+                        .unwrap_or_else(|_| "Target runtime launch requested.".to_string()),
+                );
+            }
+            Err(err) => {
+                self.set_status(cx, "Launch error", &err);
+                self.set_last_response(cx, &err);
+            }
+        }
+    }
+
+    fn pull_runtime_files(&self, cx: &mut Cx) {
+        let serial = self.field_text(cx, ids!(device_serial_input));
+        let package = self.field_text(cx, ids!(runtime_package_input));
+        let remote_relative = self.field_text(cx, ids!(runtime_remote_input));
+        let output_dir = PathBuf::from(self.field_text(cx, ids!(runtime_pull_out_input)));
+        let expected_files = Vec::new();
+        match pull_target_session_command(
+            &serial,
+            &package,
+            &remote_relative,
+            &output_dir,
+            true,
+            None,
+            &expected_files,
+            true,
+            None,
+            true,
+        ) {
+            Ok(report) => {
+                self.set_status(
+                    cx,
+                    "Runtime files pulled",
+                    &format!("{}", output_dir.display()),
+                );
+                self.set_last_response(cx, &report);
+            }
+            Err(err) => {
+                self.set_status(cx, "Pull error", &err);
                 self.set_last_response(cx, &err);
             }
         }
@@ -734,6 +862,7 @@ impl App {
             ids!(runtime_apk_report_input),
             &fields.target_apk_report,
         );
+        self.set_profile_field(cx, ids!(runtime_pull_out_input), &fields.target_pull_out);
         self.set_profile_field(cx, ids!(runtime_protocol_input), &fields.runtime_protocol);
         self.set_profile_field(cx, ids!(runtime_kind_input), &fields.runtime_kind);
         self.set_profile_field(cx, ids!(runtime_package_input), &fields.runtime_package);
@@ -1337,6 +1466,22 @@ impl MatchEvent for App {
             self.verify_runtime_apk(cx);
         }
 
+        if self
+            .ui
+            .button(cx, ids!(runtime_install_apk_button))
+            .clicked(actions)
+        {
+            self.install_runtime_apk(cx);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(runtime_launch_button))
+            .clicked(actions)
+        {
+            self.launch_runtime(cx);
+        }
+
         if self.ui.button(cx, ids!(block1_button)).clicked(actions) {
             self.send_block_request(cx, &BLOCK1);
         }
@@ -1395,6 +1540,14 @@ impl MatchEvent for App {
             .clicked(actions)
         {
             self.send_runtime_pull_request(cx);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(runtime_pull_files_button))
+            .clicked(actions)
+        {
+            self.pull_runtime_files(cx);
         }
     }
 

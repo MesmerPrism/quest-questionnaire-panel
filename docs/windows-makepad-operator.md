@@ -79,11 +79,14 @@ matches the GUI surface:
 | Dismiss Panel | `dismiss --session-id <id> --endpoint <url>` |
 | Target Runtime fields | `--protocol-version`, `--runtime-kind`, `--runtime-package`, `--study-id`, `--condition-id`, `--questionnaire-id`, `--open-stage`, `--marker-name`, `--remote-relative` |
 | Target APK fields | `verify-target-apk --apk <apk-path> [--sha256 <expected-sha256>] [--out <report.json>]` |
+| Target Install APK | `install-target-apk --serial <serial> --apk <apk-path> [--json]` |
+| Target Launch | `launch-target-runtime --serial <serial> --package <package> [--json]` |
 | Target Start | `start-session --session-id <id> --participant-ref <ref> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Target Mark | `mark-timing-event --session-id <id> --marker-name <name> --marker-detail <text> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Target Open Q | `open-questionnaire --session-id <id> --participant-ref <ref> --study-id <id> --questionnaire-id <id> --open-stage <stage> --screen-sequence <stage> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Target Stop | `stop-session --session-id <id> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Target Pull | `pull-session --session-id <id> --remote-relative files/runtime_csv --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Target Pull Files | `pull-target-session --serial <serial> --package <package> --remote-relative files/runtime_csv --out <folder> --verify-bundle --write-receipt [--json]` |
 
 The GUI target-runtime controls and the CLI helpers below are for target apps
 that expose the same low-rate bridge route:
@@ -100,6 +103,12 @@ public-boundary review approves a sanitized version.
 Target APK install and target runtime launch are setup/foregrounding helpers
 only. Questionnaire foregrounding must still happen through the on-Quest caller
 bridge and the caller-owned `content://` result URI contract.
+The GUI's Install APK and Launch controls perform those same explicit target
+setup actions. The GUI Pull Files control performs only the explicit ADB copy
+for a target runtime session folder; it is separate from the low-rate HTTP
+Pull command that asks the runtime to prepare or declare the export. Pull Files
+also verifies the default runtime session bundle and writes the standard local
+verification receipt after a successful copy.
 
 Run `verify-target-apk --apk <apk-path> --sha256 <expected-sha256>` before
 install when an approved catalog hash exists. It is a local file check that

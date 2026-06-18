@@ -103,7 +103,7 @@ GUI field names such as `endpoint`, `session`, `participant`, `adb_serial`,
 `runtime_package`, `runtime_study`, `runtime_condition`,
 `runtime_build_tag`, `runtime_source_scene`, `runtime_questionnaire`,
 `runtime_stage`, `runtime_marker`, `runtime_remote`, `target_apk_path`,
-`target_apk_sha256`, and `target_apk_report`.
+`target_apk_sha256`, `target_apk_report`, and `target_pull_out`.
 
 `post-command` remains CLI-only for replaying reviewed private fixture JSON.
 
@@ -114,6 +114,10 @@ and fails on a mismatch before any headset or ADB operation is attempted. Add
 `--out <report.json>` to preserve the same report as local operator evidence.
 The Makepad GUI exposes the same local-only check in the Target Runtime panel
 with Target APK, APK SHA-256, APK report, and Verify APK controls.
+The adjacent Install APK and Launch controls are explicit target-runtime setup
+helpers; Pull Files performs the explicit ADB copy into the GUI's Pull out
+folder after the runtime export step has been requested, verifies the default
+runtime session bundle, and writes the standard verification receipt.
 
 The `install-target-apk` and `launch-target-runtime` helpers are setup and
 foregrounding tools only. They do not launch the questionnaire panel and do not

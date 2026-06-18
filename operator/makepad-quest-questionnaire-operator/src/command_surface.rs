@@ -98,6 +98,14 @@ pub const GUI_COMMAND_SURFACE: &[CommandSurfaceItem] = &[
         cli_equivalent: "verify-target-apk",
     },
     CommandSurfaceItem {
+        gui_control: "Runtime Install APK button",
+        cli_equivalent: "install-target-apk",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime Launch button",
+        cli_equivalent: "launch-target-runtime",
+    },
+    CommandSurfaceItem {
         gui_control: "Runtime kind field",
         cli_equivalent: "--runtime-kind",
     },
@@ -138,6 +146,10 @@ pub const GUI_COMMAND_SURFACE: &[CommandSurfaceItem] = &[
         cli_equivalent: "--remote-relative",
     },
     CommandSurfaceItem {
+        gui_control: "Runtime pull out field",
+        cli_equivalent: "--out",
+    },
+    CommandSurfaceItem {
         gui_control: "Runtime Preflight button",
         cli_equivalent: "preflight-runtime",
     },
@@ -160,6 +172,10 @@ pub const GUI_COMMAND_SURFACE: &[CommandSurfaceItem] = &[
     CommandSurfaceItem {
         gui_control: "Runtime Pull button",
         cli_equivalent: "pull-session",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime Pull Files button",
+        cli_equivalent: "pull-target-session",
     },
 ];
 
