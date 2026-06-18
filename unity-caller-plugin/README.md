@@ -43,6 +43,27 @@ Unity projects that consume plain AARs need this bridge AAR plus the
 Projects with a Gradle-based Unity export can depend on the bridge module and
 let Gradle resolve the SDK dependency.
 
+For a plain Unity project that needs a complete local bundle, run:
+
+```powershell
+.\gradlew.bat :unity-caller-plugin:packageUnityCallerArtifacts
+```
+
+The bundle is written under:
+
+```text
+unity-caller-plugin/build/unity-caller-artifacts/
+  plugins/
+  runtime-deps/
+  res/xml/questionnaire_result_paths.xml
+```
+
+Copy the generated artifacts into the Unity app only when wiring the Android
+caller bridge intentionally. The app must still declare its own narrow
+`FileProvider` and private callback receiver in its Android manifest; do not
+use this bundle to bypass caller-owned result storage or direct-launch the
+panel from Windows.
+
 `QuestionnaireStateJson` is optional and should contain only small per-launch
 state, for example selected language or condition labels. Do not use it for
 sample streams or frame data.
