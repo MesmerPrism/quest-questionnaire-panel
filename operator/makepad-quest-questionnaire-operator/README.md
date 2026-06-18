@@ -142,10 +142,11 @@ can be matched later without reopening the Quest.
 
 Use `write-session-manifest --out <manifest.json>` after local verification to
 write a Windows-side session snapshot that points at the operator artifacts for
-the run. Pass repeated `--artifact label=<file>` values for device-status
-snapshots, verification receipts, command audits, and other local evidence. The
-manifest records its own protocol id and timestamp, and hashes file artifacts
-that are present.
+the run. Pass repeated `--artifact label=<path>` values for device-status
+snapshots, verification receipts, pulled session bundle directories, command
+audits, and other local evidence. The manifest records its own protocol id and
+timestamp, hashes file artifacts that are present, and records a deterministic
+file count, byte count, and tree SHA-256 for directory artifacts.
 
 The `pull-session` HTTP helper is separate from that ADB copy step. It sends a
 low-rate runtime command with an `export_request` section so the on-Quest

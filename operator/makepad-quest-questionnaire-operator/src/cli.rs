@@ -751,6 +751,12 @@ struct OperatorSessionManifestArtifact {
     size_bytes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    total_size_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tree_sha256: Option<String>,
 }
 
 pub fn write_session_manifest_command(
@@ -797,18 +803,38 @@ fn session_manifest_artifact(input: &ManifestArtifactArg) -> OperatorSessionMani
             issue: "artifact path was not found".to_string(),
             size_bytes: None,
             sha256: None,
+            file_count: None,
+            total_size_bytes: None,
+            tree_sha256: None,
         };
     }
 
     if path.is_dir() {
-        return OperatorSessionManifestArtifact {
-            label: input.label.clone(),
-            path: path.display().to_string(),
-            exists: true,
-            kind: "directory".to_string(),
-            issue: "directory artifact is recorded by path only".to_string(),
-            size_bytes: None,
-            sha256: None,
+        return match directory_digest(path) {
+            Ok(digest) => OperatorSessionManifestArtifact {
+                label: input.label.clone(),
+                path: path.display().to_string(),
+                exists: true,
+                kind: "directory".to_string(),
+                issue: String::new(),
+                size_bytes: None,
+                sha256: None,
+                file_count: Some(digest.file_count),
+                total_size_bytes: Some(digest.total_size_bytes),
+                tree_sha256: Some(digest.tree_sha256),
+            },
+            Err(err) => OperatorSessionManifestArtifact {
+                label: input.label.clone(),
+                path: path.display().to_string(),
+                exists: true,
+                kind: "directory".to_string(),
+                issue: err,
+                size_bytes: None,
+                sha256: None,
+                file_count: None,
+                total_size_bytes: None,
+                tree_sha256: None,
+            },
         };
     }
 
@@ -821,6 +847,9 @@ fn session_manifest_artifact(input: &ManifestArtifactArg) -> OperatorSessionMani
             issue: String::new(),
             size_bytes: Some(digest.size_bytes),
             sha256: Some(digest.sha256),
+            file_count: None,
+            total_size_bytes: None,
+            tree_sha256: None,
         },
         Err(err) => OperatorSessionManifestArtifact {
             label: input.label.clone(),
@@ -830,6 +859,9 @@ fn session_manifest_artifact(input: &ManifestArtifactArg) -> OperatorSessionMani
             issue: err,
             size_bytes: None,
             sha256: None,
+            file_count: None,
+            total_size_bytes: None,
+            tree_sha256: None,
         },
     }
 }
@@ -987,6 +1019,72 @@ fn session_bundle_issues(report: &SessionBundleVerificationReport) -> Vec<String
 struct FileDigest {
     size_bytes: u64,
     sha256: String,
+}
+
+struct DirectoryDigest {
+    file_count: usize,
+    total_size_bytes: u64,
+    tree_sha256: String,
+}
+
+fn directory_digest(path: &Path) -> Result<DirectoryDigest, String> {
+    let mut files = Vec::new();
+    collect_directory_files(path, path, &mut files)?;
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+
+    let mut total_size_bytes = 0u64;
+    let mut hasher = Sha256::new();
+    for (relative_path, file_path) in &files {
+        let digest = file_digest(file_path)?;
+        total_size_bytes = total_size_bytes
+            .checked_add(digest.size_bytes)
+            .ok_or_else(|| "directory artifact is too large to summarize".to_string())?;
+        hasher.update(b"file\0");
+        hasher.update(relative_path.as_bytes());
+        hasher.update(b"\0");
+        hasher.update(digest.size_bytes.to_string().as_bytes());
+        hasher.update(b"\0");
+        hasher.update(digest.sha256.as_bytes());
+        hasher.update(b"\n");
+    }
+
+    Ok(DirectoryDigest {
+        file_count: files.len(),
+        total_size_bytes,
+        tree_sha256: hex_lower(&hasher.finalize()),
+    })
+}
+
+fn collect_directory_files(
+    root: &Path,
+    current: &Path,
+    files: &mut Vec<(String, PathBuf)>,
+) -> Result<(), String> {
+    let entries = fs::read_dir(current)
+        .map_err(|err| format!("could not read directory {}: {err}", current.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("could not read directory entry: {err}"))?;
+        let path = entry.path();
+        let file_type = entry
+            .file_type()
+            .map_err(|err| format!("could not inspect {}: {err}", path.display()))?;
+        if file_type.is_dir() {
+            collect_directory_files(root, &path, files)?;
+        } else if file_type.is_file() {
+            files.push((normalized_relative_path(root, &path), path));
+        }
+    }
+
+    Ok(())
+}
+
+fn normalized_relative_path(root: &Path, path: &Path) -> String {
+    let relative = path.strip_prefix(root).unwrap_or(path);
+    relative
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn file_digest(path: &Path) -> Result<FileDigest, String> {
@@ -2979,7 +3077,7 @@ fn help_text() -> String {
             .to_string(),
         "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
         "  verify-session-bundle --path FOLDER [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
-        "  write-session-manifest --out FILE [--session-id ID] [--participant-ref REF] [--study-id ID] [--dataset-id ID] [--runtime-package PACKAGE] [--runtime-build-tag TAG] [--source-scene-path PATH] [--artifact LABEL=FILE] [--json]".to_string(),
+        "  write-session-manifest --out FILE [--session-id ID] [--participant-ref REF] [--study-id ID] [--dataset-id ID] [--runtime-package PACKAGE] [--runtime-build-tag TAG] [--source-scene-path PATH] [--artifact LABEL=PATH] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
         "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--runtime-build-tag TAG] [--source-scene-path PATH] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
@@ -3320,11 +3418,19 @@ mod tests {
     fn writes_session_manifest_with_artifact_hashes() {
         let manifest_dir = temp_test_dir("quest-operator-session-manifest");
         let artifact_path = manifest_dir.join("pre-device.json");
+        let bundle_path = manifest_dir.join("pulled-bundle");
         let manifest_path = manifest_dir.join("operator-session-manifest.json");
         fs::create_dir_all(&manifest_dir).unwrap();
+        fs::create_dir_all(bundle_path.join("nested")).unwrap();
         fs::write(
             &artifact_path,
             "{\"protocol_version\":\"quest.questionnaire.operator.device_status.v1\"}\n",
+        )
+        .unwrap();
+        fs::write(bundle_path.join("session_events.csv"), "event\n").unwrap();
+        fs::write(
+            bundle_path.join("nested").join("runtime_state_samples.csv"),
+            "sample\n",
         )
         .unwrap();
 
@@ -3343,6 +3449,10 @@ mod tests {
                     path: artifact_path.clone(),
                 },
                 ManifestArtifactArg {
+                    label: "pulled_bundle".to_string(),
+                    path: bundle_path.clone(),
+                },
+                ManifestArtifactArg {
                     label: "missing_receipt".to_string(),
                     path: manifest_dir.join("missing-receipt.json"),
                 },
@@ -3358,6 +3468,11 @@ mod tests {
         assert!(manifest.contains("\"kind\": \"file\""));
         assert!(manifest.contains("\"sha256\""));
         assert!(manifest.contains("\"size_bytes\""));
+        assert!(manifest.contains("\"label\": \"pulled_bundle\""));
+        assert!(manifest.contains("\"kind\": \"directory\""));
+        assert!(manifest.contains("\"file_count\": 2"));
+        assert!(manifest.contains("\"total_size_bytes\": 13"));
+        assert!(manifest.contains("\"tree_sha256\""));
         assert!(manifest.contains("\"label\": \"missing_receipt\""));
         assert!(manifest.contains("\"kind\": \"missing\""));
         fs::remove_dir_all(&manifest_dir).unwrap();
