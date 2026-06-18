@@ -63,7 +63,7 @@ matches the GUI surface:
 | Connect / Poll | `status --endpoint <url>` |
 | Tools | `tooling-status [--json]` |
 | Devices | `devices [--json]` |
-| Status | `device-status --serial <serial> [--json]` |
+| Status | `device-status --serial <serial> [--out <snapshot.json>] [--json]` |
 | Forward | `bridge-forward --serial <serial> --host-port <port> --device-port <port> [--json]` |
 | Panel APK | `install-panel --serial <serial> --apk <apk-path> [--json]` |
 | Install Panel | `install-panel --serial <serial> --apk <apk-path> [--json]` |
@@ -97,12 +97,14 @@ Target APK install and target runtime launch are setup/foregrounding helpers
 only. Questionnaire foregrounding must still happen through the on-Quest caller
 bridge and the caller-owned `content://` result URI contract.
 
-Use `device-status --serial <quest-serial> --json` before and after a run when
-you need a Quest-side setup snapshot. It records headset battery/wake/display
-state, focused app/window when ADB exposes it, screen brightness, music volume,
-proximity state, and controller battery/connection state. This is an explicit
-operator snapshot; high-rate pose, breathing, sphere, timing, and performance
-data stays in the Unity session CSV bundle.
+Use `device-status --serial <quest-serial> --json --out <snapshot.json>` before
+and after a run when you need a Quest-side setup snapshot. It writes a
+pretty-printed JSON document with a protocol id and host capture timestamp, and
+records headset battery/wake/display state, focused app/window when ADB exposes
+it, screen brightness, music volume, proximity state, and controller
+battery/connection state. This is an explicit operator snapshot; high-rate
+pose, breathing, sphere, timing, and performance data stays in the Unity
+session CSV bundle.
 
 The generic `open-questionnaire` helper builds the low-rate command envelope
 for a target runtime bridge. It does not create result URIs, use ADB for panel

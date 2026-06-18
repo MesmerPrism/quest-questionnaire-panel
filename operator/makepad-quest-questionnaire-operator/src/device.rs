@@ -2,13 +2,15 @@ use std::env;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_PANEL_APK_PATH: &str =
     "app/build/outputs/apk/minimal/debug/app-minimal-debug.apk";
 pub const DEFAULT_TARGET_SESSION_REMOTE_RELATIVE: &str = "files/runtime_csv";
+pub const QUEST_DEVICE_STATUS_PROTOCOL_VERSION: &str =
+    "quest.questionnaire.operator.device_status.v1";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolProbe {
@@ -44,6 +46,8 @@ impl QuestDevice {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QuestSnapshot {
+    pub protocol_version: String,
+    pub recorded_at_unix_ms: String,
     pub serial: String,
     pub model: String,
     pub headset_battery_level: Option<u8>,
@@ -171,6 +175,8 @@ pub fn get_device_snapshot(serial: &str) -> Result<QuestSnapshot, String> {
     let audio = adb_shell_optional(&adb, serial, &["dumpsys", "audio"]);
 
     Ok(QuestSnapshot {
+        protocol_version: QUEST_DEVICE_STATUS_PROTOCOL_VERSION.to_string(),
+        recorded_at_unix_ms: unix_ms().to_string(),
         serial: serial.to_string(),
         model: if model.trim().is_empty() {
             "unknown Quest device".to_string()
@@ -516,6 +522,13 @@ fn adb_exe_name() -> &'static str {
 
 fn run_adb(adb: &PathBuf, args: &[&str], timeout: Duration) -> Result<CommandRun, String> {
     run_command(adb, args, timeout)
+}
+
+fn unix_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default()
 }
 
 fn adb_shell_text(adb: &PathBuf, serial: &str, shell_args: &[&str]) -> Result<String, String> {

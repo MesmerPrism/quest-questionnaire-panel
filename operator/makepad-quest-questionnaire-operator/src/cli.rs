@@ -210,6 +210,7 @@ pub enum CliCommand {
     },
     DeviceStatus {
         serial: String,
+        out: Option<PathBuf>,
         json: bool,
     },
     BridgeForward {
@@ -353,7 +354,9 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
         ),
         CliCommand::ToolingStatus { json } => tooling_status(json),
         CliCommand::Devices { json } => devices(json),
-        CliCommand::DeviceStatus { serial, json } => device_status(&serial, json),
+        CliCommand::DeviceStatus { serial, out, json } => {
+            device_status(&serial, out.as_deref(), json)
+        }
         CliCommand::BridgeForward {
             serial,
             host_port,
@@ -505,10 +508,20 @@ pub fn devices(json: bool) -> Result<String, String> {
     }
 }
 
-pub fn device_status(serial: &str, json: bool) -> Result<String, String> {
+pub fn device_status(serial: &str, out: Option<&Path>, json: bool) -> Result<String, String> {
     let snapshot = device::get_device_snapshot(serial)?;
+    if let Some(path) = out {
+        write_json_file(path, &snapshot, "device status snapshot")?;
+    }
+
     if json {
         serde_json::to_string_pretty(&snapshot).map_err(|err| err.to_string())
+    } else if let Some(path) = out {
+        Ok(format!(
+            "{}\nWrote device status snapshot: {}",
+            device::format_snapshot_text(&snapshot),
+            path.display()
+        ))
     } else {
         Ok(device::format_snapshot_text(&snapshot))
     }
@@ -1069,13 +1082,22 @@ fn resolve_verification_receipt_path(
 }
 
 fn write_json_receipt<T: Serialize>(path: &Path, report: &T) -> Result<(), String> {
-    let text = serde_json::to_string_pretty(report).map_err(|err| err.to_string())?;
-    fs::write(path, format!("{text}\n")).map_err(|err| {
-        format!(
-            "Could not write verification receipt {}: {err}",
-            path.display()
-        )
-    })
+    write_json_file(path, report, "verification receipt")
+}
+
+fn write_json_file<T: Serialize>(path: &Path, value: &T, label: &str) -> Result<(), String> {
+    if let Some(parent) = path.parent().filter(|value| !value.as_os_str().is_empty()) {
+        fs::create_dir_all(parent).map_err(|err| {
+            format!(
+                "Could not create {label} folder {}: {err}",
+                parent.display()
+            )
+        })?;
+    }
+
+    let text = serde_json::to_string_pretty(value).map_err(|err| err.to_string())?;
+    fs::write(path, format!("{text}\n"))
+        .map_err(|err| format!("Could not write {label} {}: {err}", path.display()))
 }
 
 pub fn get_status(endpoint: &str) -> Result<String, String> {
@@ -1801,10 +1823,12 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
         }
         "device-status" => {
             let mut serial: Option<String> = None;
+            let mut out: Option<PathBuf> = None;
             let mut json = false;
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
                     "--serial" => serial = Some(next_value(&mut iter, "--serial")?),
+                    "--out" => out = Some(PathBuf::from(next_value(&mut iter, "--out")?)),
                     "--json" => json = true,
                     "-h" | "--help" => return Ok(CliCommand::Help),
                     _ => return Err(format!("Unknown device-status argument: {arg}")),
@@ -1814,6 +1838,7 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 serial: serial
                     .filter(|value| !value.trim().is_empty())
                     .ok_or_else(|| "device-status requires --serial".to_string())?,
+                out,
                 json,
             })
         }
@@ -2667,7 +2692,7 @@ fn help_text() -> String {
         "  preflight-runtime [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--source-scene-path PATH] [--require-actions A,B] [--require-action ACTION] [--require-app-private-session-bundle] [--require-explicit-pull] [--require-questionnaire-panel] [--require-questionnaire-result-callback] [--require-lsl-clock-alignment] [--json]".to_string(),
         "  tooling-status [--json]".to_string(),
         "  devices [--json]".to_string(),
-        "  device-status --serial SERIAL [--json]".to_string(),
+        "  device-status --serial SERIAL [--out FILE] [--json]".to_string(),
         "  bridge-forward --serial SERIAL [--host-port 8787] [--device-port 8787] [--json]"
             .to_string(),
         format!(
@@ -2766,6 +2791,28 @@ mod tests {
             CliCommand::InstallTargetApk {
                 serial: "QUEST_SERIAL".to_string(),
                 apk: PathBuf::from("target-runtime.apk"),
+                json: true,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_device_status_output_file() {
+        let command = parse_args(vec![
+            "device-status".to_string(),
+            "--serial".to_string(),
+            "QUEST_SERIAL".to_string(),
+            "--out".to_string(),
+            "study-data/device-status/pre-run.json".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::DeviceStatus {
+                serial: "QUEST_SERIAL".to_string(),
+                out: Some(PathBuf::from("study-data/device-status/pre-run.json")),
                 json: true,
             }
         );
