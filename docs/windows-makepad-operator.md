@@ -78,6 +78,7 @@ matches the GUI surface:
 | Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Dismiss Panel | `dismiss --session-id <id> --endpoint <url>` |
 | Target Runtime fields | `--protocol-version`, `--runtime-kind`, `--runtime-package`, `--study-id`, `--condition-id`, `--questionnaire-id`, `--open-stage`, `--marker-name`, `--remote-relative` |
+| Target APK fields | `verify-target-apk --apk <apk-path> [--sha256 <expected-sha256>] [--out <report.json>]` |
 | Target Start | `start-session --session-id <id> --participant-ref <ref> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Target Mark | `mark-timing-event --session-id <id> --marker-name <name> --marker-detail <text> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Target Open Q | `open-questionnaire --session-id <id> --participant-ref <ref> --study-id <id> --questionnaire-id <id> --open-stage <stage> --screen-sequence <stage> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
@@ -104,7 +105,9 @@ Run `verify-target-apk --apk <apk-path> --sha256 <expected-sha256>` before
 install when an approved catalog hash exists. It is a local file check that
 records byte size and SHA-256 and fails on a mismatch before any headset or ADB
 operation is attempted. Use `--out <report.json>` when the session manifest
-should fingerprint the selected target APK verification evidence.
+should fingerprint the selected target APK verification evidence. In the GUI,
+the Target Runtime panel's Verify APK button performs this same local-only
+check from the Target APK, APK SHA-256, and APK report fields.
 
 Use `device-status --serial <quest-serial> --json --out <snapshot.json>` before
 and after a run when you need a Quest-side setup snapshot. It writes a

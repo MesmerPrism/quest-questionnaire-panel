@@ -33,6 +33,12 @@ pub struct OperatorGuiProfileFields {
     #[serde(default, deserialize_with = "deserialize_stringish")]
     pub quest_port: String,
     #[serde(default)]
+    pub target_apk_path: String,
+    #[serde(default)]
+    pub target_apk_sha256: String,
+    #[serde(default)]
+    pub target_apk_report: String,
+    #[serde(default)]
     pub runtime_protocol: String,
     #[serde(default)]
     pub runtime_kind: String,
@@ -103,6 +109,9 @@ mod tests {
                     "adb_serial": "<quest-serial>",
                     "host_port": 8787,
                     "quest_port": "8787",
+                    "target_apk_path": "artifacts/target-runtime.apk",
+                    "target_apk_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    "target_apk_report": "artifacts/target-apk-verification.json",
                     "runtime_protocol": "example.runtime.operator.v1",
                     "runtime_kind": "unity_quest_apk",
                     "runtime_package": "io.github.example.target",
@@ -123,6 +132,18 @@ mod tests {
         assert_eq!(profile.makepad_gui_fields.endpoint, "http://127.0.0.1:8787");
         assert_eq!(profile.makepad_gui_fields.host_port, "8787");
         assert_eq!(profile.makepad_gui_fields.quest_port, "8787");
+        assert_eq!(
+            profile.makepad_gui_fields.target_apk_path,
+            "artifacts/target-runtime.apk"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.target_apk_sha256,
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        );
+        assert_eq!(
+            profile.makepad_gui_fields.target_apk_report,
+            "artifacts/target-apk-verification.json"
+        );
         assert_eq!(
             profile.makepad_gui_fields.runtime_remote,
             "files/runtime_csv/participant-P001/session-001"

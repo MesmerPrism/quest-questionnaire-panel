@@ -102,7 +102,8 @@ GUI field names such as `endpoint`, `session`, `participant`, `adb_serial`,
 `host_port`, `quest_port`, `runtime_protocol`, `runtime_kind`,
 `runtime_package`, `runtime_study`, `runtime_condition`,
 `runtime_build_tag`, `runtime_source_scene`, `runtime_questionnaire`,
-`runtime_stage`, `runtime_marker`, and `runtime_remote`.
+`runtime_stage`, `runtime_marker`, `runtime_remote`, `target_apk_path`,
+`target_apk_sha256`, and `target_apk_report`.
 
 `post-command` remains CLI-only for replaying reviewed private fixture JSON.
 
@@ -111,6 +112,8 @@ installing a selected target runtime when the study catalog has an approved
 artifact hash. It is a local file check only: it records byte size and SHA-256
 and fails on a mismatch before any headset or ADB operation is attempted. Add
 `--out <report.json>` to preserve the same report as local operator evidence.
+The Makepad GUI exposes the same local-only check in the Target Runtime panel
+with Target APK, APK SHA-256, APK report, and Verify APK controls.
 
 The `install-target-apk` and `launch-target-runtime` helpers are setup and
 foregrounding tools only. They do not launch the questionnaire panel and do not

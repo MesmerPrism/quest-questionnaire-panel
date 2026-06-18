@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use makepad_widgets::*;
 use serde::Serialize;
 
+use crate::cli::verify_target_apk_command;
 use crate::device;
 use crate::profile::{load_operator_gui_profile, OperatorGuiProfileFields};
 use crate::protocol::{
@@ -218,6 +219,28 @@ script_mod! {
                                     FieldLabel{text: "Protocol"}
                                     runtime_protocol_input := Field{
                                         text: "target.runtime.operator.v1"
+                                    }
+
+                                    FieldLabel{text: "Target APK"}
+                                    runtime_apk_input := Field{
+                                        empty_text: "target APK path"
+                                    }
+
+                                    FieldLabel{text: "APK SHA-256"}
+                                    runtime_apk_sha256_input := Field{
+                                        empty_text: "optional expected digest"
+                                    }
+
+                                    FieldLabel{text: "APK report"}
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        runtime_apk_report_input := Field{
+                                            empty_text: "optional report JSON"
+                                        }
+                                        runtime_verify_apk_button := SecondaryButton{text: "Verify APK"}
                                     }
 
                                     View{
@@ -626,6 +649,43 @@ impl App {
         }
     }
 
+    fn verify_runtime_apk(&self, cx: &mut Cx) {
+        let apk_text = self.field_text(cx, ids!(runtime_apk_input));
+        if apk_text.is_empty() {
+            self.set_status(cx, "APK verify error", "Target APK path is empty.");
+            return;
+        }
+
+        let apk = PathBuf::from(&apk_text);
+        let expected_text = self.field_text(cx, ids!(runtime_apk_sha256_input));
+        let expected_sha256 = if expected_text.is_empty() {
+            None
+        } else {
+            Some(expected_text.as_str())
+        };
+        let report_text = self.field_text(cx, ids!(runtime_apk_report_input));
+        let report_path = if report_text.is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(&report_text))
+        };
+
+        match verify_target_apk_command(&apk, expected_sha256, report_path.as_deref(), true) {
+            Ok(output) => {
+                self.set_status(cx, "APK verified", &format!("{}", apk.display()));
+                self.set_last_response(cx, &output);
+            }
+            Err(err) => {
+                self.set_status(
+                    cx,
+                    "APK verify error",
+                    "Verification failed; see Last Response.",
+                );
+                self.set_last_response(cx, &err);
+            }
+        }
+    }
+
     fn load_operator_profile(&self, cx: &mut Cx) {
         let profile_path = self.field_text(cx, ids!(profile_path_input));
         if profile_path.is_empty() {
@@ -663,6 +723,17 @@ impl App {
         self.set_profile_field(cx, ids!(device_serial_input), &fields.adb_serial);
         self.set_profile_field(cx, ids!(host_port_input), &fields.host_port);
         self.set_profile_field(cx, ids!(device_port_input), &fields.quest_port);
+        self.set_profile_field(cx, ids!(runtime_apk_input), &fields.target_apk_path);
+        self.set_profile_field(
+            cx,
+            ids!(runtime_apk_sha256_input),
+            &fields.target_apk_sha256,
+        );
+        self.set_profile_field(
+            cx,
+            ids!(runtime_apk_report_input),
+            &fields.target_apk_report,
+        );
         self.set_profile_field(cx, ids!(runtime_protocol_input), &fields.runtime_protocol);
         self.set_profile_field(cx, ids!(runtime_kind_input), &fields.runtime_kind);
         self.set_profile_field(cx, ids!(runtime_package_input), &fields.runtime_package);
@@ -1256,6 +1327,14 @@ impl MatchEvent for App {
             .clicked(actions)
         {
             self.load_operator_profile(cx);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(runtime_verify_apk_button))
+            .clicked(actions)
+        {
+            self.verify_runtime_apk(cx);
         }
 
         if self.ui.button(cx, ids!(block1_button)).clicked(actions) {

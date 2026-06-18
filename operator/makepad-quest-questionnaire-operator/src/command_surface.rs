@@ -82,6 +82,22 @@ pub const GUI_COMMAND_SURFACE: &[CommandSurfaceItem] = &[
         cli_equivalent: "--protocol-version",
     },
     CommandSurfaceItem {
+        gui_control: "Runtime target APK field",
+        cli_equivalent: "--apk",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime APK SHA-256 field",
+        cli_equivalent: "--sha256",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime APK report field",
+        cli_equivalent: "--out",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime Verify APK button",
+        cli_equivalent: "verify-target-apk",
+    },
+    CommandSurfaceItem {
         gui_control: "Runtime kind field",
         cli_equivalent: "--runtime-kind",
     },
