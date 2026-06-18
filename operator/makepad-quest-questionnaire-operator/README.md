@@ -87,6 +87,12 @@ Unity app.
 protocol, required actions, or requested capabilities do not match the expected
 target before you send mutating runtime commands.
 
+When the target runtime reports an Android app-specific `session_dir` in
+`GET /v1/status` or a command response, the GUI derives the ADB pull-relative
+path such as `files/runtime_csv/participant-P001/session-001` and fills the
+**Remote** field. This is only a convenience for the explicit `pull-session` /
+`pull-target-session` workflow; the operator still chooses when to export.
+
 The GUI can also load a local operator profile JSON by path. The loader only
 reads the generic top-level `makepad_gui_fields` object, with keys matching the
 GUI field names such as `endpoint`, `session`, `participant`, `adb_serial`,

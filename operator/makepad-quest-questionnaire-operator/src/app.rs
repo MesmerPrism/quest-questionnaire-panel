@@ -6,11 +6,12 @@ use serde::Serialize;
 use crate::device;
 use crate::profile::{load_operator_gui_profile, OperatorGuiProfileFields};
 use crate::protocol::{
-    endpoint_url, validate_runtime_status, BridgeCommandResponse, BridgeStatusResponse,
-    OperatorCommandRequest, RuntimeExportRequestSpec, RuntimeOperatorCommandRequest,
-    RuntimePanelLaunchSpec, RuntimeProvenanceSpec, RuntimeQuestionnaireStateSpec,
-    RuntimeSessionSpec, RuntimeStatusExpectation, RuntimeTargetSpec, BLOCK1, BLOCK2, BLOCK3,
-    DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION,
+    endpoint_url, runtime_session_remote_relative_from_session_dir, validate_runtime_status,
+    BridgeCommandResponse, BridgeStatusResponse, OperatorCommandRequest, RuntimeExportRequestSpec,
+    RuntimeOperatorCommandRequest, RuntimePanelLaunchSpec, RuntimeProvenanceSpec,
+    RuntimeQuestionnaireStateSpec, RuntimeSessionSpec, RuntimeStatusExpectation, RuntimeTargetSpec,
+    BLOCK1, BLOCK2, BLOCK3, DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
+    PANEL_PROTOCOL_VERSION,
 };
 
 app_main!(App);
@@ -1076,6 +1077,18 @@ impl App {
         self.set_last_response(cx, &body_json);
     }
 
+    fn autofill_runtime_remote_from_session_dir(
+        &self,
+        cx: &mut Cx,
+        session_dir: Option<&str>,
+    ) -> Option<String> {
+        let remote = runtime_session_remote_relative_from_session_dir(session_dir?)?;
+        if self.field_text(cx, ids!(runtime_remote_input)) != remote {
+            self.set_field_text(cx, ids!(runtime_remote_input), &remote);
+        }
+        Some(remote)
+    }
+
     fn apply_status_response(&self, cx: &mut Cx, response: BridgeStatusResponse, raw: &str) {
         self.render_foreground(cx, &response.foreground);
         let mut detail = response
@@ -1086,6 +1099,12 @@ impl App {
         if let Some(runtime_summary) = response.runtime_summary() {
             detail.push_str(" | ");
             detail.push_str(&runtime_summary);
+        }
+        if let Some(remote) =
+            self.autofill_runtime_remote_from_session_dir(cx, response.session_dir.as_deref())
+        {
+            detail.push_str(" | remote: ");
+            detail.push_str(&remote);
         }
         self.set_status(cx, "Bridge connected", &detail);
         self.set_last_response(cx, raw);
@@ -1107,6 +1126,12 @@ impl App {
                 detail.push_str(" | ");
                 detail.push_str(&runtime_summary);
             }
+            if let Some(remote) =
+                self.autofill_runtime_remote_from_session_dir(cx, response.session_dir.as_deref())
+            {
+                detail.push_str(" | remote: ");
+                detail.push_str(&remote);
+            }
             self.set_status(cx, "Runtime preflight passed", &detail);
         } else {
             self.runtime_preflight_approval = None;
@@ -1126,11 +1151,18 @@ impl App {
         } else {
             "Command rejected"
         };
-        let detail = response
+        let mut detail = response
             .message
             .as_deref()
-            .unwrap_or("Bridge returned a command response.");
-        self.set_status(cx, title, detail);
+            .unwrap_or("Bridge returned a command response.")
+            .to_string();
+        if let Some(remote) =
+            self.autofill_runtime_remote_from_session_dir(cx, response.session_dir.as_deref())
+        {
+            detail.push_str(" | remote: ");
+            detail.push_str(&remote);
+        }
+        self.set_status(cx, title, &detail);
         self.set_last_response(cx, raw);
     }
 

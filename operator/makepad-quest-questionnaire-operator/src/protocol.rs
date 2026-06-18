@@ -749,6 +749,30 @@ pub fn endpoint_url(base_url: &str, path: &str) -> Result<String, String> {
     ))
 }
 
+pub fn runtime_session_remote_relative_from_session_dir(session_dir: &str) -> Option<String> {
+    let normalized = session_dir.trim().replace('\\', "/");
+    let trimmed = normalized.trim_matches('/');
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let segments = trimmed.split('/').collect::<Vec<_>>();
+    if segments
+        .iter()
+        .any(|segment| segment.is_empty() || *segment == "." || *segment == "..")
+    {
+        return None;
+    }
+
+    for index in 0..segments.len().saturating_sub(1) {
+        if segments[index] == "files" && segments[index + 1] == "runtime_csv" {
+            return Some(segments[index..].join("/"));
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -785,6 +809,55 @@ mod tests {
     #[test]
     fn endpoint_url_rejects_missing_scheme() {
         assert!(endpoint_url("127.0.0.1:8787", "/v1/status").is_err());
+    }
+
+    #[test]
+    fn runtime_remote_relative_accepts_external_android_session_dir() {
+        assert_eq!(
+            runtime_session_remote_relative_from_session_dir(
+                "/storage/emulated/0/Android/data/com.example.peripersonal/files/runtime_csv/participant-P001/session-001",
+            )
+            .as_deref(),
+            Some("files/runtime_csv/participant-P001/session-001")
+        );
+    }
+
+    #[test]
+    fn runtime_remote_relative_accepts_internal_android_session_dir() {
+        assert_eq!(
+            runtime_session_remote_relative_from_session_dir(
+                "/data/user/0/com.example.peripersonal/files/runtime_csv/participant-P001/session-001",
+            )
+            .as_deref(),
+            Some("files/runtime_csv/participant-P001/session-001")
+        );
+    }
+
+    #[test]
+    fn runtime_remote_relative_keeps_already_relative_session_dir() {
+        assert_eq!(
+            runtime_session_remote_relative_from_session_dir(
+                "files\\runtime_csv\\participant-P001\\session-001",
+            )
+            .as_deref(),
+            Some("files/runtime_csv/participant-P001/session-001")
+        );
+    }
+
+    #[test]
+    fn runtime_remote_relative_rejects_unsafe_or_unrelated_dirs() {
+        assert!(runtime_session_remote_relative_from_session_dir(
+            "files/runtime_csv/participant-P001/../other"
+        )
+        .is_none());
+        assert!(runtime_session_remote_relative_from_session_dir(
+            "/storage/emulated/0/Android/data/com.example.peripersonal/files/not_runtime_csv/session-001",
+        )
+        .is_none());
+        assert!(runtime_session_remote_relative_from_session_dir(
+            "S:/Unity/Editor/runtime_csv/session-001"
+        )
+        .is_none());
     }
 
     #[test]
