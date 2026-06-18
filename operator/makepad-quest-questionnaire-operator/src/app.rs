@@ -6,11 +6,11 @@ use serde::Serialize;
 use crate::device;
 use crate::profile::{load_operator_gui_profile, OperatorGuiProfileFields};
 use crate::protocol::{
-    endpoint_url, BridgeCommandResponse, BridgeStatusResponse, OperatorCommandRequest,
-    RuntimeExportRequestSpec, RuntimeOperatorCommandRequest, RuntimePanelLaunchSpec,
-    RuntimeProvenanceSpec, RuntimeQuestionnaireStateSpec, RuntimeSessionSpec, RuntimeTargetSpec,
-    BLOCK1, BLOCK2, BLOCK3, DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
-    PANEL_PROTOCOL_VERSION,
+    endpoint_url, validate_runtime_status, BridgeCommandResponse, BridgeStatusResponse,
+    OperatorCommandRequest, RuntimeExportRequestSpec, RuntimeOperatorCommandRequest,
+    RuntimePanelLaunchSpec, RuntimeProvenanceSpec, RuntimeQuestionnaireStateSpec,
+    RuntimeSessionSpec, RuntimeStatusExpectation, RuntimeTargetSpec, BLOCK1, BLOCK2, BLOCK3,
+    DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION,
 };
 
 app_main!(App);
@@ -349,6 +349,7 @@ script_mod! {
                                         height: Fit
                                         flow: Right
                                         spacing: 8.0
+                                        runtime_preflight_button := SecondaryButton{text: "Preflight"}
                                         runtime_start_button := PrimaryButton{text: "Start"}
                                         runtime_marker_button := SecondaryButton{text: "Mark"}
                                         runtime_open_button := PrimaryButton{text: "Open Q"}
@@ -446,6 +447,7 @@ script_mod! {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PendingRequest {
     Status,
+    RuntimePreflight,
     Command,
 }
 
@@ -704,6 +706,33 @@ impl App {
         self.set_status(cx, "Polling", "Waiting for bridge status.");
     }
 
+    fn send_runtime_preflight_request(&mut self, cx: &mut Cx) {
+        if self.active_request_id.is_some() {
+            self.set_status(cx, "Busy", "A bridge request is already in flight.");
+            return;
+        }
+
+        let endpoint = self.field_text(cx, ids!(endpoint_input));
+        let url = match endpoint_url(&endpoint, "/v1/status") {
+            Ok(url) => url,
+            Err(message) => {
+                self.set_status(cx, "Endpoint error", &message);
+                return;
+            }
+        };
+
+        self.request_counter += 1;
+        let request_id = LiveId::from_str_num("target_runtime_preflight", self.request_counter);
+        self.active_request_id = Some(request_id);
+        self.pending_request = Some(PendingRequest::RuntimePreflight);
+
+        let mut request = HttpRequest::new(url, HttpMethod::GET);
+        request.set_header("Accept".to_string(), "application/json".to_string());
+        cx.http_request(request_id, request);
+
+        self.set_status(cx, "Runtime preflight", "Checking target runtime status.");
+    }
+
     fn send_block_request(&mut self, cx: &mut Cx, block: &'static crate::protocol::BlockSpec) {
         let endpoint = self.field_text(cx, ids!(endpoint_input));
         let url = match endpoint_url(&endpoint, "/v1/command") {
@@ -922,6 +951,26 @@ impl App {
         }
     }
 
+    fn runtime_status_expectation(&self, cx: &Cx) -> RuntimeStatusExpectation {
+        RuntimeStatusExpectation {
+            runtime_kind: Some(self.runtime_kind(cx)),
+            runtime_package: Some(self.field_text(cx, ids!(runtime_package_input))),
+            operator_protocol: Some(self.runtime_protocol(cx)),
+            required_actions: vec![
+                "start_session".to_string(),
+                "stop_session".to_string(),
+                "mark_timing_event".to_string(),
+                "open_questionnaire".to_string(),
+                "pull_session".to_string(),
+            ],
+            require_app_private_session_bundle: true,
+            require_explicit_pull: true,
+            require_questionnaire_panel_launch: true,
+            require_questionnaire_result_callback_ingest: true,
+            require_lsl_clock_alignment: true,
+        }
+    }
+
     fn send_command_request<T: Serialize>(
         &mut self,
         cx: &mut Cx,
@@ -982,6 +1031,32 @@ impl App {
             detail.push_str(&runtime_summary);
         }
         self.set_status(cx, "Bridge connected", &detail);
+        self.set_last_response(cx, raw);
+    }
+
+    fn apply_runtime_preflight_response(
+        &self,
+        cx: &mut Cx,
+        response: BridgeStatusResponse,
+        raw: &str,
+    ) {
+        self.render_foreground(cx, &response.foreground);
+        let issues = validate_runtime_status(&response, &self.runtime_status_expectation(cx));
+        if issues.is_empty() {
+            let mut detail =
+                "Target runtime matches expected protocol and capabilities.".to_string();
+            if let Some(runtime_summary) = response.runtime_summary() {
+                detail.push_str(" | ");
+                detail.push_str(&runtime_summary);
+            }
+            self.set_status(cx, "Runtime preflight passed", &detail);
+        } else {
+            self.set_status(
+                cx,
+                "Runtime preflight failed",
+                &format!("{} issue(s): {}", issues.len(), issues.join("; ")),
+            );
+        }
         self.set_last_response(cx, raw);
     }
 
@@ -1103,6 +1178,14 @@ impl MatchEvent for App {
 
         if self
             .ui
+            .button(cx, ids!(runtime_preflight_button))
+            .clicked(actions)
+        {
+            self.send_runtime_preflight_request(cx);
+        }
+
+        if self
+            .ui
             .button(cx, ids!(runtime_start_button))
             .clicked(actions)
         {
@@ -1166,6 +1249,12 @@ impl MatchEvent for App {
             Some(PendingRequest::Status) => {
                 match serde_json::from_str::<BridgeStatusResponse>(&raw) {
                     Ok(status) => self.apply_status_response(cx, status, &raw),
+                    Err(err) => self.fail(cx, format!("Could not parse status JSON: {err}\n{raw}")),
+                }
+            }
+            Some(PendingRequest::RuntimePreflight) => {
+                match serde_json::from_str::<BridgeStatusResponse>(&raw) {
+                    Ok(status) => self.apply_runtime_preflight_response(cx, status, &raw),
                     Err(err) => self.fail(cx, format!("Could not parse status JSON: {err}\n{raw}")),
                 }
             }

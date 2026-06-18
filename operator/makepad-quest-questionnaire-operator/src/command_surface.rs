@@ -122,6 +122,10 @@ pub const GUI_COMMAND_SURFACE: &[CommandSurfaceItem] = &[
         cli_equivalent: "--remote-relative",
     },
     CommandSurfaceItem {
+        gui_control: "Runtime Preflight button",
+        cli_equivalent: "preflight-runtime",
+    },
+    CommandSurfaceItem {
         gui_control: "Runtime Start button",
         cli_equivalent: "start-session",
     },

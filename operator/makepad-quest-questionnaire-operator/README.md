@@ -64,13 +64,16 @@ Quest controls map to `tooling-status`, `devices`, `device-status`, and
 
 The GUI's **Target Runtime** panel sends the same downstream-runtime command
 envelopes as `start-session`, `mark-timing-event`, `open-questionnaire`,
-`stop-session`, and `pull-session`. Fill in the target runtime protocol, kind,
+`stop-session`, and `pull-session`. It also has a **Preflight** button that
+polls `GET /v1/status` and applies the same target-runtime checks as the
+`preflight-runtime` CLI helper. Fill in the target runtime protocol, kind,
 package, study, condition, questionnaire, stage, marker, and remote session
-folder fields for the selected target APK. These controls post to the same
-low-rate `POST /v1/command` bridge route without launching the questionnaire
-panel directly from Windows. Keep private runtime protocol ids, package names,
-APK hashes, and study-specific stage maps in local/private fixtures rather
-than in this public operator repo.
+folder fields for the selected target APK, then run **Preflight** after
+`Forward`/`Poll` and before mutating runtime commands. These controls post to
+the same low-rate `POST /v1/command` bridge route without launching the
+questionnaire panel directly from Windows. Keep private runtime protocol ids,
+package names, APK hashes, and study-specific stage maps in local/private
+fixtures rather than in this public operator repo.
 
 For peripersonal APK sessions, pass `--runtime-build-tag` and
 `--source-scene-path Assets/Scenes/Space.unity` on `start-session` so Unity
