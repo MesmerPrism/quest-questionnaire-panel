@@ -42,7 +42,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- bridge-forward --serial <quest-serial> --host-port 8787 --device-port 8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- install-target-apk --serial <quest-serial> --apk path\to\target-runtime.apk --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- launch-target-runtime --serial <quest-serial> --package io.github.example.target --json
-cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- pull-target-session --serial <quest-serial> --package io.github.example.target --remote-relative files/runtime_csv/participant-P001/session-001 --out artifacts\device-session-pull --verify-bundle --json
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- pull-target-session --serial <quest-serial> --package io.github.example.target --remote-relative files/runtime_csv/participant-P001/session-001 --out artifacts\device-session-pull --verify-bundle --write-receipt --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- verify-session-bundle --path artifacts\device-session-pull\session-001 --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- preflight-runtime --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --runtime-package io.github.example.target --source-scene-path Assets/Scenes/Space.unity --require-actions start_session,open_questionnaire,pull_session --require-explicit-pull --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 1 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
@@ -123,7 +123,9 @@ treating it as study evidence. The verifier checks that the expected additive
 Unity files are present, validates known CSV headers including
 `runtime_state_samples.csv` environment, performance, pose, and breathing
 columns, checks session settings/snapshot protocol ids, and parses non-empty
-questionnaire JSONL rows.
+questionnaire JSONL rows. Add `--write-receipt` to write
+`operator_verification_receipt.json` into a successfully verified local bundle,
+or pass `--receipt-file <path>` to write the JSON receipt elsewhere.
 
 The `pull-session` HTTP helper is separate from that ADB copy step. It sends a
 low-rate runtime command with an `export_request` section so the on-Quest

@@ -19,6 +19,7 @@ use crate::protocol::{
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:8787";
 const DEFAULT_RUNTIME_EXPORT_REMOTE_RELATIVE: &str = "files/runtime_csv";
 const DEFAULT_RUNTIME_EXPORT_SUBFOLDER: &str = "device-session-pull";
+const DEFAULT_SESSION_BUNDLE_RECEIPT_FILE: &str = "operator_verification_receipt.json";
 const DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES: &[&str] = &[
     "session_events.csv",
     "signals_long.csv",
@@ -240,11 +241,15 @@ pub enum CliCommand {
         verify_bundle: bool,
         bundle_path: Option<PathBuf>,
         expected_files: Vec<String>,
+        write_receipt: bool,
+        receipt_file: Option<PathBuf>,
         json: bool,
     },
     VerifySessionBundle {
         path: PathBuf,
         expected_files: Vec<String>,
+        write_receipt: bool,
+        receipt_file: Option<PathBuf>,
         json: bool,
     },
     OpenBlock {
@@ -372,6 +377,8 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             verify_bundle,
             bundle_path,
             expected_files,
+            write_receipt,
+            receipt_file,
             json,
         } => pull_target_session(
             &serial,
@@ -381,13 +388,23 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             verify_bundle,
             bundle_path.as_deref(),
             &expected_files,
+            write_receipt,
+            receipt_file.as_deref(),
             json,
         ),
         CliCommand::VerifySessionBundle {
             path,
             expected_files,
+            write_receipt,
+            receipt_file,
             json,
-        } => verify_session_bundle_command(&path, &expected_files, json),
+        } => verify_session_bundle_command(
+            &path,
+            &expected_files,
+            write_receipt,
+            receipt_file.as_deref(),
+            json,
+        ),
         CliCommand::OpenBlock {
             endpoint,
             block,
@@ -560,6 +577,8 @@ pub fn pull_target_session(
     verify_bundle: bool,
     bundle_path: Option<&Path>,
     expected_files: &[String],
+    write_receipt: bool,
+    receipt_file: Option<&Path>,
     json: bool,
 ) -> Result<String, String> {
     let run = device::pull_target_session(serial, package_name, remote_relative, out)?;
@@ -578,7 +597,7 @@ pub fn pull_target_session(
         .unwrap_or_else(|| inferred_pulled_bundle_path(out, remote_relative));
     let verification = verify_session_bundle(&pulled_bundle_path, expected_files);
     let accepted = verification.accepted;
-    let report = TargetSessionPullReport {
+    let mut report = TargetSessionPullReport {
         protocol_version: "quest.questionnaire.operator.target-session-pull.v1".to_string(),
         accepted,
         package_name: package_name.to_string(),
@@ -587,6 +606,8 @@ pub fn pull_target_session(
         pulled_bundle_path: Some(pulled_bundle_path.display().to_string()),
         adb: run,
         verification: Some(verification),
+        receipt_path: None,
+        receipt_written_at_unix_ms: None,
     };
     if !accepted {
         if json {
@@ -598,6 +619,14 @@ pub fn pull_target_session(
                 session_bundle_issues(verification).join("\n- ")
             ));
         }
+    }
+
+    if let Some(path) =
+        resolve_verification_receipt_path(&pulled_bundle_path, write_receipt, receipt_file)
+    {
+        report.receipt_path = Some(path.display().to_string());
+        report.receipt_written_at_unix_ms = Some(unix_ms().to_string());
+        write_json_receipt(&path, &report)?;
     }
 
     if json {
@@ -620,6 +649,10 @@ struct TargetSessionPullReport {
     pulled_bundle_path: Option<String>,
     adb: device::CommandRun,
     verification: Option<SessionBundleVerificationReport>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    receipt_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    receipt_written_at_unix_ms: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -631,6 +664,10 @@ struct SessionBundleVerificationReport {
     present_files: Vec<String>,
     missing_files: Vec<String>,
     file_checks: Vec<SessionBundleFileCheck>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    receipt_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    receipt_written_at_unix_ms: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -644,10 +681,20 @@ struct SessionBundleFileCheck {
 pub fn verify_session_bundle_command(
     path: &Path,
     expected_files: &[String],
+    write_receipt: bool,
+    receipt_file: Option<&Path>,
     json: bool,
 ) -> Result<String, String> {
-    let report = verify_session_bundle(path, expected_files);
+    let mut report = verify_session_bundle(path, expected_files);
     if report.accepted {
+        if let Some(receipt_path) =
+            resolve_verification_receipt_path(path, write_receipt, receipt_file)
+        {
+            report.receipt_path = Some(receipt_path.display().to_string());
+            report.receipt_written_at_unix_ms = Some(unix_ms().to_string());
+            write_json_receipt(&receipt_path, &report)?;
+        }
+
         if json {
             serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
         } else {
@@ -734,6 +781,8 @@ fn verify_session_bundle(
         present_files,
         missing_files,
         file_checks,
+        receipt_path: None,
+        receipt_written_at_unix_ms: None,
     }
 }
 
@@ -977,6 +1026,26 @@ fn inferred_pulled_bundle_path(output_dir: &Path, remote_relative: &str) -> Path
         .filter(|value| !value.trim().is_empty())
         .unwrap_or(DEFAULT_RUNTIME_EXPORT_REMOTE_RELATIVE);
     output_dir.join(bundle_name)
+}
+
+fn resolve_verification_receipt_path(
+    bundle_path: &Path,
+    write_receipt: bool,
+    receipt_file: Option<&Path>,
+) -> Option<PathBuf> {
+    receipt_file
+        .map(Path::to_path_buf)
+        .or_else(|| write_receipt.then(|| bundle_path.join(DEFAULT_SESSION_BUNDLE_RECEIPT_FILE)))
+}
+
+fn write_json_receipt<T: Serialize>(path: &Path, report: &T) -> Result<(), String> {
+    let text = serde_json::to_string_pretty(report).map_err(|err| err.to_string())?;
+    fs::write(path, format!("{text}\n")).map_err(|err| {
+        format!(
+            "Could not write verification receipt {}: {err}",
+            path.display()
+        )
+    })
 }
 
 pub fn get_status(endpoint: &str) -> Result<String, String> {
@@ -1826,6 +1895,8 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
             let mut verify_bundle = false;
             let mut bundle_path: Option<PathBuf> = None;
             let mut expected_files = default_runtime_export_expected_files();
+            let mut write_receipt = false;
+            let mut receipt_file: Option<PathBuf> = None;
             let mut json = false;
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
@@ -1846,10 +1917,19 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                         push_non_empty(&mut expected_files, value);
                     }
                     "--clear-expected-files" => expected_files.clear(),
+                    "--write-receipt" => write_receipt = true,
+                    "--receipt-file" => {
+                        receipt_file = Some(PathBuf::from(next_value(&mut iter, "--receipt-file")?))
+                    }
                     "--json" => json = true,
                     "-h" | "--help" => return Ok(CliCommand::Help),
                     _ => return Err(format!("Unknown pull-target-session argument: {arg}")),
                 }
+            }
+            if (write_receipt || receipt_file.is_some()) && !verify_bundle {
+                return Err(
+                    "pull-target-session receipt options require --verify-bundle".to_string(),
+                );
             }
             Ok(CliCommand::PullTargetSession {
                 serial: serial
@@ -1863,12 +1943,16 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 verify_bundle,
                 bundle_path,
                 expected_files,
+                write_receipt,
+                receipt_file,
                 json,
             })
         }
         "verify-session-bundle" => {
             let mut path: Option<PathBuf> = None;
             let mut expected_files = default_runtime_export_expected_files();
+            let mut write_receipt = false;
+            let mut receipt_file: Option<PathBuf> = None;
             let mut json = false;
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
@@ -1880,6 +1964,10 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                         push_non_empty(&mut expected_files, value);
                     }
                     "--clear-expected-files" => expected_files.clear(),
+                    "--write-receipt" => write_receipt = true,
+                    "--receipt-file" => {
+                        receipt_file = Some(PathBuf::from(next_value(&mut iter, "--receipt-file")?))
+                    }
                     "--json" => json = true,
                     "-h" | "--help" => return Ok(CliCommand::Help),
                     _ => return Err(format!("Unknown verify-session-bundle argument: {arg}")),
@@ -1888,6 +1976,8 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
             Ok(CliCommand::VerifySessionBundle {
                 path: path.ok_or_else(|| "verify-session-bundle requires --path".to_string())?,
                 expected_files,
+                write_receipt,
+                receipt_file,
                 json,
             })
         }
@@ -2557,8 +2647,8 @@ fn help_text() -> String {
         "  install-target-apk --serial SERIAL --apk target.apk [--json]".to_string(),
         "  launch-target-runtime --serial SERIAL --package PACKAGE [--activity ACTIVITY] [--json]"
             .to_string(),
-        "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--json]".to_string(),
-        "  verify-session-bundle --path FOLDER [--expected-file NAME] [--clear-expected-files] [--json]".to_string(),
+        "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
+        "  verify-session-bundle --path FOLDER [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
         "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--runtime-build-tag TAG] [--source-scene-path PATH] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
@@ -2701,6 +2791,8 @@ mod tests {
                 verify_bundle: false,
                 bundle_path: None,
                 expected_files: default_runtime_export_expected_files(),
+                write_receipt: false,
+                receipt_file: None,
                 json: true,
             }
         );
@@ -2724,6 +2816,9 @@ mod tests {
             "--clear-expected-files".to_string(),
             "--expected-file".to_string(),
             "session_events.csv".to_string(),
+            "--write-receipt".to_string(),
+            "--receipt-file".to_string(),
+            "study-data/verified/pull-receipt.json".to_string(),
         ])
         .unwrap();
 
@@ -2737,6 +2832,8 @@ mod tests {
                 verify_bundle: true,
                 bundle_path: Some(PathBuf::from("study-data/verified/session-001")),
                 expected_files: vec!["session_events.csv".to_string()],
+                write_receipt: true,
+                receipt_file: Some(PathBuf::from("study-data/verified/pull-receipt.json")),
                 json: false,
             }
         );
@@ -2765,6 +2862,23 @@ mod tests {
     }
 
     #[test]
+    fn rejects_pull_target_session_receipt_without_verification() {
+        let error = parse_args(vec![
+            "pull-target-session".to_string(),
+            "--serial".to_string(),
+            "QUEST_SERIAL".to_string(),
+            "--package".to_string(),
+            "io.github.example".to_string(),
+            "--out".to_string(),
+            "study-data/device-session-pull".to_string(),
+            "--write-receipt".to_string(),
+        ])
+        .unwrap_err();
+
+        assert!(error.contains("receipt options require --verify-bundle"));
+    }
+
+    #[test]
     fn parses_verify_session_bundle_command() {
         let command = parse_args(vec![
             "verify-session-bundle".to_string(),
@@ -2773,6 +2887,9 @@ mod tests {
             "--clear-expected-files".to_string(),
             "--expected-file".to_string(),
             "session_events.csv".to_string(),
+            "--write-receipt".to_string(),
+            "--receipt-file".to_string(),
+            "study-data/device-session-pull/session-001/receipt.json".to_string(),
             "--json".to_string(),
         ])
         .unwrap();
@@ -2782,6 +2899,10 @@ mod tests {
             CliCommand::VerifySessionBundle {
                 path: PathBuf::from("study-data/device-session-pull/session-001"),
                 expected_files: vec!["session_events.csv".to_string()],
+                write_receipt: true,
+                receipt_file: Some(PathBuf::from(
+                    "study-data/device-session-pull/session-001/receipt.json",
+                )),
                 json: true,
             }
         );
@@ -2792,9 +2913,25 @@ mod tests {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-ok");
         write_complete_session_bundle(&bundle_dir);
 
-        let output = verify_session_bundle_command(&bundle_dir, &[], false).unwrap();
+        let output = verify_session_bundle_command(&bundle_dir, &[], false, None, false).unwrap();
 
         assert!(output.contains("Session bundle verification passed"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn writes_successful_session_bundle_receipt() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-receipt");
+        write_complete_session_bundle(&bundle_dir);
+        let receipt_path = bundle_dir.join(DEFAULT_SESSION_BUNDLE_RECEIPT_FILE);
+
+        let output = verify_session_bundle_command(&bundle_dir, &[], true, None, true).unwrap();
+        let receipt = fs::read_to_string(&receipt_path).unwrap();
+
+        assert!(output.contains("\"receipt_path\""));
+        assert!(receipt.contains("\"protocol_version\""));
+        assert!(receipt.contains("\"accepted\": true"));
+        assert!(receipt.contains("\"receipt_written_at_unix_ms\""));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
@@ -2804,7 +2941,8 @@ mod tests {
         write_complete_session_bundle(&bundle_dir);
         fs::remove_file(bundle_dir.join("runtime_state_samples.csv")).unwrap();
 
-        let error = verify_session_bundle_command(&bundle_dir, &[], false).unwrap_err();
+        let error =
+            verify_session_bundle_command(&bundle_dir, &[], false, None, false).unwrap_err();
 
         assert!(error.contains("runtime_state_samples.csv"));
         assert!(error.contains("required file is missing"));
@@ -2821,7 +2959,7 @@ mod tests {
         )
         .unwrap();
 
-        let error = verify_session_bundle_command(&bundle_dir, &[], true).unwrap_err();
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
 
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("sample_sequence"));

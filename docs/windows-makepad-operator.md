@@ -69,7 +69,7 @@ matches the GUI surface:
 | Install Panel | `install-panel --serial <serial> --apk <apk-path> [--json]` |
 | Install target APK | `install-target-apk --serial <serial> --apk <apk-path> [--json]` |
 | Launch target runtime | `launch-target-runtime --serial <serial> --package <package> [--activity <activity>] [--json]` |
-| Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--json]` |
+| Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--write-receipt] [--json]` |
 | Open Block 1 | `open-block --block 1 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 2 | `open-block --block 2 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
@@ -120,7 +120,9 @@ local pull layout is different. You can also run
 as study evidence. The verifier checks the expected additive Unity files,
 known CSV headers including runtime-state environment/pose/breathing columns,
 settings/snapshot protocol ids, and non-empty questionnaire JSONL rows locally;
-it does not contact the headset.
+it does not contact the headset. Add `--write-receipt` to leave
+`operator_verification_receipt.json` in a successfully verified bundle, or
+`--receipt-file <path>` to place that JSON receipt in an audit folder.
 
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide
