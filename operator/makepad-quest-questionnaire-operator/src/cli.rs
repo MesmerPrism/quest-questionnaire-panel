@@ -1679,7 +1679,7 @@ fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), Strin
                 "quest_local_clock_seconds",
             ],
         ),
-        "questionnaire_results.jsonl" => validate_jsonl(path),
+        "questionnaire_results.jsonl" => validate_questionnaire_results_jsonl(path),
         "session_settings.json" => {
             validate_json_protocol(path, "viscereality.peripersonal.session_settings.v1")
         }
@@ -1956,17 +1956,85 @@ fn validate_legacy_outputs_manifest(path: &Path) -> Result<(), String> {
     }
 }
 
-fn validate_jsonl(path: &Path) -> Result<(), String> {
+fn validate_questionnaire_results_jsonl(path: &Path) -> Result<(), String> {
     let text =
         fs::read_to_string(path).map_err(|err| format!("could not read JSONL file: {err}"))?;
     for (index, line) in text.lines().enumerate() {
         if line.trim().is_empty() {
             continue;
         }
-        serde_json::from_str::<serde_json::Value>(line)
-            .map_err(|err| format!("line {} is not valid JSON: {err}", index.saturating_add(1)))?;
+        let line_number = index.saturating_add(1);
+        let value = serde_json::from_str::<serde_json::Value>(line)
+            .map_err(|err| format!("line {line_number} is not valid JSON: {err}"))?;
+        let recorded_at_utc = required_jsonl_string(&value, "recorded_at_utc", line_number)?;
+        let request_id = required_jsonl_string(&value, "request_id", line_number)?;
+        let stage = required_jsonl_string(&value, "stage", line_number)?;
+        let result_json = required_jsonl_string(&value, "result_json", line_number)?;
+        if !recorded_at_utc.contains('T') {
+            return Err(format!(
+                "line {line_number} recorded_at_utc must be an ISO-like UTC timestamp"
+            ));
+        }
+
+        let result_value = serde_json::from_str::<serde_json::Value>(&result_json)
+            .map_err(|err| format!("line {line_number} result_json is not valid JSON: {err}"))?;
+        validate_optional_embedded_result_field(
+            &result_value,
+            "protocol_version",
+            PANEL_PROTOCOL_VERSION,
+            line_number,
+        )?;
+        validate_optional_embedded_result_field(
+            &result_value,
+            "schema",
+            "quest.questionnaire.v1.result",
+            line_number,
+        )?;
+        validate_optional_embedded_result_field(
+            &result_value,
+            "request_id",
+            &request_id,
+            line_number,
+        )?;
+        validate_optional_embedded_result_field(&result_value, "stage", &stage, line_number)?;
     }
     Ok(())
+}
+
+fn required_jsonl_string(
+    value: &serde_json::Value,
+    field: &str,
+    line_number: usize,
+) -> Result<String, String> {
+    let text = value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .trim();
+    if text.is_empty() {
+        Err(format!("line {line_number} {field} is required"))
+    } else {
+        Ok(text.to_string())
+    }
+}
+
+fn validate_optional_embedded_result_field(
+    result_value: &serde_json::Value,
+    field: &str,
+    expected: &str,
+    line_number: usize,
+) -> Result<(), String> {
+    let actual = result_value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if actual.is_empty() || actual == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "line {line_number} result_json {field} must be {expected}, got {actual}"
+        ))
+    }
 }
 
 fn normalize_expected_files(expected_files: &[String]) -> Vec<String> {
@@ -4504,6 +4572,59 @@ mod tests {
         assert!(error.contains("session_schema.json"));
         assert!(error.contains("schema columns do not match CSV header"));
         assert!(error.contains("missing from schema"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn verifies_session_bundle_with_questionnaire_result_row() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-questionnaire-row");
+        write_complete_session_bundle(&bundle_dir);
+        let result = serde_json::json!({
+            "protocol_version": PANEL_PROTOCOL_VERSION,
+            "schema": "quest.questionnaire.v1.result",
+            "request_id": "request-1",
+            "stage": "peripersonal:post_condition",
+            "status": "completed",
+            "answers": {}
+        });
+        let row = serde_json::json!({
+            "recorded_at_utc": "2026-06-18T17:00:00Z",
+            "request_id": "request-1",
+            "stage": "peripersonal:post_condition",
+            "result_json": result.to_string()
+        });
+        fs::write(
+            bundle_dir.join("questionnaire_results.jsonl"),
+            format!("{}\n", serde_json::to_string(&row).unwrap()),
+        )
+        .unwrap();
+
+        let output = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap();
+
+        assert!(output.contains("\"accepted\": true"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_bad_questionnaire_result_row() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-questionnaire-row");
+        write_complete_session_bundle(&bundle_dir);
+        let row = serde_json::json!({
+            "recorded_at_utc": "2026-06-18T17:00:00Z",
+            "request_id": "request-1",
+            "stage": "peripersonal:post_condition"
+        });
+        fs::write(
+            bundle_dir.join("questionnaire_results.jsonl"),
+            format!("{}\n", serde_json::to_string(&row).unwrap()),
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("questionnaire_results.jsonl"));
+        assert!(error.contains("result_json is required"));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
