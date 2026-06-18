@@ -111,6 +111,11 @@ declare or prepare its app-private `files/runtime_csv` bundle. The separate
 `pull-target-session` ADB helper copies those files only after that operator
 workflow step has been requested.
 
+After copying a session folder, run `verify-session-bundle --path <folder>`
+before accepting it as study evidence. The verifier checks the expected
+additive Unity files, known CSV headers, settings/snapshot protocol ids, and
+non-empty questionnaire JSONL rows locally; it does not contact the headset.
+
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide
 Unity/Quest runtime state and `clock_alignment_samples.csv` for LSL clock-probe

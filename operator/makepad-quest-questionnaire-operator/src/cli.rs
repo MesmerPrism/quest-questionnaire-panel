@@ -161,10 +161,7 @@ impl Default for RuntimeExportArgs {
             quest_package: String::new(),
             quest_remote_relative: DEFAULT_RUNTIME_EXPORT_REMOTE_RELATIVE.to_string(),
             windows_device_pull_subfolder: DEFAULT_RUNTIME_EXPORT_SUBFOLDER.to_string(),
-            expected_files: DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES
-                .iter()
-                .map(|value| (*value).to_string())
-                .collect(),
+            expected_files: default_runtime_export_expected_files(),
         }
     }
 }
@@ -240,6 +237,11 @@ pub enum CliCommand {
         package_name: String,
         remote_relative: String,
         out: PathBuf,
+        json: bool,
+    },
+    VerifySessionBundle {
+        path: PathBuf,
+        expected_files: Vec<String>,
         json: bool,
     },
     OpenBlock {
@@ -366,6 +368,11 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             out,
             json,
         } => pull_target_session(&serial, &package_name, &remote_relative, &out, json),
+        CliCommand::VerifySessionBundle {
+            path,
+            expected_files,
+            json,
+        } => verify_session_bundle_command(&path, &expected_files, json),
         CliCommand::OpenBlock {
             endpoint,
             block,
@@ -545,6 +552,332 @@ pub fn pull_target_session(
             "Pulled target session data from {package_name} into {}.",
             out.display()
         ))
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SessionBundleVerificationReport {
+    protocol_version: String,
+    path: String,
+    accepted: bool,
+    expected_files: Vec<String>,
+    present_files: Vec<String>,
+    missing_files: Vec<String>,
+    file_checks: Vec<SessionBundleFileCheck>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SessionBundleFileCheck {
+    file: String,
+    present: bool,
+    valid: bool,
+    issue: String,
+}
+
+pub fn verify_session_bundle_command(
+    path: &Path,
+    expected_files: &[String],
+    json: bool,
+) -> Result<String, String> {
+    let report = verify_session_bundle(path, expected_files);
+    if report.accepted {
+        if json {
+            serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
+        } else {
+            Ok(format!(
+                "Session bundle verification passed for {} ({} expected files present).",
+                path.display(),
+                report.expected_files.len()
+            ))
+        }
+    } else if json {
+        Err(serde_json::to_string_pretty(&report).map_err(|err| err.to_string())?)
+    } else {
+        Err(format!(
+            "Session bundle verification failed for {}:\n- {}",
+            path.display(),
+            session_bundle_issues(&report).join("\n- ")
+        ))
+    }
+}
+
+fn verify_session_bundle(
+    path: &Path,
+    expected_files: &[String],
+) -> SessionBundleVerificationReport {
+    let expected_files = normalize_expected_files(expected_files);
+    let mut file_checks = Vec::new();
+    let mut present_files = Vec::new();
+
+    if !path.is_dir() {
+        file_checks.push(SessionBundleFileCheck {
+            file: ".".to_string(),
+            present: false,
+            valid: false,
+            issue: "session bundle folder was not found".to_string(),
+        });
+    } else if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if entry.path().is_file() {
+                present_files.push(entry.file_name().to_string_lossy().to_string());
+            }
+        }
+        present_files.sort();
+    }
+
+    let mut missing_files = Vec::new();
+    for file in &expected_files {
+        let safe_file = safe_expected_file_name(file);
+        let present = safe_file
+            .as_ref()
+            .map(|name| path.join(name).is_file())
+            .unwrap_or(false);
+        if !present {
+            missing_files.push(file.clone());
+        }
+
+        let mut valid = present;
+        let mut issue = String::new();
+        if safe_file.is_none() {
+            valid = false;
+            issue = "expected file name must be a plain file name".to_string();
+        } else if !present {
+            issue = "required file is missing".to_string();
+        } else if let Some(name) = safe_file.as_deref() {
+            if let Err(err) = validate_known_session_file(&path.join(name), name) {
+                valid = false;
+                issue = err;
+            }
+        }
+
+        file_checks.push(SessionBundleFileCheck {
+            file: file.clone(),
+            present,
+            valid,
+            issue,
+        });
+    }
+
+    let accepted = missing_files.is_empty() && file_checks.iter().all(|check| check.valid);
+    SessionBundleVerificationReport {
+        protocol_version: "quest.questionnaire.operator.session-bundle-verification.v1".to_string(),
+        path: path.display().to_string(),
+        accepted,
+        expected_files,
+        present_files,
+        missing_files,
+        file_checks,
+    }
+}
+
+fn session_bundle_issues(report: &SessionBundleVerificationReport) -> Vec<String> {
+    let issues = report
+        .file_checks
+        .iter()
+        .filter(|check| !check.valid)
+        .map(|check| {
+            if check.issue.is_empty() {
+                format!("{} failed validation", check.file)
+            } else {
+                format!("{}: {}", check.file, check.issue)
+            }
+        })
+        .collect::<Vec<_>>();
+    if issues.is_empty() {
+        vec!["unknown verification issue".to_string()]
+    } else {
+        issues
+    }
+}
+
+fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), String> {
+    match file_name {
+        "session_events.csv" => validate_csv_header_contains(
+            path,
+            &[
+                "participant_id",
+                "session_id",
+                "dataset_id",
+                "recorded_at_utc",
+                "event_name",
+                "event_detail",
+                "result",
+            ],
+        ),
+        "signals_long.csv" => validate_csv_header_contains(
+            path,
+            &[
+                "participant_id",
+                "session_id",
+                "dataset_id",
+                "recorded_at_utc",
+                "source_timestamp_utc",
+                "source",
+                "signal_group",
+                "signal_name",
+                "value_numeric",
+                "value_text",
+                "unit",
+                "sequence",
+            ],
+        ),
+        "breathing_trace.csv" => validate_csv_header_contains(
+            path,
+            &[
+                "participant_id",
+                "session_id",
+                "dataset_id",
+                "recorded_at_utc",
+                "breath_volume01",
+                "sphere_radius_progress01",
+                "sphere_radius_raw",
+                "controller_calibrated",
+            ],
+        ),
+        "runtime_state_samples.csv" => validate_csv_header_contains(
+            path,
+            &[
+                "participant_id",
+                "session_id",
+                "dataset_id",
+                "recorded_at_utc",
+                "sample_sequence",
+                "sample_reason",
+                "quest_realtime_seconds",
+                "performance_issue_flags",
+                "breathing_drive",
+                "sphere_radius",
+                "camera_present",
+                "head_pos_x",
+                "left_controller_valid",
+                "right_controller_valid",
+            ],
+        ),
+        "clock_alignment_samples.csv" => validate_csv_header_contains(
+            path,
+            &[
+                "participant_id",
+                "session_id",
+                "dataset_id",
+                "probe_sequence",
+                "recorded_at_utc",
+                "probe_source_lsl_seconds",
+                "quest_receive_lsl_seconds",
+                "quest_echo_lsl_seconds",
+            ],
+        ),
+        "timing_markers.csv" => validate_csv_header_contains(
+            path,
+            &[
+                "participant_id",
+                "session_id",
+                "dataset_id",
+                "recorded_at_utc",
+                "marker_name",
+                "marker_detail",
+                "quest_local_clock_seconds",
+            ],
+        ),
+        "questionnaire_results.jsonl" => validate_jsonl(path),
+        "session_settings.json" => {
+            validate_json_protocol(path, "viscereality.peripersonal.session_settings.v1")
+        }
+        "session_snapshot.json" => {
+            validate_json_protocol(path, "viscereality.peripersonal.session_snapshot.v1")
+        }
+        _ => Ok(()),
+    }
+}
+
+fn validate_csv_header_contains(path: &Path, required_columns: &[&str]) -> Result<(), String> {
+    let text = fs::read_to_string(path).map_err(|err| format!("could not read CSV file: {err}"))?;
+    let header = text
+        .lines()
+        .next()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .ok_or_else(|| "CSV header is missing".to_string())?;
+    let columns = header.split(',').collect::<Vec<_>>();
+    let missing = required_columns
+        .iter()
+        .filter(|column| !columns.iter().any(|actual| actual == *column))
+        .map(|value| (*value).to_string())
+        .collect::<Vec<_>>();
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "CSV header is missing columns: {}",
+            missing.join(", ")
+        ))
+    }
+}
+
+fn validate_json_protocol(path: &Path, expected_protocol: &str) -> Result<(), String> {
+    let text =
+        fs::read_to_string(path).map_err(|err| format!("could not read JSON file: {err}"))?;
+    let value = serde_json::from_str::<serde_json::Value>(&text)
+        .map_err(|err| format!("could not parse JSON document: {err}"))?;
+    let protocol = value
+        .get("protocol_version")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if protocol == expected_protocol {
+        Ok(())
+    } else {
+        Err(format!(
+            "protocol_version must be {expected_protocol}, got {protocol}"
+        ))
+    }
+}
+
+fn validate_jsonl(path: &Path) -> Result<(), String> {
+    let text =
+        fs::read_to_string(path).map_err(|err| format!("could not read JSONL file: {err}"))?;
+    for (index, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        serde_json::from_str::<serde_json::Value>(line)
+            .map_err(|err| format!("line {} is not valid JSON: {err}", index.saturating_add(1)))?;
+    }
+    Ok(())
+}
+
+fn normalize_expected_files(expected_files: &[String]) -> Vec<String> {
+    let mut files = if expected_files.is_empty() {
+        default_runtime_export_expected_files()
+    } else {
+        expected_files
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    };
+    files.sort();
+    files.dedup();
+    files
+}
+
+fn default_runtime_export_expected_files() -> Vec<String> {
+    DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES
+        .iter()
+        .map(|value| (*value).to_string())
+        .collect()
+}
+
+fn safe_expected_file_name(file_name: &str) -> Option<String> {
+    let trimmed = file_name.trim();
+    if trimmed.is_empty()
+        || trimmed == "."
+        || trimmed == ".."
+        || trimmed.contains('/')
+        || trimmed.contains('\\')
+    {
+        None
+    } else {
+        Some(trimmed.to_string())
     }
 }
 
@@ -1420,6 +1753,31 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 json,
             })
         }
+        "verify-session-bundle" => {
+            let mut path: Option<PathBuf> = None;
+            let mut expected_files = default_runtime_export_expected_files();
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--path" | "--bundle" => {
+                        path = Some(PathBuf::from(next_value(&mut iter, "--path")?))
+                    }
+                    "--expected-file" => {
+                        let value = next_value(&mut iter, "--expected-file")?;
+                        push_non_empty(&mut expected_files, value);
+                    }
+                    "--clear-expected-files" => expected_files.clear(),
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown verify-session-bundle argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::VerifySessionBundle {
+                path: path.ok_or_else(|| "verify-session-bundle requires --path".to_string())?,
+                expected_files,
+                json,
+            })
+        }
         "open-block" => {
             let mut endpoint = DEFAULT_ENDPOINT.to_string();
             let mut block: Option<u8> = None;
@@ -2087,6 +2445,7 @@ fn help_text() -> String {
         "  launch-target-runtime --serial SERIAL --package PACKAGE [--activity ACTIVITY] [--json]"
             .to_string(),
         "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--json]".to_string(),
+        "  verify-session-bundle --path FOLDER [--expected-file NAME] [--clear-expected-files] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
         "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--runtime-build-tag TAG] [--source-scene-path PATH] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
@@ -2229,6 +2588,70 @@ mod tests {
                 json: true,
             }
         );
+    }
+
+    #[test]
+    fn parses_verify_session_bundle_command() {
+        let command = parse_args(vec![
+            "verify-session-bundle".to_string(),
+            "--path".to_string(),
+            "study-data/device-session-pull/session-001".to_string(),
+            "--clear-expected-files".to_string(),
+            "--expected-file".to_string(),
+            "session_events.csv".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::VerifySessionBundle {
+                path: PathBuf::from("study-data/device-session-pull/session-001"),
+                expected_files: vec!["session_events.csv".to_string()],
+                json: true,
+            }
+        );
+    }
+
+    #[test]
+    fn verifies_complete_session_bundle() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-ok");
+        write_complete_session_bundle(&bundle_dir);
+
+        let output = verify_session_bundle_command(&bundle_dir, &[], false).unwrap();
+
+        assert!(output.contains("Session bundle verification passed"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_missing_runtime_state_samples() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-missing-runtime");
+        write_complete_session_bundle(&bundle_dir);
+        fs::remove_file(bundle_dir.join("runtime_state_samples.csv")).unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false).unwrap_err();
+
+        assert!(error.contains("runtime_state_samples.csv"));
+        assert!(error.contains("required file is missing"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_bad_runtime_state_header() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-runtime");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("runtime_state_samples.csv"),
+            "participant_id,session_id,dataset_id\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("sample_sequence"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
     #[test]
@@ -2551,5 +2974,54 @@ mod tests {
         assert!(text.contains("\"command_id\":\"cmd-1\""));
         assert!(text.contains("\"accepted\":true"));
         fs::remove_dir_all(&audit_dir).unwrap();
+    }
+
+    fn temp_test_dir(prefix: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("{prefix}-{}", unix_ms()))
+    }
+
+    fn write_complete_session_bundle(bundle_dir: &Path) {
+        fs::create_dir_all(bundle_dir).unwrap();
+        fs::write(
+            bundle_dir.join("session_events.csv"),
+            "participant_id,session_id,dataset_id,recorded_at_utc,event_name,event_detail,result\n",
+        )
+        .unwrap();
+        fs::write(
+            bundle_dir.join("signals_long.csv"),
+            "participant_id,session_id,dataset_id,recorded_at_utc,source_timestamp_utc,source,signal_group,signal_name,value_numeric,value_text,unit,sequence\n",
+        )
+        .unwrap();
+        fs::write(
+            bundle_dir.join("breathing_trace.csv"),
+            "participant_id,session_id,dataset_id,recorded_at_utc,source_timestamp_utc,breath_volume01,sphere_radius_progress01,sphere_radius_raw,controller_calibrated\n",
+        )
+        .unwrap();
+        fs::write(
+            bundle_dir.join("runtime_state_samples.csv"),
+            "participant_id,session_id,dataset_id,recorded_at_utc,sample_sequence,sample_reason,quest_realtime_seconds,performance_issue_flags,breathing_drive,sphere_radius,camera_present,head_pos_x,left_controller_valid,right_controller_valid\n",
+        )
+        .unwrap();
+        fs::write(
+            bundle_dir.join("clock_alignment_samples.csv"),
+            "participant_id,session_id,dataset_id,probe_sequence,recorded_at_utc,probe_source_lsl_seconds,quest_received_at_utc,quest_receive_lsl_seconds,quest_echo_lsl_seconds\n",
+        )
+        .unwrap();
+        fs::write(
+            bundle_dir.join("timing_markers.csv"),
+            "participant_id,session_id,dataset_id,recorded_at_utc,marker_name,marker_detail,sample_sequence,source_lsl_timestamp_seconds,quest_local_clock_seconds,value01,aux_value\n",
+        )
+        .unwrap();
+        fs::write(bundle_dir.join("questionnaire_results.jsonl"), "").unwrap();
+        fs::write(
+            bundle_dir.join("session_settings.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_settings.v1\"}\n",
+        )
+        .unwrap();
+        fs::write(
+            bundle_dir.join("session_snapshot.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\"}\n",
+        )
+        .unwrap();
     }
 }
