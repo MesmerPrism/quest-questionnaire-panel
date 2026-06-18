@@ -241,6 +241,8 @@ pub struct RuntimeOperatorCommandRequest {
     pub marker: RuntimeMarkerSpec,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub panel_request: Option<RuntimePanelLaunchSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export_request: Option<RuntimeExportRequestSpec>,
 }
 
 impl RuntimeOperatorCommandRequest {
@@ -261,6 +263,7 @@ impl RuntimeOperatorCommandRequest {
             runtime_provenance,
             marker: RuntimeMarkerSpec::default(),
             panel_request: None,
+            export_request: None,
         }
     }
 
@@ -283,6 +286,7 @@ impl RuntimeOperatorCommandRequest {
             runtime_provenance: RuntimeProvenanceSpec::default(),
             marker: RuntimeMarkerSpec::default(),
             panel_request: None,
+            export_request: None,
         }
     }
 
@@ -315,6 +319,7 @@ impl RuntimeOperatorCommandRequest {
                 marker_detail: marker_detail.into(),
             },
             panel_request: None,
+            export_request: None,
         }
     }
 
@@ -352,6 +357,31 @@ impl RuntimeOperatorCommandRequest {
             runtime_provenance: RuntimeProvenanceSpec::default(),
             marker: RuntimeMarkerSpec::default(),
             panel_request: Some(panel_request),
+            export_request: None,
+        }
+    }
+
+    pub fn pull_session(
+        command_id: impl Into<String>,
+        protocol_version: impl Into<String>,
+        target: RuntimeTargetSpec,
+        session_id: impl Into<String>,
+        export_request: RuntimeExportRequestSpec,
+    ) -> Self {
+        Self {
+            protocol_version: protocol_version.into(),
+            command_id: command_id.into(),
+            action: RuntimeOperatorAction::PullSession,
+            command_name: "target_runtime.session.pull".to_string(),
+            target,
+            session: RuntimeSessionSpec {
+                session_id: session_id.into(),
+                ..RuntimeSessionSpec::default()
+            },
+            runtime_provenance: RuntimeProvenanceSpec::default(),
+            marker: RuntimeMarkerSpec::default(),
+            panel_request: None,
+            export_request: Some(export_request),
         }
     }
 }
@@ -363,6 +393,7 @@ pub enum RuntimeOperatorAction {
     StopSession,
     MarkTimingEvent,
     OpenQuestionnaire,
+    PullSession,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -413,6 +444,17 @@ pub struct RuntimeProvenanceSpec {
 pub struct RuntimeMarkerSpec {
     pub marker_name: String,
     pub marker_detail: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeExportRequestSpec {
+    pub pull_device_session: bool,
+    pub quest_storage_policy: String,
+    pub windows_storage_policy: String,
+    pub quest_package: String,
+    pub quest_remote_relative: String,
+    pub windows_device_pull_subfolder: String,
+    pub expected_files: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -599,5 +641,32 @@ mod tests {
         assert!(json.contains("\"action\":\"open_questionnaire\""));
         assert!(json.contains("\"panel_request\""));
         assert!(json.contains("\"questionnaire_id\":\"questionnaire-v1\""));
+    }
+
+    #[test]
+    fn runtime_pull_session_serializes_export_request() {
+        let request = RuntimeOperatorCommandRequest::pull_session(
+            "cmd-pull",
+            DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
+            RuntimeTargetSpec::new(DEFAULT_RUNTIME_KIND, "example.package", "", ""),
+            "session-1",
+            RuntimeExportRequestSpec {
+                pull_device_session: true,
+                quest_storage_policy: "app_private_only".to_string(),
+                windows_storage_policy: "explicit_pull_only".to_string(),
+                quest_package: "example.package".to_string(),
+                quest_remote_relative: "files/runtime_csv/participant-P001/session-1".to_string(),
+                windows_device_pull_subfolder: "device-session-pull".to_string(),
+                expected_files: vec!["questionnaire_results.jsonl".to_string()],
+            },
+        );
+        let json = serde_json::to_string(&request).unwrap();
+
+        assert_eq!(request.action, RuntimeOperatorAction::PullSession);
+        assert!(json.contains("\"action\":\"pull_session\""));
+        assert!(json.contains("\"export_request\""));
+        assert!(json.contains(
+            "\"quest_remote_relative\":\"files/runtime_csv/participant-P001/session-1\""
+        ));
     }
 }

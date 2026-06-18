@@ -51,6 +51,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- mark-timing-event --session-id target-session-001 --marker-name condition_start --marker-detail "Operator marker" --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-questionnaire --session-id target-session-001 --participant-ref P001 --study-id target-study --questionnaire-id target-questionnaire-v1 --open-stage target:intro --screen-sequence target:intro,target:rating --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- stop-session --session-id target-session-001 --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- pull-session --session-id target-session-001 --remote-relative files/runtime_csv/participant-P001/target-session-001 --protocol-version target.runtime.operator.v1 --runtime-kind target_quest_apk --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- post-command --file path\to\private-command.json --endpoint http://127.0.0.1:8787 --audit-dir artifacts\operator-audit
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- proof-run --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787 --out artifacts\operator-proof-run
 ```
@@ -61,11 +62,12 @@ Quest controls map to `tooling-status`, `devices`, `device-status`, and
 `bridge-forward`.
 
 The `start-session`, `mark-timing-event`, `open-questionnaire`,
-`stop-session`, and `post-command` commands are CLI-first downstream runtime
-helpers. They post to the same low-rate `POST /v1/command` bridge route
-without launching the questionnaire panel directly from Windows. Keep private
-runtime protocol ids, package names, APK hashes, and study-specific stage maps
-in local/private fixtures rather than in this public operator repo.
+`stop-session`, `pull-session`, and `post-command` commands are CLI-first
+downstream runtime helpers. They post to the same low-rate `POST /v1/command`
+bridge route without launching the questionnaire panel directly from Windows.
+Keep private runtime protocol ids, package names, APK hashes, and
+study-specific stage maps in local/private fixtures rather than in this public
+operator repo.
 
 The `install-target-apk` and `launch-target-runtime` helpers are setup and
 foregrounding tools only. They do not launch the questionnaire panel and do not
@@ -75,6 +77,11 @@ The `pull-target-session` helper is the explicit export step for target runtime
 session evidence. It pulls from the target app's app-specific Quest storage
 under `/sdcard/Android/data/<package>/...` into an operator-selected local
 folder; do not use it for implicit background collection.
+
+The `pull-session` HTTP helper is separate from that ADB copy step. It sends a
+low-rate runtime command with an `export_request` section so the on-Quest
+runtime can declare or prepare the app-private `files/runtime_csv` bundle. It
+does not pull files by itself.
 
 When `--audit-dir` is provided, runtime command helpers append a local
 `command_audit.jsonl` file with request, response, timing, acceptance, and error

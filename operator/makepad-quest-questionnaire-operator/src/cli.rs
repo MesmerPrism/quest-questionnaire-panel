@@ -10,12 +10,23 @@ use serde::{Deserialize, Serialize};
 use crate::device;
 use crate::protocol::{
     block_by_number, endpoint_url, BridgeStatusResponse, OperatorCommandRequest,
-    RuntimeOperatorCommandRequest, RuntimePanelLaunchSpec, RuntimeProvenanceSpec,
-    RuntimeQuestionnaireStateSpec, RuntimeSessionSpec, RuntimeTargetSpec, DEFAULT_RUNTIME_KIND,
-    DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION,
+    RuntimeExportRequestSpec, RuntimeOperatorCommandRequest, RuntimePanelLaunchSpec,
+    RuntimeProvenanceSpec, RuntimeQuestionnaireStateSpec, RuntimeSessionSpec, RuntimeTargetSpec,
+    DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION,
 };
 
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:8787";
+const DEFAULT_RUNTIME_EXPORT_REMOTE_RELATIVE: &str = "files/runtime_csv";
+const DEFAULT_RUNTIME_EXPORT_SUBFOLDER: &str = "device-session-pull";
+const DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES: &[&str] = &[
+    "session_events.csv",
+    "signals_long.csv",
+    "breathing_trace.csv",
+    "timing_markers.csv",
+    "questionnaire_results.jsonl",
+    "session_settings.json",
+    "session_snapshot.json",
+];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeCommonArgs {
@@ -130,6 +141,46 @@ impl RuntimeProvenanceArgs {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuntimeExportArgs {
+    pub quest_package: String,
+    pub quest_remote_relative: String,
+    pub windows_device_pull_subfolder: String,
+    pub expected_files: Vec<String>,
+}
+
+impl Default for RuntimeExportArgs {
+    fn default() -> Self {
+        Self {
+            quest_package: String::new(),
+            quest_remote_relative: DEFAULT_RUNTIME_EXPORT_REMOTE_RELATIVE.to_string(),
+            windows_device_pull_subfolder: DEFAULT_RUNTIME_EXPORT_SUBFOLDER.to_string(),
+            expected_files: DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect(),
+        }
+    }
+}
+
+impl RuntimeExportArgs {
+    fn to_spec(&self, fallback_package: &str) -> RuntimeExportRequestSpec {
+        RuntimeExportRequestSpec {
+            pull_device_session: true,
+            quest_storage_policy: "app_private_only".to_string(),
+            windows_storage_policy: "explicit_pull_only".to_string(),
+            quest_package: if self.quest_package.trim().is_empty() {
+                fallback_package.to_string()
+            } else {
+                self.quest_package.clone()
+            },
+            quest_remote_relative: self.quest_remote_relative.clone(),
+            windows_device_pull_subfolder: self.windows_device_pull_subfolder.clone(),
+            expected_files: self.expected_files.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CliCommand {
     Status {
         endpoint: String,
@@ -197,6 +248,11 @@ pub enum CliCommand {
     StopSession {
         common: RuntimeCommonArgs,
         session_id: String,
+    },
+    PullSession {
+        common: RuntimeCommonArgs,
+        session_id: String,
+        export: RuntimeExportArgs,
     },
     MarkTimingEvent {
         common: RuntimeCommonArgs,
@@ -303,6 +359,11 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             provenance,
         } => start_session(common, session, provenance),
         CliCommand::StopSession { common, session_id } => stop_session(common, &session_id),
+        CliCommand::PullSession {
+            common,
+            session_id,
+            export,
+        } => pull_session(common, &session_id, export),
         CliCommand::MarkTimingEvent {
             common,
             session_id,
@@ -536,6 +597,42 @@ pub fn stop_session(common: RuntimeCommonArgs, session_id: &str) -> Result<Strin
         common.protocol_version.clone(),
         common.target(),
         session_id.to_string(),
+    );
+    common.apply_command_name(&mut body);
+    post_runtime_command(&common.endpoint, body, common.audit_dir.as_deref())
+}
+
+pub fn pull_session(
+    common: RuntimeCommonArgs,
+    session_id: &str,
+    export: RuntimeExportArgs,
+) -> Result<String, String> {
+    if session_id.trim().is_empty() {
+        return Err("pull-session requires --session-id".to_string());
+    }
+    if export.quest_remote_relative.trim().is_empty() {
+        return Err("pull-session requires --remote-relative".to_string());
+    }
+    if !export
+        .quest_remote_relative
+        .starts_with(DEFAULT_RUNTIME_EXPORT_REMOTE_RELATIVE)
+    {
+        return Err("pull-session --remote-relative must stay under files/runtime_csv".to_string());
+    }
+    if export
+        .quest_remote_relative
+        .split('/')
+        .any(|part| part == "..")
+    {
+        return Err("pull-session --remote-relative must not contain parent traversal".to_string());
+    }
+
+    let mut body = RuntimeOperatorCommandRequest::pull_session(
+        common.command_id_or_generated("operator-cli-pull-session"),
+        common.protocol_version.clone(),
+        common.target(),
+        session_id.to_string(),
+        export.to_spec(&common.target_runtime_package),
     );
     common.apply_command_name(&mut body);
     post_runtime_command(&common.endpoint, body, common.audit_dir.as_deref())
@@ -1324,6 +1421,47 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                     .ok_or_else(|| "stop-session requires --session-id".to_string())?,
             })
         }
+        "pull-session" => {
+            let mut common = RuntimeCommonArgs::default();
+            let mut session_id: Option<String> = None;
+            let mut export = RuntimeExportArgs::default();
+            while let Some(arg) = iter.next() {
+                if parse_runtime_common_arg(&arg, &mut iter, &mut common)? {
+                    continue;
+                }
+                match arg.as_str() {
+                    "--session-id" | "--session" => {
+                        session_id = Some(next_value(&mut iter, "--session-id")?)
+                    }
+                    "--quest-package" => {
+                        export.quest_package = next_value(&mut iter, "--quest-package")?
+                    }
+                    "--remote-relative" | "--quest-remote-relative" => {
+                        export.quest_remote_relative = next_value(&mut iter, "--remote-relative")?
+                    }
+                    "--windows-device-pull-subfolder" | "--out-subfolder" => {
+                        export.windows_device_pull_subfolder =
+                            next_value(&mut iter, "--windows-device-pull-subfolder")?
+                    }
+                    "--expected-file" => {
+                        let value = next_value(&mut iter, "--expected-file")?;
+                        if !value.trim().is_empty() {
+                            export.expected_files.push(value);
+                        }
+                    }
+                    "--clear-expected-files" => export.expected_files.clear(),
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown pull-session argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::PullSession {
+                common,
+                session_id: session_id
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "pull-session requires --session-id".to_string())?,
+                export,
+            })
+        }
         "mark-timing-event" => {
             let mut common = RuntimeCommonArgs::default();
             let mut session_id: Option<String> = None;
@@ -1765,6 +1903,7 @@ fn help_text() -> String {
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
         "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  stop-session --session-id ID [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
+        "  pull-session --session-id ID [--remote-relative files/runtime_csv] [--quest-package PACKAGE] [--runtime-package PACKAGE] [--expected-file NAME] [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  mark-timing-event --session-id ID --marker-name NAME [--marker-detail TEXT] [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  open-questionnaire --session-id ID --participant-ref REF --study-id ID --questionnaire-id ID --open-stage STAGE [--screen-sequence A,B] [--condition-number N] [--language-code en] [--condition-id ID] [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
         "  post-command --file command.json [--endpoint URL] [--audit-dir DIR]".to_string(),
@@ -1981,6 +2120,48 @@ mod tests {
             CliCommand::StopSession { common, session_id } => {
                 assert_eq!(session_id, "session-1");
                 assert_eq!(common.command_name.as_deref(), Some("private.session.stop"));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_pull_session_command() {
+        let command = parse_args(vec![
+            "pull-session".to_string(),
+            "--session-id".to_string(),
+            "session-1".to_string(),
+            "--runtime-package".to_string(),
+            "io.github.example.target".to_string(),
+            "--remote-relative".to_string(),
+            "files/runtime_csv/participant-P001/session-1".to_string(),
+            "--out-subfolder".to_string(),
+            "device-session-pull".to_string(),
+            "--clear-expected-files".to_string(),
+            "--expected-file".to_string(),
+            "questionnaire_results.jsonl".to_string(),
+            "--command-name".to_string(),
+            "target.session.pull".to_string(),
+        ])
+        .unwrap();
+
+        match command {
+            CliCommand::PullSession {
+                common,
+                session_id,
+                export,
+            } => {
+                assert_eq!(session_id, "session-1");
+                assert_eq!(common.target_runtime_package, "io.github.example.target");
+                assert_eq!(common.command_name.as_deref(), Some("target.session.pull"));
+                assert_eq!(
+                    export.quest_remote_relative,
+                    "files/runtime_csv/participant-P001/session-1"
+                );
+                assert_eq!(
+                    export.expected_files,
+                    vec!["questionnaire_results.jsonl".to_string()]
+                );
             }
             other => panic!("unexpected command: {other:?}"),
         }

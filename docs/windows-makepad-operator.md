@@ -83,6 +83,7 @@ same low-rate bridge route:
 | Mark target timing event | `mark-timing-event --session-id <id> --marker-name <name> --marker-detail <text> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Open target questionnaire | `open-questionnaire --session-id <id> --participant-ref <ref> --study-id <id> --questionnaire-id <id> --open-stage <stage> --screen-sequence <a,b> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Stop target session | `stop-session --session-id <id> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Request target session export | `pull-session --session-id <id> --remote-relative files/runtime_csv --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Post private fixture JSON | `post-command --file <command.json> --endpoint <url> [--audit-dir <dir>]` |
 
 Keep concrete private runtime protocol ids, package names, APK hashes, study
@@ -102,6 +103,11 @@ Target session pull is an explicit export operation. It copies app-specific
 Quest files from `/sdcard/Android/data/<package>/...` into a chosen local
 folder after the operator asks for it; it should not become an implicit
 questionnaire result path or a high-rate sample transport.
+
+The `pull-session` HTTP helper is the low-rate request to the target runtime to
+declare or prepare its app-private `files/runtime_csv` bundle. The separate
+`pull-target-session` ADB helper copies those files only after that operator
+workflow step has been requested.
 
 When `--audit-dir` is supplied, runtime HTTP helpers append
 `command_audit.jsonl` with the command request, bridge response, timing, and
