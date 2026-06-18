@@ -67,6 +67,7 @@ matches the GUI surface:
 | Forward | `bridge-forward --serial <serial> --host-port <port> --device-port <port> [--json]` |
 | Panel APK | `install-panel --serial <serial> --apk <apk-path> [--json]` |
 | Install Panel | `install-panel --serial <serial> --apk <apk-path> [--json]` |
+| Verify target APK | `verify-target-apk --apk <apk-path> [--sha256 <expected-sha256>] [--json]` |
 | Install target APK | `install-target-apk --serial <serial> --apk <apk-path> [--json]` |
 | Launch target runtime | `launch-target-runtime --serial <serial> --package <package> [--activity <activity>] [--json]` |
 | Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--write-receipt] [--json]` |
@@ -98,6 +99,11 @@ public-boundary review approves a sanitized version.
 Target APK install and target runtime launch are setup/foregrounding helpers
 only. Questionnaire foregrounding must still happen through the on-Quest caller
 bridge and the caller-owned `content://` result URI contract.
+
+Run `verify-target-apk --apk <apk-path> --sha256 <expected-sha256>` before
+install when an approved catalog hash exists. It is a local file check that
+records byte size and SHA-256 and fails on a mismatch before any headset or ADB
+operation is attempted.
 
 Use `device-status --serial <quest-serial> --json --out <snapshot.json>` before
 and after a run when you need a Quest-side setup snapshot. It writes a
