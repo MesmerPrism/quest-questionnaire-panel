@@ -1918,7 +1918,96 @@ fn validate_session_snapshot(path: &Path) -> Result<(), String> {
         "legacy_outputs_manifest.json",
     )?;
     required_json_bool(&value, "recording_active")?;
+    let bundle_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    validate_snapshot_csv_count(
+        &value,
+        "event_count",
+        &bundle_dir.join("session_events.csv"),
+    )?;
+    validate_snapshot_csv_count(&value, "signal_count", &bundle_dir.join("signals_long.csv"))?;
+    validate_snapshot_csv_count(
+        &value,
+        "breathing_count",
+        &bundle_dir.join("breathing_trace.csv"),
+    )?;
+    validate_snapshot_csv_count(
+        &value,
+        "runtime_state_sample_count",
+        &bundle_dir.join("runtime_state_samples.csv"),
+    )?;
+    validate_snapshot_csv_count(
+        &value,
+        "clock_alignment_count",
+        &bundle_dir.join("clock_alignment_samples.csv"),
+    )?;
+    validate_snapshot_csv_count(
+        &value,
+        "timing_marker_count",
+        &bundle_dir.join("timing_markers.csv"),
+    )?;
+    validate_snapshot_jsonl_count(
+        &value,
+        "questionnaire_result_count",
+        &bundle_dir.join("questionnaire_results.jsonl"),
+    )?;
     Ok(())
+}
+
+fn validate_snapshot_csv_count(
+    value: &serde_json::Value,
+    field: &str,
+    csv_path: &Path,
+) -> Result<(), String> {
+    let actual = count_csv_data_rows(csv_path)?;
+    validate_snapshot_count_field(value, field, actual)
+}
+
+fn validate_snapshot_jsonl_count(
+    value: &serde_json::Value,
+    field: &str,
+    jsonl_path: &Path,
+) -> Result<(), String> {
+    let actual = count_non_empty_lines(jsonl_path, "JSONL")?;
+    validate_snapshot_count_field(value, field, actual)
+}
+
+fn validate_snapshot_count_field(
+    value: &serde_json::Value,
+    field: &str,
+    actual: usize,
+) -> Result<(), String> {
+    let expected = required_json_usize(value, field)?;
+    if expected == actual {
+        Ok(())
+    } else {
+        Err(format!(
+            "{field} must match pulled bundle rows: snapshot={expected} actual={actual}"
+        ))
+    }
+}
+
+fn required_json_usize(value: &serde_json::Value, field: &str) -> Result<usize, String> {
+    let number = value
+        .get(field)
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| format!("{field} must be a non-negative integer"))?;
+    usize::try_from(number).map_err(|_| format!("{field} is too large for this platform"))
+}
+
+fn count_csv_data_rows(path: &Path) -> Result<usize, String> {
+    let text = fs::read_to_string(path).map_err(|err| format!("could not read CSV file: {err}"))?;
+    let mut lines = text.lines().enumerate();
+    lines
+        .find(|(_, line)| !line.trim().is_empty())
+        .ok_or_else(|| "CSV header is missing".to_string())?;
+
+    Ok(lines.filter(|(_, line)| !line.trim().is_empty()).count())
+}
+
+fn count_non_empty_lines(path: &Path, label: &str) -> Result<usize, String> {
+    let text =
+        fs::read_to_string(path).map_err(|err| format!("could not read {label} file: {err}"))?;
+    Ok(text.lines().filter(|line| !line.trim().is_empty()).count())
 }
 
 fn read_json_document(path: &Path) -> Result<serde_json::Value, String> {
@@ -4909,6 +4998,11 @@ mod tests {
             format!("{}\n", serde_json::to_string(&row).unwrap()),
         )
         .unwrap();
+        fs::write(
+            bundle_dir.join("session_snapshot.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\",\"settings_path\":\"session_settings.json\",\"snapshot_path\":\"session_snapshot.json\",\"schema_path\":\"session_schema.json\",\"legacy_outputs_manifest_path\":\"legacy_outputs_manifest.json\",\"recording_active\":false,\"event_count\":0,\"signal_count\":0,\"breathing_count\":0,\"runtime_state_sample_count\":0,\"clock_alignment_count\":0,\"timing_marker_count\":0,\"questionnaire_result_count\":1}\n",
+        )
+        .unwrap();
 
         let output = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap();
 
@@ -4936,6 +5030,25 @@ mod tests {
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("questionnaire_results.jsonl"));
         assert!(error.contains("result_json is required"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_snapshot_count_mismatch() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-count-mismatch");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("session_events.csv"),
+            "participant_id,session_id,dataset_id,recorded_at_utc,event_name,event_detail,result\nP001,session-1,dataset-1,2026-06-18T17:00:00Z,event,detail,ok\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("session_snapshot.json"));
+        assert!(error.contains("event_count must match pulled bundle rows"));
+        assert!(error.contains("snapshot=0 actual=1"));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
@@ -5425,7 +5538,7 @@ mod tests {
         .unwrap();
         fs::write(
             bundle_dir.join("session_snapshot.json"),
-            "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\",\"settings_path\":\"session_settings.json\",\"snapshot_path\":\"session_snapshot.json\",\"schema_path\":\"session_schema.json\",\"legacy_outputs_manifest_path\":\"legacy_outputs_manifest.json\",\"recording_active\":false}\n",
+            "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\",\"settings_path\":\"session_settings.json\",\"snapshot_path\":\"session_snapshot.json\",\"schema_path\":\"session_schema.json\",\"legacy_outputs_manifest_path\":\"legacy_outputs_manifest.json\",\"recording_active\":false,\"event_count\":0,\"signal_count\":0,\"breathing_count\":0,\"runtime_state_sample_count\":0,\"clock_alignment_count\":0,\"timing_marker_count\":0,\"questionnaire_result_count\":0}\n",
         )
         .unwrap();
         let schema = serde_json::json!({

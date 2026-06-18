@@ -160,6 +160,9 @@ The runtime-state header contract includes foreground package/activity/focus,
 brightness, volume, battery/device identity, memory/performance fields,
 breathing and sphere state, headset pose, and both controller positions,
 rotations, validity flags, and battery values.
+The verifier also compares `session_snapshot.json` counters against the pulled
+file contents, including events, signals, breathing rows, runtime-state rows,
+clock-alignment rows, timing markers, and questionnaire-result JSONL rows.
 Add `--write-receipt` to write
 `operator_verification_receipt.json` into a successfully verified local bundle,
 or pass `--receipt-file <path>` to write the JSON receipt elsewhere. Receipts
