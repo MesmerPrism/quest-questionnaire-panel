@@ -151,9 +151,10 @@ Unity files are present, validates known CSV headers including
 `runtime_state_samples.csv` environment, performance, pose, and breathing
 columns, rejects malformed CSV rows whose field count or `recorded_at_utc`
 timestamp shape does not match the header contract, checks session
-settings/snapshot storage and schema-path contract fields, validates schema
-protocol ids and schema entries, compares schema column arrays with the pulled
-CSV headers, and parses non-empty questionnaire JSONL rows with
+settings/snapshot storage fields, requires companion JSON path fields to be
+bundle-local file names such as `session_schema.json`, validates schema protocol
+ids and schema entries, compares schema column arrays with the pulled CSV
+headers, and parses non-empty questionnaire JSONL rows with
 `recorded_at_utc`, `request_id`, `stage`, and parseable `result_json` fields.
 Add `--write-receipt` to write
 `operator_verification_receipt.json` into a successfully verified local bundle,

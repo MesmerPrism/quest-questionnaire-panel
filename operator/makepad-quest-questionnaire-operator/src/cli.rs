@@ -1796,7 +1796,12 @@ fn validate_session_settings(path: &Path) -> Result<(), String> {
     validate_json_protocol_value(&value, "viscereality.peripersonal.session_settings.v1")?;
     validate_json_string_equals(&value, "quest_storage_policy", "app_private_only")?;
     validate_json_string_equals(&value, "windows_storage_policy", "explicit_pull_only")?;
-    required_json_string(&value, "schema_path")?;
+    validate_json_file_name_equals(&value, "schema_path", "session_schema.json")?;
+    validate_json_file_name_equals(
+        &value,
+        "legacy_outputs_manifest_path",
+        "legacy_outputs_manifest.json",
+    )?;
     required_json_bool(&value, "runtime_state_sampling_enabled")?;
     Ok(())
 }
@@ -1804,10 +1809,14 @@ fn validate_session_settings(path: &Path) -> Result<(), String> {
 fn validate_session_snapshot(path: &Path) -> Result<(), String> {
     let value = read_json_document(path)?;
     validate_json_protocol_value(&value, "viscereality.peripersonal.session_snapshot.v1")?;
-    required_json_string(&value, "settings_path")?;
-    required_json_string(&value, "snapshot_path")?;
-    required_json_string(&value, "schema_path")?;
-    required_json_string(&value, "legacy_outputs_manifest_path")?;
+    validate_json_file_name_equals(&value, "settings_path", "session_settings.json")?;
+    validate_json_file_name_equals(&value, "snapshot_path", "session_snapshot.json")?;
+    validate_json_file_name_equals(&value, "schema_path", "session_schema.json")?;
+    validate_json_file_name_equals(
+        &value,
+        "legacy_outputs_manifest_path",
+        "legacy_outputs_manifest.json",
+    )?;
     required_json_bool(&value, "recording_active")?;
     Ok(())
 }
@@ -1843,6 +1852,21 @@ fn validate_json_string_equals(
 ) -> Result<(), String> {
     let actual = required_json_string(value, field)?;
     if actual == expected {
+        Ok(())
+    } else {
+        Err(format!("{field} must be {expected}, got {actual}"))
+    }
+}
+
+fn validate_json_file_name_equals(
+    value: &serde_json::Value,
+    field: &str,
+    expected: &str,
+) -> Result<(), String> {
+    let actual = required_json_string(value, field)?;
+    let safe_actual = safe_expected_file_name(&actual)
+        .ok_or_else(|| format!("{field} must be a bundle-local file name, got {actual}"))?;
+    if safe_actual == expected {
         Ok(())
     } else {
         Err(format!("{field} must be {expected}, got {actual}"))
@@ -4817,6 +4841,24 @@ mod tests {
     }
 
     #[test]
+    fn rejects_session_bundle_with_absolute_settings_schema_path() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-absolute-settings-path");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("session_settings.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_settings.v1\",\"quest_storage_policy\":\"app_private_only\",\"windows_storage_policy\":\"explicit_pull_only\",\"schema_path\":\"/sdcard/Android/data/example/files/runtime_csv/session_schema.json\",\"legacy_outputs_manifest_path\":\"legacy_outputs_manifest.json\",\"runtime_state_sampling_enabled\":true}\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("session_settings.json"));
+        assert!(error.contains("schema_path must be a bundle-local file name"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
     fn rejects_session_bundle_with_missing_snapshot_schema_path() {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-missing-snapshot-schema");
         write_complete_session_bundle(&bundle_dir);
@@ -4831,6 +4873,24 @@ mod tests {
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("session_snapshot.json"));
         assert!(error.contains("schema_path is required"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_traversing_snapshot_settings_path() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-traversing-snapshot-path");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("session_snapshot.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\",\"settings_path\":\"../session_settings.json\",\"snapshot_path\":\"session_snapshot.json\",\"schema_path\":\"session_schema.json\",\"legacy_outputs_manifest_path\":\"legacy_outputs_manifest.json\",\"recording_active\":false}\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("session_snapshot.json"));
+        assert!(error.contains("settings_path must be a bundle-local file name"));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
@@ -5244,7 +5304,7 @@ mod tests {
         fs::write(bundle_dir.join("questionnaire_results.jsonl"), "").unwrap();
         fs::write(
             bundle_dir.join("session_settings.json"),
-            "{\"protocol_version\":\"viscereality.peripersonal.session_settings.v1\",\"quest_storage_policy\":\"app_private_only\",\"windows_storage_policy\":\"explicit_pull_only\",\"schema_path\":\"session_schema.json\",\"runtime_state_sampling_enabled\":true}\n",
+            "{\"protocol_version\":\"viscereality.peripersonal.session_settings.v1\",\"quest_storage_policy\":\"app_private_only\",\"windows_storage_policy\":\"explicit_pull_only\",\"schema_path\":\"session_schema.json\",\"legacy_outputs_manifest_path\":\"legacy_outputs_manifest.json\",\"runtime_state_sampling_enabled\":true}\n",
         )
         .unwrap();
         fs::write(
