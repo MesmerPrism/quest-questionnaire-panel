@@ -71,6 +71,14 @@ panel directly from Windows. Keep private runtime protocol ids, package names,
 APK hashes, and study-specific stage maps in local/private fixtures rather
 than in this public operator repo.
 
+The GUI can also load a local operator profile JSON by path. The loader only
+reads the generic top-level `makepad_gui_fields` object, with keys matching the
+GUI field names such as `endpoint`, `session`, `participant`, `adb_serial`,
+`host_port`, `quest_port`, `runtime_protocol`, `runtime_kind`,
+`runtime_package`, `runtime_study`, `runtime_condition`,
+`runtime_questionnaire`, `runtime_stage`, `runtime_marker`, and
+`runtime_remote`.
+
 `post-command` remains CLI-only for replaying reviewed private fixture JSON.
 
 The `install-target-apk` and `launch-target-runtime` helpers are setup and

@@ -4,5 +4,6 @@ pub mod app;
 pub mod cli;
 pub mod command_surface;
 pub mod device;
+pub mod profile;
 pub mod protocol;
 pub mod ui;

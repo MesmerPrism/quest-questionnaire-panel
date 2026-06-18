@@ -4,6 +4,7 @@ use makepad_widgets::*;
 use serde::Serialize;
 
 use crate::device;
+use crate::profile::{load_operator_gui_profile, OperatorGuiProfileFields};
 use crate::protocol::{
     endpoint_url, BridgeCommandResponse, BridgeStatusResponse, OperatorCommandRequest,
     RuntimeExportRequestSpec, RuntimeOperatorCommandRequest, RuntimePanelLaunchSpec,
@@ -133,6 +134,18 @@ script_mod! {
                                         spacing: 8.0
                                         connect_button := PrimaryButton{text: "Poll"}
                                         dismiss_button := SecondaryButton{text: "Dismiss"}
+                                    }
+
+                                    FieldLabel{text: "Profile"}
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        profile_path_input := Field{
+                                            empty_text: "operator profile JSON"
+                                        }
+                                        load_profile_button := SecondaryButton{text: "Load"}
                                     }
                                 }
 
@@ -575,6 +588,64 @@ impl App {
         }
     }
 
+    fn load_operator_profile(&self, cx: &mut Cx) {
+        let profile_path = self.field_text(cx, ids!(profile_path_input));
+        if profile_path.is_empty() {
+            self.set_status(cx, "Profile error", "Profile path is empty.");
+            return;
+        }
+
+        match load_operator_gui_profile(&PathBuf::from(&profile_path)) {
+            Ok(profile) => {
+                self.apply_profile_fields(cx, &profile.makepad_gui_fields);
+                let detail = if profile.profile_id.trim().is_empty() {
+                    profile_path
+                } else {
+                    format!("Loaded {}", profile.profile_id)
+                };
+                self.set_status(cx, "Profile loaded", &detail);
+                self.set_last_response(
+                    cx,
+                    &serde_json::to_string_pretty(&profile)
+                        .unwrap_or_else(|_| "Profile loaded.".to_string()),
+                );
+            }
+            Err(err) => {
+                self.set_status(cx, "Profile error", &err);
+                self.set_last_response(cx, &err);
+            }
+        }
+    }
+
+    fn apply_profile_fields(&self, cx: &mut Cx, fields: &OperatorGuiProfileFields) {
+        self.set_profile_field(cx, ids!(endpoint_input), &fields.endpoint);
+        self.set_profile_field(cx, ids!(session_input), &fields.session);
+        self.set_profile_field(cx, ids!(participant_input), &fields.participant);
+        self.set_profile_field(cx, ids!(language_input), &fields.language);
+        self.set_profile_field(cx, ids!(device_serial_input), &fields.adb_serial);
+        self.set_profile_field(cx, ids!(host_port_input), &fields.host_port);
+        self.set_profile_field(cx, ids!(device_port_input), &fields.quest_port);
+        self.set_profile_field(cx, ids!(runtime_protocol_input), &fields.runtime_protocol);
+        self.set_profile_field(cx, ids!(runtime_kind_input), &fields.runtime_kind);
+        self.set_profile_field(cx, ids!(runtime_package_input), &fields.runtime_package);
+        self.set_profile_field(cx, ids!(runtime_study_input), &fields.runtime_study);
+        self.set_profile_field(cx, ids!(runtime_condition_input), &fields.runtime_condition);
+        self.set_profile_field(
+            cx,
+            ids!(runtime_questionnaire_input),
+            &fields.runtime_questionnaire,
+        );
+        self.set_profile_field(cx, ids!(runtime_stage_input), &fields.runtime_stage);
+        self.set_profile_field(cx, ids!(runtime_marker_input), &fields.runtime_marker);
+        self.set_profile_field(cx, ids!(runtime_remote_input), &fields.runtime_remote);
+    }
+
+    fn set_profile_field(&self, cx: &mut Cx, path: &[LiveId], value: &str) {
+        if !value.trim().is_empty() {
+            self.set_field_text(cx, path, value);
+        }
+    }
+
     fn send_status_request(&mut self, cx: &mut Cx) {
         if self.active_request_id.is_some() {
             self.set_status(cx, "Busy", "A bridge request is already in flight.");
@@ -964,6 +1035,14 @@ impl MatchEvent for App {
             .clicked(actions)
         {
             self.install_panel(cx);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(load_profile_button))
+            .clicked(actions)
+        {
+            self.load_operator_profile(cx);
         }
 
         if self.ui.button(cx, ids!(block1_button)).clicked(actions) {
