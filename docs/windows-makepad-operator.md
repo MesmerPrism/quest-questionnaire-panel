@@ -159,6 +159,10 @@ contract fields, bundle-local JSON path fields such as `session_schema.json`,
 schema protocol ids and schema entries, and non-empty questionnaire JSONL rows
 with `recorded_at_utc`, `request_id`, `stage`, and parseable `result_json`
 fields locally; schema column arrays are compared with the pulled CSV headers.
+The runtime-state header contract includes foreground package/activity/focus,
+brightness, volume, battery/device identity, memory/performance fields,
+breathing and sphere state, headset pose, and both controller positions,
+rotations, validity flags, and battery values.
 It does not contact the headset. Add `--write-receipt` to leave
 `operator_verification_receipt.json` in a successfully verified bundle, or
 `--receipt-file <path>` to place that JSON receipt in an audit folder. Receipts

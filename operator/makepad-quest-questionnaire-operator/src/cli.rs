@@ -35,6 +35,141 @@ const DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES: &[&str] = &[
     "session_schema.json",
     "legacy_outputs_manifest.json",
 ];
+const RUNTIME_STATE_REQUIRED_COLUMNS: &[&str] = &[
+    "participant_id",
+    "session_id",
+    "dataset_id",
+    "recorded_at_utc",
+    "sample_sequence",
+    "sample_reason",
+    "quest_realtime_seconds",
+    "unity_time_seconds",
+    "unity_unscaled_time_seconds",
+    "unity_delta_time_seconds",
+    "unity_unscaled_delta_time_seconds",
+    "sample_interval_seconds",
+    "frame_count",
+    "target_frame_rate",
+    "application_identifier",
+    "application_version",
+    "unity_version",
+    "runtime_platform",
+    "screen_width_px",
+    "screen_height_px",
+    "screen_refresh_rate_hz",
+    "screen_dpi",
+    "screen_orientation",
+    "screen_sleep_timeout",
+    "quality_level",
+    "quality_level_name",
+    "v_sync_count",
+    "time_scale",
+    "fixed_delta_time_seconds",
+    "xr_enabled",
+    "xr_device_active",
+    "xr_loaded_device_name",
+    "xr_eye_texture_width",
+    "xr_eye_texture_height",
+    "application_focused",
+    "application_paused",
+    "foreground_package",
+    "foreground_activity",
+    "activity_has_window_focus",
+    "screen_brightness_raw",
+    "music_volume",
+    "music_volume_max",
+    "android_status_issue",
+    "battery_level01",
+    "battery_status",
+    "device_name",
+    "device_model",
+    "operating_system",
+    "processor_count",
+    "system_memory_mb",
+    "graphics_device",
+    "graphics_memory_mb",
+    "total_allocated_memory_mb",
+    "total_reserved_memory_mb",
+    "mono_used_memory_mb",
+    "frame_cpu_ms",
+    "frame_gpu_ms",
+    "performance_issue_flags",
+    "breathing_drive",
+    "breathing_state",
+    "breathing_state_numeric",
+    "breathing_phase",
+    "breathing_progress01",
+    "auto_breathing_active",
+    "auto_breathing_paused",
+    "breath_preset_index",
+    "active_in_breath_seconds",
+    "active_out_breath_seconds",
+    "active_hold_seconds",
+    "external_blend_when_auto",
+    "external_smoothing_seconds",
+    "volume_approximation_progress01",
+    "volume_approximation_phase",
+    "volume_approximation_calibrated",
+    "volume_approximation_simple_state",
+    "expansion_tracker_progress01",
+    "expansion_tracker_phase",
+    "expansion_tracker_calibrated",
+    "expansion_tracker_calibration01",
+    "sphere_radius",
+    "sphere_target_radius",
+    "sphere_radius_progress01",
+    "sphere_radius_min",
+    "sphere_radius_max",
+    "pacer_active",
+    "pacer_paused",
+    "pacer_phase",
+    "pacer_progress01",
+    "pacer_preset_index",
+    "pacer_in_breath_seconds",
+    "pacer_out_breath_seconds",
+    "pacer_hold_seconds",
+    "camera_present",
+    "camera_name",
+    "head_pos_x",
+    "head_pos_y",
+    "head_pos_z",
+    "head_rot_x",
+    "head_rot_y",
+    "head_rot_z",
+    "head_rot_w",
+    "head_euler_x",
+    "head_euler_y",
+    "head_euler_z",
+    "head_forward_x",
+    "head_forward_y",
+    "head_forward_z",
+    "left_controller_valid",
+    "left_tracking_state",
+    "left_is_tracked",
+    "left_position_valid",
+    "left_pos_x",
+    "left_pos_y",
+    "left_pos_z",
+    "left_rotation_valid",
+    "left_rot_x",
+    "left_rot_y",
+    "left_rot_z",
+    "left_rot_w",
+    "left_battery_level01",
+    "right_controller_valid",
+    "right_tracking_state",
+    "right_is_tracked",
+    "right_position_valid",
+    "right_pos_x",
+    "right_pos_y",
+    "right_pos_z",
+    "right_rotation_valid",
+    "right_rot_x",
+    "right_rot_y",
+    "right_rot_z",
+    "right_rot_w",
+    "right_battery_level01",
+];
 const OPERATOR_SESSION_MANIFEST_PROTOCOL: &str = "quest.questionnaire.operator.session_manifest.v1";
 const OPERATOR_SESSION_MANIFEST_VERIFICATION_PROTOCOL: &str =
     "quest.questionnaire.operator.session_manifest_verification.v1";
@@ -1609,51 +1744,16 @@ fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), Strin
                 "session_id",
                 "dataset_id",
                 "recorded_at_utc",
+                "source_timestamp_utc",
                 "breath_volume01",
                 "sphere_radius_progress01",
                 "sphere_radius_raw",
                 "controller_calibrated",
             ],
         ),
-        "runtime_state_samples.csv" => validate_csv_header_contains(
-            path,
-            &[
-                "participant_id",
-                "session_id",
-                "dataset_id",
-                "recorded_at_utc",
-                "sample_sequence",
-                "sample_reason",
-                "quest_realtime_seconds",
-                "application_identifier",
-                "application_version",
-                "unity_version",
-                "runtime_platform",
-                "screen_width_px",
-                "screen_height_px",
-                "screen_refresh_rate_hz",
-                "screen_dpi",
-                "screen_orientation",
-                "screen_sleep_timeout",
-                "quality_level",
-                "quality_level_name",
-                "v_sync_count",
-                "time_scale",
-                "fixed_delta_time_seconds",
-                "xr_enabled",
-                "xr_device_active",
-                "xr_loaded_device_name",
-                "xr_eye_texture_width",
-                "xr_eye_texture_height",
-                "performance_issue_flags",
-                "breathing_drive",
-                "sphere_radius",
-                "camera_present",
-                "head_pos_x",
-                "left_controller_valid",
-                "right_controller_valid",
-            ],
-        ),
+        "runtime_state_samples.csv" => {
+            validate_csv_header_contains(path, RUNTIME_STATE_REQUIRED_COLUMNS)
+        }
         "clock_alignment_samples.csv" => validate_csv_header_contains(
             path,
             &[
@@ -1917,15 +2017,7 @@ fn validate_session_schema(path: &Path) -> Result<(), String> {
         files,
         "runtime_state_samples.csv",
         "columns",
-        &[
-            "recorded_at_utc",
-            "sample_reason",
-            "screen_refresh_rate_hz",
-            "xr_loaded_device_name",
-            "head_pos_x",
-            "left_controller_valid",
-            "right_controller_valid",
-        ],
+        RUNTIME_STATE_REQUIRED_COLUMNS,
     )?;
     validate_schema_array_contains(
         files,
@@ -4657,6 +4749,30 @@ mod tests {
     }
 
     #[test]
+    fn rejects_session_bundle_missing_controller_rotation_column() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-missing-controller-rotation");
+        write_complete_session_bundle(&bundle_dir);
+        let runtime_header = RUNTIME_STATE_REQUIRED_COLUMNS
+            .iter()
+            .copied()
+            .filter(|column| *column != "right_rot_w")
+            .collect::<Vec<_>>()
+            .join(",");
+        fs::write(
+            bundle_dir.join("runtime_state_samples.csv"),
+            format!("{runtime_header}\n"),
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("runtime_state_samples.csv"));
+        assert!(error.contains("right_rot_w"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
     fn rejects_session_bundle_with_bad_runtime_state_row_width() {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-runtime-row");
         write_complete_session_bundle(&bundle_dir);
@@ -4764,8 +4880,9 @@ mod tests {
 
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("session_schema.json"));
-        assert!(error.contains("schema columns do not match CSV header"));
-        assert!(error.contains("missing from schema"));
+        assert!(error.contains("schema is missing columns"));
+        assert!(error.contains("foreground_package"));
+        assert!(error.contains("right_rot_w"));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
@@ -5264,8 +5381,7 @@ mod tests {
             "participant_id,session_id,dataset_id,recorded_at_utc,source_timestamp_utc,source,signal_group,signal_name,value_numeric,value_text,unit,sequence";
         let breathing_header =
             "participant_id,session_id,dataset_id,recorded_at_utc,source_timestamp_utc,breath_volume01,sphere_radius_progress01,sphere_radius_raw,controller_calibrated";
-        let runtime_state_header =
-            "participant_id,session_id,dataset_id,recorded_at_utc,sample_sequence,sample_reason,quest_realtime_seconds,application_identifier,application_version,unity_version,runtime_platform,screen_width_px,screen_height_px,screen_refresh_rate_hz,screen_dpi,screen_orientation,screen_sleep_timeout,quality_level,quality_level_name,v_sync_count,time_scale,fixed_delta_time_seconds,xr_enabled,xr_device_active,xr_loaded_device_name,xr_eye_texture_width,xr_eye_texture_height,performance_issue_flags,breathing_drive,sphere_radius,camera_present,head_pos_x,left_controller_valid,right_controller_valid";
+        let runtime_state_header = RUNTIME_STATE_REQUIRED_COLUMNS.join(",");
         let clock_alignment_header =
             "participant_id,session_id,dataset_id,probe_sequence,recorded_at_utc,probe_source_lsl_seconds,quest_received_at_utc,quest_receive_lsl_seconds,quest_echo_lsl_seconds";
         let timing_markers_header =
@@ -5333,7 +5449,7 @@ mod tests {
                 {
                     "path": "runtime_state_samples.csv",
                     "format": "csv",
-                    "columns": test_csv_columns(runtime_state_header)
+                    "columns": test_csv_columns(&runtime_state_header)
                 },
                 {
                     "path": "clock_alignment_samples.csv",

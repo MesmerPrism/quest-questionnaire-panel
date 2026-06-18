@@ -156,6 +156,10 @@ bundle-local file names such as `session_schema.json`, validates schema protocol
 ids and schema entries, compares schema column arrays with the pulled CSV
 headers, and parses non-empty questionnaire JSONL rows with
 `recorded_at_utc`, `request_id`, `stage`, and parseable `result_json` fields.
+The runtime-state header contract includes foreground package/activity/focus,
+brightness, volume, battery/device identity, memory/performance fields,
+breathing and sphere state, headset pose, and both controller positions,
+rotations, validity flags, and battery values.
 Add `--write-receipt` to write
 `operator_verification_receipt.json` into a successfully verified local bundle,
 or pass `--receipt-file <path>` to write the JSON receipt elsewhere. Receipts
