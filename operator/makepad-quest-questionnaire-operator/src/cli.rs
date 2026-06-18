@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
@@ -175,6 +176,50 @@ const OPERATOR_SESSION_MANIFEST_VERIFICATION_PROTOCOL: &str =
     "quest.questionnaire.operator.session_manifest_verification.v1";
 const TARGET_APK_VERIFICATION_PROTOCOL: &str =
     "quest.questionnaire.operator.target_apk_verification.v1";
+const PERIPERSONAL_EXPERIMENT_APK_BUILD_MANIFEST_PROTOCOL: &str =
+    "viscereality.peripersonal.experiment_apk_build_manifest.v1";
+const PERIPERSONAL_EXPERIMENT_APK_MANIFEST_VERIFICATION_PROTOCOL: &str =
+    "quest.questionnaire.operator.peripersonal_experiment_apk_manifest_verification.v1";
+const PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH: &str = "Assets/Scenes/Space.unity";
+
+struct ExpectedExperimentApkVariant {
+    build_tag: &'static str,
+    label: &'static str,
+    condition_id: &'static str,
+    source_scene_path: &'static str,
+    android_package: &'static str,
+}
+
+const EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS: &[ExpectedExperimentApkVariant] = &[
+    ExpectedExperimentApkVariant {
+        build_tag: "apk/2025-12-10/viscereality-peri-personal-left-2",
+        label: "Viscereality Peri Personal Space Left",
+        condition_id: "peri-personal-left-2",
+        source_scene_path: PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
+        android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceLeft",
+    },
+    ExpectedExperimentApkVariant {
+        build_tag: "apk/2025-12-10/viscereality-peri-personal-left-orbit-2",
+        label: "Viscereality Peri Personal Space Left Orbit",
+        condition_id: "peri-personal-left-orbit-2",
+        source_scene_path: PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
+        android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceLeftOrbit",
+    },
+    ExpectedExperimentApkVariant {
+        build_tag: "apk/2025-12-10/viscereality-peri-personal-right-2",
+        label: "Viscereality Peri Personal Space Right",
+        condition_id: "peri-personal-right-2",
+        source_scene_path: PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
+        android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceRight",
+    },
+    ExpectedExperimentApkVariant {
+        build_tag: "apk/2025-12-10/viscereality-peri-personal-right-orbit-2",
+        label: "Viscereality Peri Personal Space Right Orbit",
+        condition_id: "peri-personal-right-orbit-2",
+        source_scene_path: PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
+        android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceRightOrbit",
+    },
+];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeCommonArgs {
@@ -378,6 +423,11 @@ pub enum CliCommand {
         out: Option<PathBuf>,
         json: bool,
     },
+    VerifyExperimentApkManifest {
+        manifest: PathBuf,
+        out: Option<PathBuf>,
+        json: bool,
+    },
     LaunchTargetRuntime {
         serial: String,
         package_name: String,
@@ -533,6 +583,11 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             out,
             json,
         } => verify_target_apk_command(&apk, expected_sha256.as_deref(), out.as_deref(), json),
+        CliCommand::VerifyExperimentApkManifest {
+            manifest,
+            out,
+            json,
+        } => verify_experiment_apk_manifest_command(&manifest, out.as_deref(), json),
         CliCommand::LaunchTargetRuntime {
             serial,
             package_name,
@@ -869,6 +924,417 @@ fn verify_target_apk(apk: &Path, expected_sha256: Option<&str>) -> TargetApkVeri
             report.issue = err;
             report
         }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ExperimentApkBuildManifest {
+    protocol_version: String,
+    #[serde(default)]
+    built_at_utc: Option<String>,
+    #[serde(default)]
+    unity_editor_version: Option<String>,
+    #[serde(default)]
+    source_scene_path: Option<String>,
+    #[serde(default)]
+    build_root: Option<String>,
+    #[serde(default)]
+    variants: Vec<ExperimentApkManifestVariant>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ExperimentApkManifestVariant {
+    build_tag: String,
+    label: String,
+    condition_id: String,
+    source_scene_path: String,
+    android_package: String,
+    apk_path: String,
+    sha256: String,
+    size_bytes: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ExperimentApkManifestVerificationReport {
+    protocol_version: String,
+    verified_at_unix_ms: String,
+    manifest_path: String,
+    manifest_exists: bool,
+    manifest_is_file: bool,
+    accepted: bool,
+    issues: Vec<String>,
+    manifest_protocol_version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    built_at_utc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unity_editor_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_scene_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    build_root: Option<String>,
+    expected_variant_count: usize,
+    actual_variant_count: usize,
+    variant_checks: Vec<ExperimentApkManifestVariantCheck>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ExperimentApkManifestVariantCheck {
+    build_tag: String,
+    label: String,
+    condition_id: String,
+    source_scene_path: String,
+    android_package: String,
+    apk_path: String,
+    resolved_apk_path: String,
+    exists: bool,
+    is_file: bool,
+    accepted: bool,
+    issues: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_condition_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_source_scene_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_android_package: Option<String>,
+    expected_size_bytes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_size_bytes: Option<u64>,
+    expected_sha256: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_sha256: Option<String>,
+}
+
+pub fn verify_experiment_apk_manifest_command(
+    manifest: &Path,
+    out: Option<&Path>,
+    json: bool,
+) -> Result<String, String> {
+    let report = verify_experiment_apk_manifest(manifest);
+    if let Some(path) = out {
+        write_json_file(path, &report, "experiment APK manifest verification report")?;
+    }
+
+    if report.accepted {
+        if json {
+            serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
+        } else {
+            let mut message = format!(
+                "Peripersonal experiment APK manifest verification passed for {} ({} APKs checked).",
+                manifest.display(),
+                report.variant_checks.len()
+            );
+            if let Some(path) = out {
+                message.push_str(&format!(
+                    "\nWrote experiment APK manifest verification report: {}",
+                    path.display()
+                ));
+            }
+            Ok(message)
+        }
+    } else if json {
+        Err(serde_json::to_string_pretty(&report).map_err(|err| err.to_string())?)
+    } else {
+        Err(format!(
+            "Peripersonal experiment APK manifest verification failed for {}:\n- {}",
+            manifest.display(),
+            experiment_apk_manifest_issues(&report).join("\n- ")
+        ))
+    }
+}
+
+fn verify_experiment_apk_manifest(manifest_path: &Path) -> ExperimentApkManifestVerificationReport {
+    let mut report = ExperimentApkManifestVerificationReport {
+        protocol_version: PERIPERSONAL_EXPERIMENT_APK_MANIFEST_VERIFICATION_PROTOCOL.to_string(),
+        verified_at_unix_ms: unix_ms().to_string(),
+        manifest_path: manifest_path.display().to_string(),
+        manifest_exists: manifest_path.exists(),
+        manifest_is_file: manifest_path.is_file(),
+        accepted: false,
+        issues: Vec::new(),
+        manifest_protocol_version: String::new(),
+        built_at_utc: None,
+        unity_editor_version: None,
+        source_scene_path: None,
+        build_root: None,
+        expected_variant_count: EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS.len(),
+        actual_variant_count: 0,
+        variant_checks: Vec::new(),
+    };
+
+    if !report.manifest_exists {
+        report
+            .issues
+            .push("experiment APK manifest path was not found".to_string());
+        return report;
+    }
+    if !report.manifest_is_file {
+        report
+            .issues
+            .push("experiment APK manifest path is not a file".to_string());
+        return report;
+    }
+
+    let manifest = match fs::read_to_string(manifest_path) {
+        Ok(text) => match serde_json::from_str::<ExperimentApkBuildManifest>(&text) {
+            Ok(manifest) => manifest,
+            Err(err) => {
+                report
+                    .issues
+                    .push(format!("could not parse experiment APK manifest: {err}"));
+                return report;
+            }
+        },
+        Err(err) => {
+            report
+                .issues
+                .push(format!("could not read experiment APK manifest: {err}"));
+            return report;
+        }
+    };
+
+    report.manifest_protocol_version = manifest.protocol_version.clone();
+    report.built_at_utc = manifest.built_at_utc.clone();
+    report.unity_editor_version = manifest.unity_editor_version.clone();
+    report.source_scene_path = manifest.source_scene_path.clone();
+    report.build_root = manifest.build_root.clone();
+    report.actual_variant_count = manifest.variants.len();
+
+    if manifest.protocol_version != PERIPERSONAL_EXPERIMENT_APK_BUILD_MANIFEST_PROTOCOL {
+        report.issues.push(format!(
+            "unexpected experiment APK manifest protocol: {}",
+            manifest.protocol_version
+        ));
+    }
+
+    match manifest.source_scene_path.as_deref() {
+        Some(PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH) => {}
+        Some(value) if value.trim().is_empty() => report
+            .issues
+            .push("experiment APK manifest source_scene_path is empty".to_string()),
+        Some(value) => report.issues.push(format!(
+            "experiment APK manifest source_scene_path mismatch: expected {}, got {}",
+            PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH, value
+        )),
+        None => report
+            .issues
+            .push("experiment APK manifest source_scene_path is missing".to_string()),
+    }
+    if manifest
+        .unity_editor_version
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .is_empty()
+    {
+        report
+            .issues
+            .push("experiment APK manifest unity_editor_version is missing".to_string());
+    }
+    if manifest
+        .build_root
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .is_empty()
+    {
+        report
+            .issues
+            .push("experiment APK manifest build_root is missing".to_string());
+    }
+    if manifest.variants.len() != EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS.len() {
+        report.issues.push(format!(
+            "expected {} APK variants, found {}",
+            EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS.len(),
+            manifest.variants.len()
+        ));
+    }
+
+    let expected_by_tag = EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS
+        .iter()
+        .map(|variant| (variant.build_tag, variant))
+        .collect::<HashMap<_, _>>();
+    let mut seen_tags = HashSet::new();
+
+    report.variant_checks = manifest
+        .variants
+        .iter()
+        .map(|variant| {
+            let duplicate = !seen_tags.insert(variant.build_tag.clone());
+            let expected = expected_by_tag.get(variant.build_tag.as_str()).copied();
+            verify_experiment_apk_manifest_variant(manifest_path, variant, expected, duplicate)
+        })
+        .collect();
+
+    for expected in EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS {
+        if !seen_tags.contains(expected.build_tag) {
+            report.issues.push(format!(
+                "missing expected APK variant {}",
+                expected.build_tag
+            ));
+        }
+    }
+
+    report.accepted =
+        report.issues.is_empty() && report.variant_checks.iter().all(|check| check.accepted);
+    report
+}
+
+fn verify_experiment_apk_manifest_variant(
+    manifest_path: &Path,
+    variant: &ExperimentApkManifestVariant,
+    expected: Option<&ExpectedExperimentApkVariant>,
+    duplicate_build_tag: bool,
+) -> ExperimentApkManifestVariantCheck {
+    let resolved_apk_path = resolve_experiment_apk_path(manifest_path, &variant.apk_path);
+    let mut check = ExperimentApkManifestVariantCheck {
+        build_tag: variant.build_tag.clone(),
+        label: variant.label.clone(),
+        condition_id: variant.condition_id.clone(),
+        source_scene_path: variant.source_scene_path.clone(),
+        android_package: variant.android_package.clone(),
+        apk_path: variant.apk_path.clone(),
+        resolved_apk_path: resolved_apk_path.display().to_string(),
+        exists: resolved_apk_path.exists(),
+        is_file: resolved_apk_path.is_file(),
+        accepted: false,
+        issues: Vec::new(),
+        expected_label: expected.map(|value| value.label.to_string()),
+        expected_condition_id: expected.map(|value| value.condition_id.to_string()),
+        expected_source_scene_path: expected.map(|value| value.source_scene_path.to_string()),
+        expected_android_package: expected.map(|value| value.android_package.to_string()),
+        expected_size_bytes: variant.size_bytes,
+        actual_size_bytes: None,
+        expected_sha256: variant.sha256.trim().to_ascii_lowercase(),
+        actual_sha256: None,
+    };
+
+    if variant.build_tag.trim().is_empty() {
+        check.issues.push("build_tag is empty".to_string());
+    }
+    if duplicate_build_tag {
+        check.issues.push(format!(
+            "duplicate APK variant build_tag {}",
+            variant.build_tag
+        ));
+    }
+    if variant.apk_path.trim().is_empty() {
+        check.issues.push("apk_path is empty".to_string());
+    }
+
+    match expected {
+        Some(expected) => {
+            if variant.label != expected.label {
+                check.issues.push(format!(
+                    "label mismatch: expected {}, got {}",
+                    expected.label, variant.label
+                ));
+            }
+            if variant.condition_id != expected.condition_id {
+                check.issues.push(format!(
+                    "condition_id mismatch: expected {}, got {}",
+                    expected.condition_id, variant.condition_id
+                ));
+            }
+            if variant.source_scene_path != expected.source_scene_path {
+                check.issues.push(format!(
+                    "source_scene_path mismatch: expected {}, got {}",
+                    expected.source_scene_path, variant.source_scene_path
+                ));
+            }
+            if variant.android_package != expected.android_package {
+                check.issues.push(format!(
+                    "android_package mismatch: expected {}, got {}",
+                    expected.android_package, variant.android_package
+                ));
+            }
+        }
+        None => check.issues.push(format!(
+            "unexpected APK variant build_tag {}",
+            variant.build_tag
+        )),
+    }
+
+    let expected_sha256 = match normalize_manifest_sha256(&variant.sha256, "manifest APK SHA-256") {
+        Ok(value) => {
+            check.expected_sha256 = value.clone();
+            Some(value)
+        }
+        Err(err) => {
+            check.issues.push(err);
+            None
+        }
+    };
+
+    if !check.exists {
+        check.issues.push("APK path was not found".to_string());
+    } else if !check.is_file {
+        check.issues.push("APK path is not a file".to_string());
+    } else {
+        match file_digest(&resolved_apk_path) {
+            Ok(digest) => {
+                check.actual_size_bytes = Some(digest.size_bytes);
+                check.actual_sha256 = Some(digest.sha256.clone());
+                if digest.size_bytes != variant.size_bytes {
+                    check.issues.push(format!(
+                        "APK size mismatch: expected {}, got {}",
+                        variant.size_bytes, digest.size_bytes
+                    ));
+                }
+                if let Some(expected_sha256) = expected_sha256.as_deref() {
+                    if digest.sha256 != expected_sha256 {
+                        check.issues.push("APK SHA-256 mismatch".to_string());
+                    }
+                }
+            }
+            Err(err) => check.issues.push(err),
+        }
+    }
+
+    check.accepted = check.issues.is_empty();
+    check
+}
+
+fn resolve_experiment_apk_path(manifest_path: &Path, apk_path: &str) -> PathBuf {
+    let path = PathBuf::from(apk_path.trim());
+    if path.is_absolute() {
+        path
+    } else {
+        manifest_path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+            .join(path)
+    }
+}
+
+fn normalize_manifest_sha256(value: &str, label: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    let normalized = trimmed.strip_prefix("sha256:").unwrap_or(trimmed);
+    if normalized.len() != 64 || !normalized.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        Err(format!("{label} must be a 64-character hex digest"))
+    } else {
+        Ok(normalized.to_ascii_lowercase())
+    }
+}
+
+fn experiment_apk_manifest_issues(report: &ExperimentApkManifestVerificationReport) -> Vec<String> {
+    let mut issues = report.issues.clone();
+    issues.extend(report.variant_checks.iter().filter_map(|check| {
+        if check.accepted {
+            None
+        } else if check.issues.is_empty() {
+            Some(format!("{} failed validation", check.build_tag))
+        } else {
+            Some(format!("{}: {}", check.build_tag, check.issues.join("; ")))
+        }
+    }));
+
+    if issues.is_empty() {
+        vec!["unknown verification issue".to_string()]
+    } else {
+        issues
     }
 }
 
@@ -3288,6 +3754,33 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 json,
             })
         }
+        "verify-experiment-apk-manifest" => {
+            let mut manifest: Option<PathBuf> = None;
+            let mut out: Option<PathBuf> = None;
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--manifest" | "--path" => {
+                        manifest = Some(PathBuf::from(next_value(&mut iter, "--manifest")?))
+                    }
+                    "--out" => out = Some(PathBuf::from(next_value(&mut iter, "--out")?)),
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => {
+                        return Err(format!(
+                            "Unknown verify-experiment-apk-manifest argument: {arg}"
+                        ))
+                    }
+                }
+            }
+            Ok(CliCommand::VerifyExperimentApkManifest {
+                manifest: manifest.ok_or_else(|| {
+                    "verify-experiment-apk-manifest requires --manifest".to_string()
+                })?,
+                out,
+                json,
+            })
+        }
         "launch-target-runtime" => {
             let mut serial: Option<String> = None;
             let mut package_name: Option<String> = None;
@@ -4171,6 +4664,7 @@ fn help_text() -> String {
         "  install-target-apk --serial SERIAL --apk target.apk [--json]".to_string(),
         "  verify-target-apk --apk target.apk [--sha256 SHA256] [--out report.json] [--json]"
             .to_string(),
+        "  verify-experiment-apk-manifest --manifest peripersonal-experiment-apk-manifest.json [--out report.json] [--json]".to_string(),
         "  launch-target-runtime --serial SERIAL --package PACKAGE [--activity ACTIVITY] [--json]"
             .to_string(),
         "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
@@ -4292,6 +4786,33 @@ mod tests {
                 ),
                 out: Some(PathBuf::from(
                     "study-data/audit/target-apk-verification.json"
+                )),
+                json: true,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_verify_experiment_apk_manifest_command() {
+        let command = parse_args(vec![
+            "verify-experiment-apk-manifest".to_string(),
+            "--manifest".to_string(),
+            "Builds/PeripersonalExperimentApks/latest/peripersonal-experiment-apk-manifest.json"
+                .to_string(),
+            "--out".to_string(),
+            "study-data/audit/peripersonal-experiment-apk-verification.json".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::VerifyExperimentApkManifest {
+                manifest: PathBuf::from(
+                    "Builds/PeripersonalExperimentApks/latest/peripersonal-experiment-apk-manifest.json"
+                ),
+                out: Some(PathBuf::from(
+                    "study-data/audit/peripersonal-experiment-apk-verification.json"
                 )),
                 json: true,
             }
@@ -4628,6 +5149,56 @@ mod tests {
         assert!(report.contains("\"accepted\": true"));
         assert!(report.contains(&digest.sha256));
         fs::remove_dir_all(&apk_dir).unwrap();
+    }
+
+    #[test]
+    fn verifies_peripersonal_experiment_apk_manifest() {
+        let manifest_dir = temp_test_dir("quest-operator-experiment-apk-manifest-ok");
+        let manifest_path = manifest_dir.join("peripersonal-experiment-apk-manifest.json");
+        fs::create_dir_all(&manifest_dir).unwrap();
+        let variants = peripersonal_experiment_apk_fixture_variants(&manifest_dir);
+        write_peripersonal_experiment_apk_manifest(&manifest_path, variants);
+
+        let output = verify_experiment_apk_manifest_command(&manifest_path, None, true).unwrap();
+
+        assert!(output.contains("\"accepted\": true"));
+        assert!(output.contains("\"expected_variant_count\": 4"));
+        assert!(output.contains("viscereality-peri-personal-left-2"));
+        assert!(output.contains("ViscerealityPeriPersonalSpaceRightOrbit"));
+        fs::remove_dir_all(&manifest_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_peripersonal_experiment_apk_manifest_missing_variant() {
+        let manifest_dir = temp_test_dir("quest-operator-experiment-apk-manifest-missing");
+        let manifest_path = manifest_dir.join("peripersonal-experiment-apk-manifest.json");
+        fs::create_dir_all(&manifest_dir).unwrap();
+        let mut variants = peripersonal_experiment_apk_fixture_variants(&manifest_dir);
+        variants.pop();
+        write_peripersonal_experiment_apk_manifest(&manifest_path, variants);
+
+        let error = verify_experiment_apk_manifest_command(&manifest_path, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("missing expected APK variant"));
+        assert!(error.contains("viscereality-peri-personal-right-orbit-2"));
+        fs::remove_dir_all(&manifest_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_peripersonal_experiment_apk_manifest_hash_mismatch() {
+        let manifest_dir = temp_test_dir("quest-operator-experiment-apk-manifest-hash");
+        let manifest_path = manifest_dir.join("peripersonal-experiment-apk-manifest.json");
+        fs::create_dir_all(&manifest_dir).unwrap();
+        let mut variants = peripersonal_experiment_apk_fixture_variants(&manifest_dir);
+        variants[0]["sha256"] = serde_json::Value::String("0".repeat(64));
+        write_peripersonal_experiment_apk_manifest(&manifest_path, variants);
+
+        let error = verify_experiment_apk_manifest_command(&manifest_path, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("APK SHA-256 mismatch"));
+        fs::remove_dir_all(&manifest_dir).unwrap();
     }
 
     #[test]
@@ -5484,6 +6055,56 @@ mod tests {
 
     fn temp_test_dir(prefix: &str) -> PathBuf {
         std::env::temp_dir().join(format!("{prefix}-{}", unix_ms()))
+    }
+
+    fn peripersonal_experiment_apk_fixture_variants(manifest_dir: &Path) -> Vec<serde_json::Value> {
+        EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS
+            .iter()
+            .map(|expected| {
+                let apk_name = format!("{}.apk", expected.condition_id);
+                let apk_path = manifest_dir.join(&apk_name);
+                fs::write(
+                    &apk_path,
+                    format!("not a real apk; fixture for {}\n", expected.build_tag),
+                )
+                .unwrap();
+                let digest = file_digest(&apk_path).unwrap();
+                serde_json::json!({
+                    "build_tag": expected.build_tag,
+                    "label": expected.label,
+                    "condition_id": expected.condition_id,
+                    "source_scene_path": expected.source_scene_path,
+                    "android_package": expected.android_package,
+                    "apk_path": apk_name,
+                    "sha256": digest.sha256,
+                    "size_bytes": digest.size_bytes,
+                })
+            })
+            .collect()
+    }
+
+    fn write_peripersonal_experiment_apk_manifest(
+        manifest_path: &Path,
+        variants: Vec<serde_json::Value>,
+    ) {
+        let build_root = manifest_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .display()
+            .to_string();
+        let manifest = serde_json::json!({
+            "protocol_version": PERIPERSONAL_EXPERIMENT_APK_BUILD_MANIFEST_PROTOCOL,
+            "built_at_utc": "2026-06-18T19:47:39Z",
+            "unity_editor_version": "6000.2.7f2",
+            "source_scene_path": PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
+            "build_root": build_root,
+            "variants": variants,
+        });
+        fs::write(
+            manifest_path,
+            format!("{}\n", serde_json::to_string_pretty(&manifest).unwrap()),
+        )
+        .unwrap();
     }
 
     fn write_complete_session_bundle(bundle_dir: &Path) {

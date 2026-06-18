@@ -68,6 +68,7 @@ matches the GUI surface:
 | Panel APK | `install-panel --serial <serial> --apk <apk-path> [--json]` |
 | Install Panel | `install-panel --serial <serial> --apk <apk-path> [--json]` |
 | Verify target APK | `verify-target-apk --apk <apk-path> [--sha256 <expected-sha256>] [--out <report.json>] [--json]` |
+| Verify experiment APK manifest | `verify-experiment-apk-manifest --manifest <manifest.json> [--out <report.json>] [--json]` |
 | Install target APK | `install-target-apk --serial <serial> --apk <apk-path> [--json]` |
 | Launch target runtime | `launch-target-runtime --serial <serial> --package <package> [--activity <activity>] [--json]` |
 | Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--write-receipt] [--json]` |
@@ -117,6 +118,15 @@ operation is attempted. Use `--out <report.json>` when the session manifest
 should fingerprint the selected target APK verification evidence. In the GUI,
 the Target Runtime panel's Verify APK button performs this same local-only
 check from the Target APK, APK SHA-256, and APK report fields.
+
+For the peripersonal four-APK experiment build, run
+`verify-experiment-apk-manifest --manifest <peripersonal-experiment-apk-manifest.json>`
+against the Unity-generated manifest before installing condition APKs. The
+local-only verifier checks the manifest protocol, `Assets/Scenes/Space.unity`
+source-scene contract, the four documented build tags/packages, and each APK's
+recorded byte size and SHA-256. Use `--out <report.json>` when the operator
+session manifest should reference the full four-APK catalog verification
+evidence. It performs no ADB, install, launch, or questionnaire action.
 
 Use `device-status --serial <quest-serial> --json --out <snapshot.json>` before
 and after a run when you need a Quest-side setup snapshot. It writes a
