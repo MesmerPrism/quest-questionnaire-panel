@@ -237,6 +237,9 @@ pub enum CliCommand {
         package_name: String,
         remote_relative: String,
         out: PathBuf,
+        verify_bundle: bool,
+        bundle_path: Option<PathBuf>,
+        expected_files: Vec<String>,
         json: bool,
     },
     VerifySessionBundle {
@@ -366,8 +369,20 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             package_name,
             remote_relative,
             out,
+            verify_bundle,
+            bundle_path,
+            expected_files,
             json,
-        } => pull_target_session(&serial, &package_name, &remote_relative, &out, json),
+        } => pull_target_session(
+            &serial,
+            &package_name,
+            &remote_relative,
+            &out,
+            verify_bundle,
+            bundle_path.as_deref(),
+            &expected_files,
+            json,
+        ),
         CliCommand::VerifySessionBundle {
             path,
             expected_files,
@@ -542,17 +557,69 @@ pub fn pull_target_session(
     package_name: &str,
     remote_relative: &str,
     out: &Path,
+    verify_bundle: bool,
+    bundle_path: Option<&Path>,
+    expected_files: &[String],
     json: bool,
 ) -> Result<String, String> {
     let run = device::pull_target_session(serial, package_name, remote_relative, out)?;
+    if !verify_bundle {
+        if json {
+            return serde_json::to_string_pretty(&run).map_err(|err| err.to_string());
+        }
+        return Ok(format!(
+            "Pulled target session data from {package_name} into {}.",
+            out.display()
+        ));
+    }
+
+    let pulled_bundle_path = bundle_path
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| inferred_pulled_bundle_path(out, remote_relative));
+    let verification = verify_session_bundle(&pulled_bundle_path, expected_files);
+    let accepted = verification.accepted;
+    let report = TargetSessionPullReport {
+        protocol_version: "quest.questionnaire.operator.target-session-pull.v1".to_string(),
+        accepted,
+        package_name: package_name.to_string(),
+        remote_relative: remote_relative.to_string(),
+        output_folder: out.display().to_string(),
+        pulled_bundle_path: Some(pulled_bundle_path.display().to_string()),
+        adb: run,
+        verification: Some(verification),
+    };
+    if !accepted {
+        if json {
+            return Err(serde_json::to_string_pretty(&report).map_err(|err| err.to_string())?);
+        }
+        if let Some(verification) = report.verification.as_ref() {
+            return Err(format!(
+                "Pulled target session data from {package_name}, but verification failed:\n- {}",
+                session_bundle_issues(verification).join("\n- ")
+            ));
+        }
+    }
+
     if json {
-        serde_json::to_string_pretty(&run).map_err(|err| err.to_string())
+        serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
     } else {
         Ok(format!(
             "Pulled target session data from {package_name} into {}.",
             out.display()
-        ))
+        ) + " Session bundle verification passed.")
     }
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct TargetSessionPullReport {
+    protocol_version: String,
+    accepted: bool,
+    package_name: String,
+    remote_relative: String,
+    output_folder: String,
+    pulled_bundle_path: Option<String>,
+    adb: device::CommandRun,
+    verification: Option<SessionBundleVerificationReport>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -879,6 +946,17 @@ fn safe_expected_file_name(file_name: &str) -> Option<String> {
     } else {
         Some(trimmed.to_string())
     }
+}
+
+fn inferred_pulled_bundle_path(output_dir: &Path, remote_relative: &str) -> PathBuf {
+    let normalized = remote_relative.trim().replace('\\', "/");
+    let bundle_name = normalized
+        .trim_matches('/')
+        .rsplit('/')
+        .next()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(DEFAULT_RUNTIME_EXPORT_REMOTE_RELATIVE);
+    output_dir.join(bundle_name)
 }
 
 pub fn get_status(endpoint: &str) -> Result<String, String> {
@@ -1725,6 +1803,9 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
             let mut package_name: Option<String> = None;
             let mut remote_relative = device::DEFAULT_TARGET_SESSION_REMOTE_RELATIVE.to_string();
             let mut out: Option<PathBuf> = None;
+            let mut verify_bundle = false;
+            let mut bundle_path: Option<PathBuf> = None;
+            let mut expected_files = default_runtime_export_expected_files();
             let mut json = false;
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
@@ -1736,6 +1817,15 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                         remote_relative = next_value(&mut iter, "--remote-relative")?
                     }
                     "--out" => out = Some(PathBuf::from(next_value(&mut iter, "--out")?)),
+                    "--verify-bundle" => verify_bundle = true,
+                    "--bundle-path" => {
+                        bundle_path = Some(PathBuf::from(next_value(&mut iter, "--bundle-path")?))
+                    }
+                    "--expected-file" => {
+                        let value = next_value(&mut iter, "--expected-file")?;
+                        push_non_empty(&mut expected_files, value);
+                    }
+                    "--clear-expected-files" => expected_files.clear(),
                     "--json" => json = true,
                     "-h" | "--help" => return Ok(CliCommand::Help),
                     _ => return Err(format!("Unknown pull-target-session argument: {arg}")),
@@ -1750,6 +1840,9 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                     .ok_or_else(|| "pull-target-session requires --package".to_string())?,
                 remote_relative,
                 out: out.ok_or_else(|| "pull-target-session requires --out".to_string())?,
+                verify_bundle,
+                bundle_path,
+                expected_files,
                 json,
             })
         }
@@ -2444,7 +2537,7 @@ fn help_text() -> String {
         "  install-target-apk --serial SERIAL --apk target.apk [--json]".to_string(),
         "  launch-target-runtime --serial SERIAL --package PACKAGE [--activity ACTIVITY] [--json]"
             .to_string(),
-        "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--json]".to_string(),
+        "  pull-target-session --serial SERIAL --package PACKAGE --out FOLDER [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path FOLDER] [--expected-file NAME] [--clear-expected-files] [--json]".to_string(),
         "  verify-session-bundle --path FOLDER [--expected-file NAME] [--clear-expected-files] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
@@ -2585,8 +2678,69 @@ mod tests {
                 package_name: "io.github.example".to_string(),
                 remote_relative: "files/runtime_csv/participant-P001/session-001".to_string(),
                 out: PathBuf::from("study-data/device-session-pull"),
+                verify_bundle: false,
+                bundle_path: None,
+                expected_files: default_runtime_export_expected_files(),
                 json: true,
             }
+        );
+    }
+
+    #[test]
+    fn parses_pull_target_session_verify_bundle_options() {
+        let command = parse_args(vec![
+            "pull-target-session".to_string(),
+            "--serial".to_string(),
+            "QUEST_SERIAL".to_string(),
+            "--package".to_string(),
+            "io.github.example".to_string(),
+            "--remote-relative".to_string(),
+            "files/runtime_csv/participant-P001/session-001".to_string(),
+            "--out".to_string(),
+            "study-data/device-session-pull".to_string(),
+            "--verify-bundle".to_string(),
+            "--bundle-path".to_string(),
+            "study-data/verified/session-001".to_string(),
+            "--clear-expected-files".to_string(),
+            "--expected-file".to_string(),
+            "session_events.csv".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::PullTargetSession {
+                serial: "QUEST_SERIAL".to_string(),
+                package_name: "io.github.example".to_string(),
+                remote_relative: "files/runtime_csv/participant-P001/session-001".to_string(),
+                out: PathBuf::from("study-data/device-session-pull"),
+                verify_bundle: true,
+                bundle_path: Some(PathBuf::from("study-data/verified/session-001")),
+                expected_files: vec!["session_events.csv".to_string()],
+                json: false,
+            }
+        );
+    }
+
+    #[test]
+    fn infers_pulled_bundle_path_from_remote_session_folder() {
+        assert_eq!(
+            inferred_pulled_bundle_path(
+                Path::new("study-data/device-session-pull"),
+                "files/runtime_csv/participant-P001/session-001",
+            ),
+            PathBuf::from("study-data/device-session-pull").join("session-001")
+        );
+    }
+
+    #[test]
+    fn infers_pulled_bundle_path_from_backslash_remote_session_folder() {
+        assert_eq!(
+            inferred_pulled_bundle_path(
+                Path::new("study-data/device-session-pull"),
+                r"files\runtime_csv\participant-P001\session-001",
+            ),
+            PathBuf::from("study-data/device-session-pull").join("session-001")
         );
     }
 

@@ -69,7 +69,7 @@ matches the GUI surface:
 | Install Panel | `install-panel --serial <serial> --apk <apk-path> [--json]` |
 | Install target APK | `install-target-apk --serial <serial> --apk <apk-path> [--json]` |
 | Launch target runtime | `launch-target-runtime --serial <serial> --package <package> [--activity <activity>] [--json]` |
-| Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--json]` |
+| Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--json]` |
 | Open Block 1 | `open-block --block 1 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 2 | `open-block --block 2 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
@@ -111,10 +111,15 @@ declare or prepare its app-private `files/runtime_csv` bundle. The separate
 `pull-target-session` ADB helper copies those files only after that operator
 workflow step has been requested.
 
-After copying a session folder, run `verify-session-bundle --path <folder>`
-before accepting it as study evidence. The verifier checks the expected
-additive Unity files, known CSV headers, settings/snapshot protocol ids, and
-non-empty questionnaire JSONL rows locally; it does not contact the headset.
+Pass `--verify-bundle` to `pull-target-session` to run the local verifier right
+after the ADB copy. The command infers the pulled session folder as
+`<out>\<remote-folder-name>`, so use concrete remote paths such as
+`files/runtime_csv/participant-P001/session-001`; pass `--bundle-path` when the
+local pull layout is different. You can also run
+`verify-session-bundle --path <folder>` separately before accepting the export
+as study evidence. The verifier checks the expected additive Unity files,
+known CSV headers, settings/snapshot protocol ids, and non-empty questionnaire
+JSONL rows locally; it does not contact the headset.
 
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide
