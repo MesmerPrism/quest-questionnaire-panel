@@ -83,6 +83,11 @@ low-rate runtime command with an `export_request` section so the on-Quest
 runtime can declare or prepare the app-private `files/runtime_csv` bundle. It
 does not pull files by itself.
 
+The default runtime export expected-file list covers the additive Unity session
+bundle, including `clock_alignment_samples.csv` for LSL clock-probe echo
+evidence. Timing samples should stay in LSL/CSV rather than HTTP command
+payloads.
+
 When `--audit-dir` is provided, runtime command helpers append a local
 `command_audit.jsonl` file with request, response, timing, acceptance, and error
 fields. Keep real audit folders and participant session exports out of source

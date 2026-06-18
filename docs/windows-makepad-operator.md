@@ -109,6 +109,11 @@ declare or prepare its app-private `files/runtime_csv` bundle. The separate
 `pull-target-session` ADB helper copies those files only after that operator
 workflow step has been requested.
 
+The default expected-file list for target runtime exports includes the additive
+Unity session CSV/JSON bundle, including `clock_alignment_samples.csv` for
+LSL clock-probe echo evidence. Keep those timestamp-sensitive samples in
+LSL/CSV, not in JSON HTTP command payloads.
+
 When `--audit-dir` is supplied, runtime HTTP helpers append
 `command_audit.jsonl` with the command request, bridge response, timing, and
 error status. Treat that output as local session evidence and keep real study

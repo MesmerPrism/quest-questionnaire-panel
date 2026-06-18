@@ -22,6 +22,7 @@ const DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES: &[&str] = &[
     "session_events.csv",
     "signals_long.csv",
     "breathing_trace.csv",
+    "clock_alignment_samples.csv",
     "timing_markers.csv",
     "questionnaire_results.jsonl",
     "session_settings.json",
