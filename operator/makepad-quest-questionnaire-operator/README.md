@@ -149,8 +149,8 @@ concrete session folder and checks `<out>\<remote-folder-name>`; pass
 treating it as study evidence. The verifier checks that the expected additive
 Unity files are present, validates known CSV headers including
 `runtime_state_samples.csv` environment, performance, pose, and breathing
-columns, checks session settings/snapshot protocol ids, and parses non-empty
-questionnaire JSONL rows. Add `--write-receipt` to write
+columns, checks session settings/snapshot/schema protocol ids and schema
+entries, and parses non-empty questionnaire JSONL rows. Add `--write-receipt` to write
 `operator_verification_receipt.json` into a successfully verified local bundle,
 or pass `--receipt-file <path>` to write the JSON receipt elsewhere. Receipts
 include each expected file's byte size and SHA-256 digest so the accepted bundle
@@ -178,9 +178,9 @@ does not pull files by itself.
 The default runtime export expected-file list covers the additive Unity session
 bundle, including `runtime_state_samples.csv` for wide Unity/Quest runtime
 state, `clock_alignment_samples.csv` for LSL clock-probe echo evidence, and
-`legacy_outputs_manifest.json` for metadata-only pointers to legacy Unity
-output files. Timing samples should stay in LSL/CSV rather than HTTP command
-payloads.
+`session_schema.json` for the machine-readable data dictionary, plus
+`legacy_outputs_manifest.json` for metadata-only pointers to legacy Unity output
+files. Timing samples should stay in LSL/CSV rather than HTTP command payloads.
 
 When `--audit-dir` is provided, runtime command helpers append a local
 `command_audit.jsonl` file with request, response, timing, acceptance, and error

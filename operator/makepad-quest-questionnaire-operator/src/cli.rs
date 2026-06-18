@@ -32,6 +32,7 @@ const DEFAULT_RUNTIME_EXPORT_EXPECTED_FILES: &[&str] = &[
     "questionnaire_results.jsonl",
     "session_settings.json",
     "session_snapshot.json",
+    "session_schema.json",
     "legacy_outputs_manifest.json",
 ];
 const OPERATOR_SESSION_MANIFEST_PROTOCOL: &str = "quest.questionnaire.operator.session_manifest.v1";
@@ -1685,6 +1686,7 @@ fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), Strin
         "session_snapshot.json" => {
             validate_json_protocol(path, "viscereality.peripersonal.session_snapshot.v1")
         }
+        "session_schema.json" => validate_session_schema(path),
         "legacy_outputs_manifest.json" => validate_legacy_outputs_manifest(path),
         _ => Ok(()),
     }
@@ -1730,6 +1732,100 @@ fn validate_json_protocol(path: &Path, expected_protocol: &str) -> Result<(), St
             "protocol_version must be {expected_protocol}, got {protocol}"
         ))
     }
+}
+
+fn validate_session_schema(path: &Path) -> Result<(), String> {
+    let text =
+        fs::read_to_string(path).map_err(|err| format!("could not read JSON file: {err}"))?;
+    let value = serde_json::from_str::<serde_json::Value>(&text)
+        .map_err(|err| format!("could not parse JSON document: {err}"))?;
+    let protocol = value
+        .get("protocol_version")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if protocol != "viscereality.peripersonal.session_schema.v1" {
+        return Err(format!(
+            "protocol_version must be viscereality.peripersonal.session_schema.v1, got {protocol}"
+        ));
+    }
+
+    let files = value
+        .get("files")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "files array is missing".to_string())?;
+    validate_schema_array_contains(
+        files,
+        "runtime_state_samples.csv",
+        "columns",
+        &[
+            "recorded_at_utc",
+            "sample_reason",
+            "screen_refresh_rate_hz",
+            "xr_loaded_device_name",
+            "head_pos_x",
+            "left_controller_valid",
+            "right_controller_valid",
+        ],
+    )?;
+    validate_schema_array_contains(
+        files,
+        "clock_alignment_samples.csv",
+        "columns",
+        &[
+            "probe_sequence",
+            "probe_source_lsl_seconds",
+            "quest_receive_lsl_seconds",
+            "quest_echo_lsl_seconds",
+        ],
+    )?;
+    validate_schema_array_contains(
+        files,
+        "questionnaire_results.jsonl",
+        "fields",
+        &["recorded_at_utc", "request_id", "stage", "result_json"],
+    )?;
+    schema_file(files, "session_schema.json")?;
+    Ok(())
+}
+
+fn validate_schema_array_contains(
+    files: &[serde_json::Value],
+    path: &str,
+    array_name: &str,
+    required_values: &[&str],
+) -> Result<(), String> {
+    let file = schema_file(files, path)?;
+    let values = file
+        .get(array_name)
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| format!("{path} schema is missing {array_name} array"))?;
+    let missing = required_values
+        .iter()
+        .filter(|required| {
+            !values
+                .iter()
+                .any(|value| value.as_str() == Some(**required))
+        })
+        .map(|value| (*value).to_string())
+        .collect::<Vec<_>>();
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "{path} schema is missing {array_name}: {}",
+            missing.join(", ")
+        ))
+    }
+}
+
+fn schema_file<'a>(
+    files: &'a [serde_json::Value],
+    expected_path: &str,
+) -> Result<&'a serde_json::Value, String> {
+    files
+        .iter()
+        .find(|file| file.get("path").and_then(serde_json::Value::as_str) == Some(expected_path))
+        .ok_or_else(|| format!("schema is missing file entry: {expected_path}"))
 }
 
 fn validate_legacy_outputs_manifest(path: &Path) -> Result<(), String> {
@@ -4206,6 +4302,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_session_bundle_missing_session_schema() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-missing-schema");
+        write_complete_session_bundle(&bundle_dir);
+        fs::remove_file(bundle_dir.join("session_schema.json")).unwrap();
+
+        let error =
+            verify_session_bundle_command(&bundle_dir, &[], false, None, false).unwrap_err();
+
+        assert!(error.contains("session_schema.json"));
+        assert!(error.contains("required file is missing"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
     fn rejects_session_bundle_with_bad_runtime_state_header() {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-runtime");
         write_complete_session_bundle(&bundle_dir);
@@ -4220,6 +4330,24 @@ mod tests {
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("sample_sequence"));
         assert!(error.contains("application_identifier"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_bad_session_schema() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-schema");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("session_schema.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_schema.v1\",\"files\":[{\"path\":\"runtime_state_samples.csv\",\"columns\":[\"recorded_at_utc\"]}]}\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("session_schema.json"));
+        assert!(error.contains("left_controller_valid"));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 
@@ -4626,6 +4754,15 @@ mod tests {
         fs::write(
             bundle_dir.join("session_snapshot.json"),
             "{\"protocol_version\":\"viscereality.peripersonal.session_snapshot.v1\"}\n",
+        )
+        .unwrap();
+        fs::write(
+            bundle_dir.join("session_schema.json"),
+            "{\"protocol_version\":\"viscereality.peripersonal.session_schema.v1\",\"files\":[\
+             {\"path\":\"runtime_state_samples.csv\",\"columns\":[\"recorded_at_utc\",\"sample_reason\",\"screen_refresh_rate_hz\",\"xr_loaded_device_name\",\"head_pos_x\",\"left_controller_valid\",\"right_controller_valid\"]},\
+             {\"path\":\"clock_alignment_samples.csv\",\"columns\":[\"probe_sequence\",\"probe_source_lsl_seconds\",\"quest_receive_lsl_seconds\",\"quest_echo_lsl_seconds\"]},\
+             {\"path\":\"questionnaire_results.jsonl\",\"fields\":[\"recorded_at_utc\",\"request_id\",\"stage\",\"result_json\"]},\
+             {\"path\":\"session_schema.json\",\"protocol_version\":\"viscereality.peripersonal.session_schema.v1\"}]}\n",
         )
         .unwrap();
         fs::write(

@@ -153,8 +153,9 @@ local pull layout is different. You can also run
 `verify-session-bundle --path <folder>` separately before accepting the export
 as study evidence. The verifier checks the expected additive Unity files,
 known CSV headers including runtime-state environment/pose/breathing columns,
-settings/snapshot protocol ids, and non-empty questionnaire JSONL rows locally;
-it does not contact the headset. Add `--write-receipt` to leave
+settings/snapshot/schema protocol ids and schema entries, and non-empty
+questionnaire JSONL rows locally; it does not contact the headset. Add
+`--write-receipt` to leave
 `operator_verification_receipt.json` in a successfully verified bundle, or
 `--receipt-file <path>` to place that JSON receipt in an audit folder. Receipts
 include each expected file's byte size and SHA-256 digest so the accepted bundle
@@ -177,9 +178,10 @@ current working directory unless `--base-dir <dir>` is provided.
 The default expected-file list for target runtime exports includes the additive
 Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide
 Unity/Quest runtime state and `clock_alignment_samples.csv` for LSL clock-probe
-echo evidence, plus `legacy_outputs_manifest.json` for metadata-only pointers
-to legacy Unity output files. Keep timestamp-sensitive samples in LSL/CSV, not
-in JSON HTTP command payloads.
+echo evidence, `session_schema.json` for the machine-readable data dictionary,
+plus `legacy_outputs_manifest.json` for metadata-only pointers to legacy Unity
+output files. Keep timestamp-sensitive samples in LSL/CSV, not in JSON HTTP
+command payloads.
 
 When `--audit-dir` is supplied, runtime HTTP helpers append
 `command_audit.jsonl` with the command request, bridge response, timing, and
