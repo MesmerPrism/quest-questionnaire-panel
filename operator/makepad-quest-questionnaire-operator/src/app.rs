@@ -1,11 +1,15 @@
 use std::path::PathBuf;
 
 use makepad_widgets::*;
+use serde::Serialize;
 
 use crate::device;
 use crate::protocol::{
-    endpoint_url, BridgeCommandResponse, BridgeStatusResponse, OperatorCommandRequest, BLOCK1,
-    BLOCK2, BLOCK3,
+    endpoint_url, BridgeCommandResponse, BridgeStatusResponse, OperatorCommandRequest,
+    RuntimeExportRequestSpec, RuntimeOperatorCommandRequest, RuntimePanelLaunchSpec,
+    RuntimeProvenanceSpec, RuntimeQuestionnaireStateSpec, RuntimeSessionSpec, RuntimeTargetSpec,
+    BLOCK1, BLOCK2, BLOCK3, DEFAULT_RUNTIME_KIND, DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION,
+    PANEL_PROTOCOL_VERSION,
 };
 
 app_main!(App);
@@ -191,6 +195,134 @@ script_mod! {
                                     }
                                     devices_value := StatusValue{
                                         text: "Devices not checked."
+                                    }
+                                }
+
+                                Panel{
+                                    SectionTitle{text: "Target Runtime"}
+
+                                    FieldLabel{text: "Protocol"}
+                                    runtime_protocol_input := Field{
+                                        text: "target.runtime.operator.v1"
+                                    }
+
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Runtime kind"}
+                                            runtime_kind_input := Field{
+                                                text: "target_quest_apk"
+                                            }
+                                        }
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Package"}
+                                            runtime_package_input := Field{
+                                                empty_text: "runtime package"
+                                            }
+                                        }
+                                    }
+
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Study"}
+                                            runtime_study_input := Field{
+                                                text: "target-study"
+                                            }
+                                        }
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Condition"}
+                                            runtime_condition_input := Field{
+                                                empty_text: "condition id"
+                                            }
+                                        }
+                                    }
+
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Questionnaire"}
+                                            runtime_questionnaire_input := Field{
+                                                text: "target-questionnaire-v1"
+                                            }
+                                        }
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Stage"}
+                                            runtime_stage_input := Field{
+                                                text: "target:intro"
+                                            }
+                                        }
+                                    }
+
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Marker"}
+                                            runtime_marker_input := Field{
+                                                text: "operator_marker"
+                                            }
+                                        }
+                                        View{
+                                            width: Fill
+                                            height: Fit
+                                            flow: Down
+                                            FieldLabel{text: "Remote"}
+                                            runtime_remote_input := Field{
+                                                text: "files/runtime_csv"
+                                            }
+                                        }
+                                    }
+
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        runtime_start_button := PrimaryButton{text: "Start"}
+                                        runtime_marker_button := SecondaryButton{text: "Mark"}
+                                        runtime_open_button := PrimaryButton{text: "Open Q"}
+                                    }
+
+                                    View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Right
+                                        spacing: 8.0
+                                        runtime_stop_button := SecondaryButton{text: "Stop"}
+                                        runtime_pull_button := SecondaryButton{text: "Pull"}
                                     }
                                 }
                             }
@@ -510,11 +642,181 @@ impl App {
         self.send_command_request(cx, url, body, "Sending dismiss");
     }
 
-    fn send_command_request(
+    fn send_runtime_start_request(&mut self, cx: &mut Cx) {
+        let url = match self.command_url(cx) {
+            Some(url) => url,
+            None => return,
+        };
+
+        self.request_counter += 1;
+        let body = RuntimeOperatorCommandRequest::start_session(
+            format!("runtime-start-{:06}", self.request_counter),
+            self.runtime_protocol(cx),
+            self.runtime_target(cx),
+            self.runtime_session(cx),
+            RuntimeProvenanceSpec::default(),
+        );
+        self.send_command_request(cx, url, body, "Starting runtime session");
+    }
+
+    fn send_runtime_marker_request(&mut self, cx: &mut Cx) {
+        let url = match self.command_url(cx) {
+            Some(url) => url,
+            None => return,
+        };
+
+        self.request_counter += 1;
+        let marker_name = self.field_text(cx, ids!(runtime_marker_input));
+        let body = RuntimeOperatorCommandRequest::mark_timing_event(
+            format!("runtime-marker-{:06}", self.request_counter),
+            self.runtime_protocol(cx),
+            self.runtime_target(cx),
+            self.field_text(cx, ids!(session_input)),
+            marker_name,
+            "operator GUI marker",
+        );
+        self.send_command_request(cx, url, body, "Marking runtime event");
+    }
+
+    fn send_runtime_open_request(&mut self, cx: &mut Cx) {
+        let url = match self.command_url(cx) {
+            Some(url) => url,
+            None => return,
+        };
+
+        self.request_counter += 1;
+        let body = RuntimeOperatorCommandRequest::open_questionnaire(
+            format!("runtime-open-{:06}", self.request_counter),
+            self.runtime_protocol(cx),
+            self.runtime_target(cx),
+            self.runtime_panel_request(cx),
+        );
+        self.send_command_request(cx, url, body, "Opening runtime questionnaire");
+    }
+
+    fn send_runtime_stop_request(&mut self, cx: &mut Cx) {
+        let url = match self.command_url(cx) {
+            Some(url) => url,
+            None => return,
+        };
+
+        self.request_counter += 1;
+        let body = RuntimeOperatorCommandRequest::stop_session(
+            format!("runtime-stop-{:06}", self.request_counter),
+            self.runtime_protocol(cx),
+            self.runtime_target(cx),
+            self.field_text(cx, ids!(session_input)),
+        );
+        self.send_command_request(cx, url, body, "Stopping runtime session");
+    }
+
+    fn send_runtime_pull_request(&mut self, cx: &mut Cx) {
+        let url = match self.command_url(cx) {
+            Some(url) => url,
+            None => return,
+        };
+
+        self.request_counter += 1;
+        let body = RuntimeOperatorCommandRequest::pull_session(
+            format!("runtime-pull-{:06}", self.request_counter),
+            self.runtime_protocol(cx),
+            self.runtime_target(cx),
+            self.field_text(cx, ids!(session_input)),
+            RuntimeExportRequestSpec {
+                pull_device_session: true,
+                quest_storage_policy: "app_private_only".to_string(),
+                windows_storage_policy: "explicit_pull_only".to_string(),
+                quest_package: self.field_text(cx, ids!(runtime_package_input)),
+                quest_remote_relative: self.field_text(cx, ids!(runtime_remote_input)),
+                windows_device_pull_subfolder: "device-session-pull".to_string(),
+                expected_files: Vec::new(),
+            },
+        );
+        self.send_command_request(cx, url, body, "Requesting runtime export");
+    }
+
+    fn command_url(&self, cx: &mut Cx) -> Option<String> {
+        let endpoint = self.field_text(cx, ids!(endpoint_input));
+        match endpoint_url(&endpoint, "/v1/command") {
+            Ok(url) => Some(url),
+            Err(message) => {
+                self.set_status(cx, "Endpoint error", &message);
+                None
+            }
+        }
+    }
+
+    fn runtime_protocol(&self, cx: &Cx) -> String {
+        let value = self.field_text(cx, ids!(runtime_protocol_input));
+        if value.is_empty() {
+            DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION.to_string()
+        } else {
+            value
+        }
+    }
+
+    fn runtime_kind(&self, cx: &Cx) -> String {
+        let value = self.field_text(cx, ids!(runtime_kind_input));
+        if value.is_empty() {
+            DEFAULT_RUNTIME_KIND.to_string()
+        } else {
+            value
+        }
+    }
+
+    fn runtime_target(&self, cx: &Cx) -> RuntimeTargetSpec {
+        RuntimeTargetSpec::new(
+            self.runtime_kind(cx),
+            self.field_text(cx, ids!(runtime_package_input)),
+            self.field_text(cx, ids!(endpoint_input)),
+            self.field_text(cx, ids!(device_serial_input)),
+        )
+    }
+
+    fn runtime_session(&self, cx: &Cx) -> RuntimeSessionSpec {
+        RuntimeSessionSpec {
+            study_id: self.field_text(cx, ids!(runtime_study_input)),
+            session_id: self.field_text(cx, ids!(session_input)),
+            participant_ref: self.field_text(cx, ids!(participant_input)),
+            condition_id: self.field_text(cx, ids!(runtime_condition_input)),
+            language_code: self.field_text(cx, ids!(language_input)),
+            ..RuntimeSessionSpec::default()
+        }
+    }
+
+    fn runtime_panel_request(&self, cx: &Cx) -> RuntimePanelLaunchSpec {
+        let open_stage = self.field_text(cx, ids!(runtime_stage_input));
+        let questionnaire_id = self.field_text(cx, ids!(runtime_questionnaire_input));
+        RuntimePanelLaunchSpec {
+            protocol_version: PANEL_PROTOCOL_VERSION.to_string(),
+            session_id: self.field_text(cx, ids!(session_input)),
+            study_id: self.field_text(cx, ids!(runtime_study_input)),
+            schema_id: questionnaire_id.clone(),
+            questionnaire_id,
+            open_stage: open_stage.clone(),
+            screen_sequence: if open_stage.is_empty() {
+                Vec::new()
+            } else {
+                vec![open_stage.clone()]
+            },
+            condition_number: -1,
+            participant_ref: self.field_text(cx, ids!(participant_input)),
+            caller_package_name: self.field_text(cx, ids!(runtime_package_input)),
+            caller_app_version: String::new(),
+            questionnaire_state: Some(RuntimeQuestionnaireStateSpec {
+                language_code: self.field_text(cx, ids!(language_input)),
+                condition_id: self.field_text(cx, ids!(runtime_condition_input)),
+                operator_stage: open_stage,
+                ..RuntimeQuestionnaireStateSpec::default()
+            }),
+        }
+    }
+
+    fn send_command_request<T: Serialize>(
         &mut self,
         cx: &mut Cx,
         url: String,
-        body: OperatorCommandRequest,
+        body: T,
         title: &str,
     ) {
         if self.active_request_id.is_some() {
@@ -545,7 +847,16 @@ impl App {
         request.set_body_string(&body_json);
         cx.http_request(request_id, request);
 
-        self.set_status(cx, title, &format!("Posted {}", body.command_name));
+        let command_name = serde_json::from_str::<serde_json::Value>(&body_json)
+            .ok()
+            .and_then(|value| {
+                value
+                    .get("command_name")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string)
+            })
+            .unwrap_or_else(|| "command".to_string());
+        self.set_status(cx, title, &format!("Posted {command_name}"));
         self.set_last_response(cx, &body_json);
     }
 
@@ -665,6 +976,46 @@ impl MatchEvent for App {
 
         if self.ui.button(cx, ids!(block3_button)).clicked(actions) {
             self.send_block_request(cx, &BLOCK3);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(runtime_start_button))
+            .clicked(actions)
+        {
+            self.send_runtime_start_request(cx);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(runtime_marker_button))
+            .clicked(actions)
+        {
+            self.send_runtime_marker_request(cx);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(runtime_open_button))
+            .clicked(actions)
+        {
+            self.send_runtime_open_request(cx);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(runtime_stop_button))
+            .clicked(actions)
+        {
+            self.send_runtime_stop_request(cx);
+        }
+
+        if self
+            .ui
+            .button(cx, ids!(runtime_pull_button))
+            .clicked(actions)
+        {
+            self.send_runtime_pull_request(cx);
         }
     }
 

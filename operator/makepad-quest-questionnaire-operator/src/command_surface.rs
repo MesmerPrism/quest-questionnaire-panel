@@ -77,6 +77,62 @@ pub const GUI_COMMAND_SURFACE: &[CommandSurfaceItem] = &[
         gui_control: "Open Block 3 button",
         cli_equivalent: "open-block --block 3",
     },
+    CommandSurfaceItem {
+        gui_control: "Runtime protocol field",
+        cli_equivalent: "--protocol-version",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime kind field",
+        cli_equivalent: "--runtime-kind",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime package field",
+        cli_equivalent: "--runtime-package",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime study field",
+        cli_equivalent: "--study-id",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime condition field",
+        cli_equivalent: "--condition-id",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime questionnaire field",
+        cli_equivalent: "--questionnaire-id",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime stage field",
+        cli_equivalent: "--open-stage",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime marker field",
+        cli_equivalent: "--marker-name",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime remote field",
+        cli_equivalent: "--remote-relative",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime Start button",
+        cli_equivalent: "start-session",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime Mark button",
+        cli_equivalent: "mark-timing-event",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime Open Q button",
+        cli_equivalent: "open-questionnaire",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime Stop button",
+        cli_equivalent: "stop-session",
+    },
+    CommandSurfaceItem {
+        gui_control: "Runtime Pull button",
+        cli_equivalent: "pull-session",
+    },
 ];
 
 #[cfg(test)]

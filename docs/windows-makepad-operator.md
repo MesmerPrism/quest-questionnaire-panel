@@ -8,11 +8,12 @@ signals through ADB.
 
 This is one reference integration for the same panel architecture used by the
 Unity/BRB example. The current Windows operator path targets the MAIA-2 plus
-spatial-frame-reference questionnaire through Rusty Morphospace. The Unity path
-targets the BRB questionnaire sequence through a Unity-owned Android bridge.
-The questionnaire content and control surfaces differ; the panel runtime,
-request/result contract, caller-owned `content://` result URI, and callback
-pattern are shared.
+spatial-frame-reference questionnaire through Rusty Morphospace, and also
+includes generic target-runtime controls for APKs that expose the same
+`GET /v1/status` and `POST /v1/command` bridge shape. The Unity path targets a
+Unity-owned Android bridge. The questionnaire content and study-specific stage
+maps differ; the panel runtime, request/result contract, caller-owned
+`content://` result URI, and callback pattern are shared.
 
 This keeps the Android authority boundary intact:
 
@@ -73,17 +74,18 @@ matches the GUI surface:
 | Open Block 2 | `open-block --block 2 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Dismiss Panel | `dismiss --session-id <id> --endpoint <url>` |
+| Target Runtime fields | `--protocol-version`, `--runtime-kind`, `--runtime-package`, `--study-id`, `--condition-id`, `--questionnaire-id`, `--open-stage`, `--marker-name`, `--remote-relative` |
+| Target Start | `start-session --session-id <id> --participant-ref <ref> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Target Mark | `mark-timing-event --session-id <id> --marker-name <name> --marker-detail <text> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Target Open Q | `open-questionnaire --session-id <id> --participant-ref <ref> --study-id <id> --questionnaire-id <id> --open-stage <stage> --screen-sequence <stage> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Target Stop | `stop-session --session-id <id> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
+| Target Pull | `pull-session --session-id <id> --remote-relative files/runtime_csv --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 
-The CLI also has downstream-runtime helpers for target apps that expose the
-same low-rate bridge route:
+The GUI target-runtime controls and the CLI helpers below are for target apps
+that expose the same low-rate bridge route:
 
-| CLI-only helper | Command |
+| Additional CLI helper | Command |
 | --- | --- |
-| Start target session | `start-session --session-id <id> --participant-ref <ref> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
-| Mark target timing event | `mark-timing-event --session-id <id> --marker-name <name> --marker-detail <text> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
-| Open target questionnaire | `open-questionnaire --session-id <id> --participant-ref <ref> --study-id <id> --questionnaire-id <id> --open-stage <stage> --screen-sequence <a,b> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
-| Stop target session | `stop-session --session-id <id> --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
-| Request target session export | `pull-session --session-id <id> --remote-relative files/runtime_csv --protocol-version <runtime-protocol> --runtime-kind <kind> --endpoint <url> [--audit-dir <dir>]` |
 | Post private fixture JSON | `post-command --file <command.json> --endpoint <url> [--audit-dir <dir>]` |
 
 Keep concrete private runtime protocol ids, package names, APK hashes, study

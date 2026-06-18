@@ -61,13 +61,17 @@ matching CLI flags. `status` is the CLI equivalent of **Poll**. The GUI's
 Quest controls map to `tooling-status`, `devices`, `device-status`, and
 `bridge-forward`.
 
-The `start-session`, `mark-timing-event`, `open-questionnaire`,
-`stop-session`, `pull-session`, and `post-command` commands are CLI-first
-downstream runtime helpers. They post to the same low-rate `POST /v1/command`
-bridge route without launching the questionnaire panel directly from Windows.
-Keep private runtime protocol ids, package names, APK hashes, and
-study-specific stage maps in local/private fixtures rather than in this public
-operator repo.
+The GUI's **Target Runtime** panel sends the same downstream-runtime command
+envelopes as `start-session`, `mark-timing-event`, `open-questionnaire`,
+`stop-session`, and `pull-session`. Fill in the target runtime protocol, kind,
+package, study, condition, questionnaire, stage, marker, and remote session
+folder fields for the selected target APK. These controls post to the same
+low-rate `POST /v1/command` bridge route without launching the questionnaire
+panel directly from Windows. Keep private runtime protocol ids, package names,
+APK hashes, and study-specific stage maps in local/private fixtures rather
+than in this public operator repo.
+
+`post-command` remains CLI-only for replaying reviewed private fixture JSON.
 
 The `install-target-apk` and `launch-target-runtime` helpers are setup and
 foregrounding tools only. They do not launch the questionnaire panel and do not
