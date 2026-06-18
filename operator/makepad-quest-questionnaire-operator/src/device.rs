@@ -51,6 +51,9 @@ pub struct QuestSnapshot {
     pub wakefulness: String,
     pub interactive: Option<bool>,
     pub display_power_state: Option<String>,
+    pub screen_brightness_raw: Option<i32>,
+    pub music_volume: Option<u8>,
+    pub music_volume_max: Option<u8>,
     pub foreground_component: Option<String>,
     pub focused_window: Option<String>,
     pub proximity: Option<QuestProximityStatus>,
@@ -160,6 +163,12 @@ pub fn get_device_snapshot(serial: &str) -> Result<QuestSnapshot, String> {
     let tracking = adb_shell_optional(&adb, serial, &["dumpsys", "tracking"]);
     let proximity = adb_shell_optional(&adb, serial, &["dumpsys", "vrpowermanager"]);
     let window = adb_shell_optional(&adb, serial, &["dumpsys", "window"]);
+    let screen_brightness = adb_shell_optional(
+        &adb,
+        serial,
+        &["settings", "get", "system", "screen_brightness"],
+    );
+    let audio = adb_shell_optional(&adb, serial, &["dumpsys", "audio"]);
 
     Ok(QuestSnapshot {
         serial: serial.to_string(),
@@ -173,6 +182,9 @@ pub fn get_device_snapshot(serial: &str) -> Result<QuestSnapshot, String> {
         wakefulness: parse_wakefulness(&power),
         interactive: parse_interactive(&power),
         display_power_state: parse_display_power_state(&power),
+        screen_brightness_raw: screen_brightness.as_deref().and_then(parse_numeric_setting),
+        music_volume: audio.as_deref().and_then(parse_music_volume),
+        music_volume_max: audio.as_deref().and_then(parse_music_volume_max),
         foreground_component: window.as_deref().and_then(parse_focused_app),
         focused_window: window.as_deref().and_then(parse_current_focus),
         proximity: proximity.as_deref().and_then(parse_proximity),
@@ -403,12 +415,23 @@ pub fn format_snapshot_text(snapshot: &QuestSnapshot) -> String {
         .as_ref()
         .map(|value| value.detail.as_str())
         .unwrap_or("proximity unavailable");
+    let brightness = snapshot
+        .screen_brightness_raw
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    let volume = match (snapshot.music_volume, snapshot.music_volume_max) {
+        (Some(current), Some(max)) => format!("{current}/{max}"),
+        (Some(current), None) => current.to_string(),
+        _ => "unknown".to_string(),
+    };
     format!(
-        "{}\n{}\nWake: {}; display: {}\nForeground: {}\nControllers: {}\n{}",
+        "{}\n{}\nWake: {}; display: {}; brightness: {}; music volume: {}\nForeground: {}\nControllers: {}\n{}",
         snapshot.model,
         battery,
         snapshot.wakefulness,
         snapshot.display_power_state.as_deref().unwrap_or("unknown"),
+        brightness,
+        volume,
         foreground,
         controllers,
         proximity
@@ -592,6 +615,51 @@ fn parse_display_power_state(output: &str) -> Option<String> {
     })
 }
 
+fn parse_numeric_setting(output: &str) -> Option<i32> {
+    let value = output.trim();
+    if value.is_empty() || value.eq_ignore_ascii_case("null") {
+        return None;
+    }
+
+    value.parse::<i32>().ok()
+}
+
+fn parse_music_volume(output: &str) -> Option<u8> {
+    parse_stream_music_line(output, "Current:").and_then(first_u8)
+}
+
+fn parse_music_volume_max(output: &str) -> Option<u8> {
+    parse_stream_music_line(output, "Max:").and_then(first_u8)
+}
+
+fn parse_stream_music_line<'a>(output: &'a str, label: &str) -> Option<&'a str> {
+    let mut in_music = false;
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("STREAM_MUSIC") {
+            in_music = true;
+            continue;
+        }
+        if in_music && trimmed.contains("STREAM_") {
+            return None;
+        }
+        if in_music {
+            if let Some(value) = trimmed.strip_prefix(label) {
+                return Some(value.trim());
+            }
+        }
+    }
+
+    None
+}
+
+fn first_u8(value: &str) -> Option<u8> {
+    value
+        .split(|c: char| !c.is_ascii_digit())
+        .find(|part| !part.is_empty())
+        .and_then(|part| part.parse::<u8>().ok())
+}
+
 fn labeled_line(output: &str, label: &str) -> Option<String> {
     output.lines().find_map(|line| {
         let trimmed = line.trim();
@@ -755,6 +823,27 @@ mod tests {
 
         assert_eq!(parse_battery_level(output), Some(72));
         assert_eq!(parse_battery_status(output), "discharging");
+    }
+
+    #[test]
+    fn parses_brightness_and_music_volume_status() {
+        let audio = "
+        - STREAM_RING:
+           Max: 7
+           Current: 2 (speaker): 2
+        - STREAM_MUSIC:
+           Min: 0
+           Max: 25
+           Current: 11 (speaker): 11
+        - STREAM_ALARM:
+           Max: 7
+           Current: 4 (speaker): 4
+        ";
+
+        assert_eq!(parse_numeric_setting("178\n"), Some(178));
+        assert_eq!(parse_numeric_setting("null\n"), None);
+        assert_eq!(parse_music_volume(audio), Some(11));
+        assert_eq!(parse_music_volume_max(audio), Some(25));
     }
 
     #[test]

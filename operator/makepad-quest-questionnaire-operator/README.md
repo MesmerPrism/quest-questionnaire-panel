@@ -109,6 +109,13 @@ The `install-target-apk` and `launch-target-runtime` helpers are setup and
 foregrounding tools only. They do not launch the questionnaire panel and do not
 replace the caller-owned result URI flow.
 
+Use `device-status --serial <quest-serial> --json` before and after a run when
+you need a Quest-side setup snapshot. It records headset battery/wake/display
+state, focused app/window when ADB exposes it, screen brightness, music volume,
+proximity state, and controller battery/connection state. This is an explicit
+operator snapshot; high-rate pose, breathing, sphere, timing, and performance
+data stays in the Unity session CSV bundle.
+
 The `pull-target-session` helper is the explicit export step for target runtime
 session evidence. It pulls from the target app's app-specific Quest storage
 under `/sdcard/Android/data/<package>/...` into an operator-selected local
