@@ -149,11 +149,13 @@ concrete session folder and checks `<out>\<remote-folder-name>`; pass
 treating it as study evidence. The verifier checks that the expected additive
 Unity files are present, validates known CSV headers including
 `runtime_state_samples.csv` environment, performance, pose, and breathing
-columns, checks session settings/snapshot storage and schema-path contract
-fields, validates schema protocol ids and schema entries, compares schema
-column arrays with the pulled CSV headers, and parses
-non-empty questionnaire JSONL rows with `recorded_at_utc`, `request_id`,
-`stage`, and parseable `result_json` fields. Add `--write-receipt` to write
+columns, rejects malformed CSV rows whose field count or `recorded_at_utc`
+timestamp shape does not match the header contract, checks session
+settings/snapshot storage and schema-path contract fields, validates schema
+protocol ids and schema entries, compares schema column arrays with the pulled
+CSV headers, and parses non-empty questionnaire JSONL rows with
+`recorded_at_utc`, `request_id`, `stage`, and parseable `result_json` fields.
+Add `--write-receipt` to write
 `operator_verification_receipt.json` into a successfully verified local bundle,
 or pass `--receipt-file <path>` to write the JSON receipt elsewhere. Receipts
 include each expected file's byte size and SHA-256 digest so the accepted bundle

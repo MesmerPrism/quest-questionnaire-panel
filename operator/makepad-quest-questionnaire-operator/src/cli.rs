@@ -1689,31 +1689,106 @@ fn validate_known_session_file(path: &Path, file_name: &str) -> Result<(), Strin
 }
 
 fn validate_csv_header_contains(path: &Path, required_columns: &[&str]) -> Result<(), String> {
-    let columns = csv_header_columns(path)?;
+    let text = fs::read_to_string(path).map_err(|err| format!("could not read CSV file: {err}"))?;
+    let mut lines = text.lines().enumerate();
+    let (header_index, header_line) = lines
+        .find(|(_, line)| !line.trim().is_empty())
+        .ok_or_else(|| "CSV header is missing".to_string())?;
+    let columns = parse_csv_line(header_line.trim(), header_index.saturating_add(1))?;
     let missing = required_columns
         .iter()
         .filter(|column| !columns.iter().any(|actual| actual == *column))
         .map(|value| (*value).to_string())
         .collect::<Vec<_>>();
-    if missing.is_empty() {
-        Ok(())
-    } else {
-        Err(format!(
+
+    if !missing.is_empty() {
+        return Err(format!(
             "CSV header is missing columns: {}",
             missing.join(", ")
-        ))
+        ));
     }
+
+    validate_csv_data_rows(&columns, lines)
 }
 
 fn csv_header_columns(path: &Path) -> Result<Vec<String>, String> {
     let text = fs::read_to_string(path).map_err(|err| format!("could not read CSV file: {err}"))?;
-    let header = text
+    let (header_index, header_line) = text
         .lines()
-        .next()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
+        .enumerate()
+        .find(|(_, line)| !line.trim().is_empty())
         .ok_or_else(|| "CSV header is missing".to_string())?;
-    Ok(header.split(',').map(str::to_string).collect())
+    parse_csv_line(header_line.trim(), header_index.saturating_add(1))
+}
+
+fn validate_csv_data_rows<'a, I>(header_columns: &[String], rows: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = (usize, &'a str)>,
+{
+    let recorded_at_index = header_columns
+        .iter()
+        .position(|column| column == "recorded_at_utc");
+
+    for (row_index, row_line) in rows {
+        if row_line.trim().is_empty() {
+            continue;
+        }
+
+        let line_number = row_index.saturating_add(1);
+        let fields = parse_csv_line(row_line, line_number)?;
+        if fields.len() != header_columns.len() {
+            return Err(format!(
+                "line {line_number} has {} CSV fields but header has {}",
+                fields.len(),
+                header_columns.len()
+            ));
+        }
+
+        if let Some(index) = recorded_at_index {
+            let value = fields
+                .get(index)
+                .map(|field| field.trim())
+                .unwrap_or_default();
+            if value.is_empty() || !value.contains('T') {
+                return Err(format!(
+                    "line {line_number} recorded_at_utc must be an ISO-like UTC timestamp"
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_csv_line(line: &str, line_number: usize) -> Result<Vec<String>, String> {
+    let mut fields = Vec::new();
+    let mut field = String::new();
+    let mut chars = line.chars().peekable();
+    let mut in_quotes = false;
+
+    while let Some(ch) = chars.next() {
+        match ch {
+            '"' if in_quotes && chars.peek() == Some(&'"') => {
+                field.push('"');
+                chars.next();
+            }
+            '"' => {
+                in_quotes = !in_quotes;
+            }
+            ',' if !in_quotes => {
+                fields.push(field);
+                field = String::new();
+            }
+            _ => field.push(ch),
+        }
+    }
+
+    if in_quotes {
+        return Err(format!("line {line_number} has an unterminated CSV quote"));
+    }
+
+    fields.push(field);
+    Ok(fields)
 }
 
 fn validate_session_settings(path: &Path) -> Result<(), String> {
@@ -4554,6 +4629,45 @@ mod tests {
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("sample_sequence"));
         assert!(error.contains("application_identifier"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_bad_runtime_state_row_width() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-runtime-row");
+        write_complete_session_bundle(&bundle_dir);
+        let runtime_path = bundle_dir.join("runtime_state_samples.csv");
+        let header = fs::read_to_string(&runtime_path)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap()
+            .to_string();
+        fs::write(&runtime_path, format!("{header}\nP001,session-1\n")).unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("runtime_state_samples.csv"));
+        assert!(error.contains("line 2 has 2 CSV fields"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_session_bundle_with_bad_csv_recorded_at_timestamp() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-bad-csv-time");
+        write_complete_session_bundle(&bundle_dir);
+        fs::write(
+            bundle_dir.join("session_events.csv"),
+            "participant_id,session_id,dataset_id,recorded_at_utc,event_name,event_detail,result\nP001,session-1,dataset-1,not-a-date,event,detail,ok\n",
+        )
+        .unwrap();
+
+        let error = verify_session_bundle_command(&bundle_dir, &[], false, None, true).unwrap_err();
+
+        assert!(error.contains("\"accepted\": false"));
+        assert!(error.contains("session_events.csv"));
+        assert!(error.contains("recorded_at_utc must be an ISO-like UTC timestamp"));
         fs::remove_dir_all(&bundle_dir).unwrap();
     }
 

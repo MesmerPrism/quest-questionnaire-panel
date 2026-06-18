@@ -153,11 +153,13 @@ local pull layout is different. You can also run
 `verify-session-bundle --path <folder>` separately before accepting the export
 as study evidence. The verifier checks the expected additive Unity files,
 known CSV headers including runtime-state environment/pose/breathing columns,
-settings/snapshot storage and schema-path contract fields, schema protocol ids
-and schema entries, and non-empty questionnaire JSONL rows with
-`recorded_at_utc`, `request_id`, `stage`, and parseable `result_json` fields
-locally; schema column arrays are compared with the pulled CSV headers. It does
-not contact the headset. Add `--write-receipt` to leave
+malformed CSV rows whose field count or `recorded_at_utc` timestamp shape does
+not match the header contract, settings/snapshot storage and schema-path
+contract fields, schema protocol ids and schema entries, and non-empty
+questionnaire JSONL rows with `recorded_at_utc`, `request_id`, `stage`, and
+parseable `result_json` fields locally; schema column arrays are compared with
+the pulled CSV headers. It does not contact the headset. Add `--write-receipt`
+to leave
 `operator_verification_receipt.json` in a successfully verified bundle, or
 `--receipt-file <path>` to place that JSON receipt in an audit folder. Receipts
 include each expected file's byte size and SHA-256 digest so the accepted bundle
