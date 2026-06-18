@@ -119,9 +119,9 @@ runtime can declare or prepare the app-private `files/runtime_csv` bundle. It
 does not pull files by itself.
 
 The default runtime export expected-file list covers the additive Unity session
-bundle, including `clock_alignment_samples.csv` for LSL clock-probe echo
-evidence. Timing samples should stay in LSL/CSV rather than HTTP command
-payloads.
+bundle, including `runtime_state_samples.csv` for wide Unity/Quest runtime
+state and `clock_alignment_samples.csv` for LSL clock-probe echo evidence.
+Timing samples should stay in LSL/CSV rather than HTTP command payloads.
 
 When `--audit-dir` is provided, runtime command helpers append a local
 `command_audit.jsonl` file with request, response, timing, acceptance, and error

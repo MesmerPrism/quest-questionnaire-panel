@@ -112,9 +112,10 @@ declare or prepare its app-private `files/runtime_csv` bundle. The separate
 workflow step has been requested.
 
 The default expected-file list for target runtime exports includes the additive
-Unity session CSV/JSON bundle, including `clock_alignment_samples.csv` for
-LSL clock-probe echo evidence. Keep those timestamp-sensitive samples in
-LSL/CSV, not in JSON HTTP command payloads.
+Unity session CSV/JSON bundle, including `runtime_state_samples.csv` for wide
+Unity/Quest runtime state and `clock_alignment_samples.csv` for LSL clock-probe
+echo evidence. Keep those timestamp-sensitive samples in LSL/CSV, not in JSON
+HTTP command payloads.
 
 When `--audit-dir` is supplied, runtime HTTP helpers append
 `command_audit.jsonl` with the command request, bridge response, timing, and
