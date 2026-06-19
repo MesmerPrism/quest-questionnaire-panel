@@ -191,38 +191,53 @@ struct ExpectedExperimentApkVariant {
     build_tag: &'static str,
     label: &'static str,
     condition_id: &'static str,
+    hand: &'static str,
+    visual_condition: &'static str,
+    engine_particles_visible: bool,
     source_scene_path: &'static str,
     android_package: &'static str,
 }
 
 const EXPECTED_PERIPERSONAL_EXPERIMENT_APK_VARIANTS: &[ExpectedExperimentApkVariant] = &[
     ExpectedExperimentApkVariant {
-        build_tag: "apk/2025-12-10/viscereality-peri-personal-left-2",
-        label: "Viscereality Peri Personal Space Left",
-        condition_id: "peri-personal-left-2",
+        build_tag: "apk/2026-06-19/viscereality-peri-personal-left-visible",
+        label: "Viscereality Peri Personal Left Visible",
+        condition_id: "peri-personal-left-visible",
+        hand: "left",
+        visual_condition: "engine_visible",
+        engine_particles_visible: true,
         source_scene_path: PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
-        android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceLeft",
+        android_package: "com.Viscereality.ViscerealityPeriPersonalLeftVisible",
     },
     ExpectedExperimentApkVariant {
-        build_tag: "apk/2025-12-10/viscereality-peri-personal-left-orbit-2",
-        label: "Viscereality Peri Personal Space Left Orbit",
-        condition_id: "peri-personal-left-orbit-2",
+        build_tag: "apk/2026-06-19/viscereality-peri-personal-right-visible",
+        label: "Viscereality Peri Personal Right Visible",
+        condition_id: "peri-personal-right-visible",
+        hand: "right",
+        visual_condition: "engine_visible",
+        engine_particles_visible: true,
         source_scene_path: PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
-        android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceLeftOrbit",
+        android_package: "com.Viscereality.ViscerealityPeriPersonalRightVisible",
     },
     ExpectedExperimentApkVariant {
-        build_tag: "apk/2025-12-10/viscereality-peri-personal-right-2",
-        label: "Viscereality Peri Personal Space Right",
-        condition_id: "peri-personal-right-2",
+        build_tag: "apk/2026-06-19/viscereality-peri-personal-left-anchor-only",
+        label: "Viscereality Peri Personal Left Anchor Only",
+        condition_id: "peri-personal-left-anchor-only",
+        hand: "left",
+        visual_condition: "anchor_only",
+        engine_particles_visible: false,
         source_scene_path: PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
-        android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceRight",
+        android_package: "com.Viscereality.ViscerealityPeriPersonalLeftAnchorOnly",
     },
     ExpectedExperimentApkVariant {
-        build_tag: "apk/2025-12-10/viscereality-peri-personal-right-orbit-2",
-        label: "Viscereality Peri Personal Space Right Orbit",
-        condition_id: "peri-personal-right-orbit-2",
+        build_tag: "apk/2026-06-19/viscereality-peri-personal-right-anchor-only",
+        label: "Viscereality Peri Personal Right Anchor Only",
+        condition_id: "peri-personal-right-anchor-only",
+        hand: "right",
+        visual_condition: "anchor_only",
+        engine_particles_visible: false,
         source_scene_path: PERIPERSONAL_EXPERIMENT_SOURCE_SCENE_PATH,
-        android_package: "com.Viscereality.ViscerealityPeriPersonalSpaceRightOrbit",
+        android_package: "com.Viscereality.ViscerealityPeriPersonalRightAnchorOnly",
     },
 ];
 
@@ -1003,6 +1018,12 @@ struct ExperimentApkManifestVariant {
     build_tag: String,
     label: String,
     condition_id: String,
+    #[serde(default)]
+    hand: String,
+    #[serde(default)]
+    visual_condition: String,
+    #[serde(default)]
+    engine_particles_visible: Option<bool>,
     source_scene_path: String,
     android_package: String,
     apk_path: String,
@@ -1038,6 +1059,9 @@ struct ExperimentApkManifestVariantCheck {
     build_tag: String,
     label: String,
     condition_id: String,
+    hand: String,
+    visual_condition: String,
+    engine_particles_visible: Option<bool>,
     source_scene_path: String,
     android_package: String,
     apk_path: String,
@@ -1050,6 +1074,12 @@ struct ExperimentApkManifestVariantCheck {
     expected_label: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     expected_condition_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_hand: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_visual_condition: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_engine_particles_visible: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     expected_source_scene_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1248,6 +1278,9 @@ fn verify_experiment_apk_manifest_variant(
         build_tag: variant.build_tag.clone(),
         label: variant.label.clone(),
         condition_id: variant.condition_id.clone(),
+        hand: variant.hand.clone(),
+        visual_condition: variant.visual_condition.clone(),
+        engine_particles_visible: variant.engine_particles_visible,
         source_scene_path: variant.source_scene_path.clone(),
         android_package: variant.android_package.clone(),
         apk_path: variant.apk_path.clone(),
@@ -1258,6 +1291,9 @@ fn verify_experiment_apk_manifest_variant(
         issues: Vec::new(),
         expected_label: expected.map(|value| value.label.to_string()),
         expected_condition_id: expected.map(|value| value.condition_id.to_string()),
+        expected_hand: expected.map(|value| value.hand.to_string()),
+        expected_visual_condition: expected.map(|value| value.visual_condition.to_string()),
+        expected_engine_particles_visible: expected.map(|value| value.engine_particles_visible),
         expected_source_scene_path: expected.map(|value| value.source_scene_path.to_string()),
         expected_android_package: expected.map(|value| value.android_package.to_string()),
         expected_size_bytes: variant.size_bytes,
@@ -1292,6 +1328,28 @@ fn verify_experiment_apk_manifest_variant(
                     "condition_id mismatch: expected {}, got {}",
                     expected.condition_id, variant.condition_id
                 ));
+            }
+            if variant.hand != expected.hand {
+                check.issues.push(format!(
+                    "hand mismatch: expected {}, got {}",
+                    expected.hand, variant.hand
+                ));
+            }
+            if variant.visual_condition != expected.visual_condition {
+                check.issues.push(format!(
+                    "visual_condition mismatch: expected {}, got {}",
+                    expected.visual_condition, variant.visual_condition
+                ));
+            }
+            match variant.engine_particles_visible {
+                Some(value) if value == expected.engine_particles_visible => {}
+                Some(value) => check.issues.push(format!(
+                    "engine_particles_visible mismatch: expected {}, got {}",
+                    expected.engine_particles_visible, value
+                )),
+                None => check
+                    .issues
+                    .push("engine_particles_visible is missing".to_string()),
             }
             if variant.source_scene_path != expected.source_scene_path {
                 check.issues.push(format!(
@@ -5547,8 +5605,8 @@ mod tests {
 
         assert!(output.contains("\"accepted\": true"));
         assert!(output.contains("\"expected_variant_count\": 4"));
-        assert!(output.contains("viscereality-peri-personal-left-2"));
-        assert!(output.contains("ViscerealityPeriPersonalSpaceRightOrbit"));
+        assert!(output.contains("viscereality-peri-personal-left-visible"));
+        assert!(output.contains("ViscerealityPeriPersonalRightAnchorOnly"));
         fs::remove_dir_all(&manifest_dir).unwrap();
     }
 
@@ -5565,7 +5623,7 @@ mod tests {
 
         assert!(error.contains("\"accepted\": false"));
         assert!(error.contains("missing expected APK variant"));
-        assert!(error.contains("viscereality-peri-personal-right-orbit-2"));
+        assert!(error.contains("viscereality-peri-personal-right-anchor-only"));
         fs::remove_dir_all(&manifest_dir).unwrap();
     }
 
@@ -5608,21 +5666,24 @@ mod tests {
 
         assert!(output.contains("\"accepted\": true"));
         assert!(output.contains("\"profile_count\": 4"));
-        let profile_path = profiles_dir.join("peri-personal-left-2.operator-profile.json");
+        let profile_path = profiles_dir.join("peri-personal-left-visible.operator-profile.json");
         let profile = crate::profile::load_operator_gui_profile(&profile_path).unwrap();
         assert_eq!(profile.protocol_version, OPERATOR_GUI_PROFILE_PROTOCOL);
-        assert_eq!(profile.profile_id, "peripersonal-peri-personal-left-2");
+        assert_eq!(
+            profile.profile_id,
+            "peripersonal-peri-personal-left-visible"
+        );
         assert_eq!(
             profile.makepad_gui_fields.runtime_protocol,
             PERIPERSONAL_OPERATOR_PROTOCOL_VERSION
         );
         assert_eq!(
             profile.makepad_gui_fields.runtime_package,
-            "com.Viscereality.ViscerealityPeriPersonalSpaceLeft"
+            "com.Viscereality.ViscerealityPeriPersonalLeftVisible"
         );
         assert_eq!(
             profile.makepad_gui_fields.runtime_build_tag,
-            "apk/2025-12-10/viscereality-peri-personal-left-2"
+            "apk/2026-06-19/viscereality-peri-personal-left-visible"
         );
         assert_eq!(
             profile.makepad_gui_fields.runtime_source_scene,
@@ -5639,14 +5700,14 @@ mod tests {
         assert_eq!(
             profile.makepad_gui_fields.target_apk_path,
             manifest_dir
-                .join("peri-personal-left-2.apk")
+                .join("peri-personal-left-visible.apk")
                 .display()
                 .to_string()
         );
         assert_eq!(
             profile.makepad_gui_fields.target_apk_report,
             PathBuf::from("artifacts/target-apk-verification")
-                .join("peri-personal-left-2.json")
+                .join("peri-personal-left-visible.json")
                 .display()
                 .to_string()
         );
@@ -6550,6 +6611,9 @@ mod tests {
                     "build_tag": expected.build_tag,
                     "label": expected.label,
                     "condition_id": expected.condition_id,
+                    "hand": expected.hand,
+                    "visual_condition": expected.visual_condition,
+                    "engine_particles_visible": expected.engine_particles_visible,
                     "source_scene_path": expected.source_scene_path,
                     "android_package": expected.android_package,
                     "apk_path": apk_name,

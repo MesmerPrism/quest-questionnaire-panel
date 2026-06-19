@@ -121,10 +121,12 @@ For the peripersonal four-APK experiment build, run
 `verify-experiment-apk-manifest --manifest <peripersonal-experiment-apk-manifest.json>`
 against the Unity-generated build manifest. This local-only check validates the
 manifest protocol, the `Assets/Scenes/Space.unity` source-scene contract, the
-four documented build tags/packages, and each APK file's byte size and SHA-256.
-Use `--out <report.json>` when the operator session manifest should fingerprint
-the complete four-APK catalog verification evidence. The check does not install
-or launch anything and does not alter participant-facing Unity behavior.
+four documented build tags/packages, the left/right hand axis, the
+engine-visible/anchor-only visual axis, and each APK file's byte size and
+SHA-256. Use `--out <report.json>` when the operator session manifest should
+fingerprint the complete four-APK catalog verification evidence. The check does
+not install or launch anything and does not alter participant-facing Unity
+behavior.
 
 After the manifest passes, run
 `write-experiment-operator-profiles --manifest <manifest.json> --out-dir <profiles>`
@@ -133,7 +135,10 @@ profile fills the target APK path/hash, runtime package, condition id, build
 tag, source scene, verification-report path, and pull-output folder from the
 manifest while leaving session, participant, Quest serial, and remote session
 folder under operator control. Provide `--questionnaire-id` and `--open-stage`
-only when those study values have been reviewed for the run.
+only when those study values have been reviewed for the run. The operator
+switches the Unity condition by loading the relevant profile and pressing
+Install APK or Launch for that package; questionnaire blocks are still triggered
+separately through the target runtime bridge.
 
 The adjacent Install APK and Launch controls are explicit target-runtime setup
 helpers; Pull Files performs the explicit ADB copy into the GUI's Pull out

@@ -124,10 +124,11 @@ For the peripersonal four-APK experiment build, run
 `verify-experiment-apk-manifest --manifest <peripersonal-experiment-apk-manifest.json>`
 against the Unity-generated manifest before installing condition APKs. The
 local-only verifier checks the manifest protocol, `Assets/Scenes/Space.unity`
-source-scene contract, the four documented build tags/packages, and each APK's
-recorded byte size and SHA-256. Use `--out <report.json>` when the operator
-session manifest should reference the full four-APK catalog verification
-evidence. It performs no ADB, install, launch, or questionnaire action.
+source-scene contract, the four documented build tags/packages, the left/right
+hand axis, the engine-visible/anchor-only visual axis, and each APK's recorded
+byte size and SHA-256. Use `--out <report.json>` when the operator session
+manifest should reference the full four-APK catalog verification evidence. It
+performs no ADB, install, launch, or questionnaire action.
 
 After that local verification passes, run
 `write-experiment-operator-profiles --manifest <manifest.json> --out-dir <profiles>`
@@ -135,7 +136,10 @@ to create one Makepad-loadable profile per documented APK variant. The generated
 profiles copy package, APK path/hash, condition id, build tag, and source scene
 from the manifest, plus local report/pull-output paths. Session id, participant
 ref, Quest serial, and remote session folder stay blank so the operator fills
-them for the actual run. Pass `--questionnaire-id` and `--open-stage` only when
+them for the actual run. The operator switches the Unity condition by loading
+the relevant profile and pressing Install APK or Launch for that package; the
+questionnaire buttons remain separate `open-questionnaire` commands through the
+target runtime bridge. Pass `--questionnaire-id` and `--open-stage` only when
 the study-specific questionnaire values have been reviewed.
 
 Use `device-status --serial <quest-serial> --json --out <snapshot.json>` before
