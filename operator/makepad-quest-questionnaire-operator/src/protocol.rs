@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 pub const OPERATOR_PROTOCOL_VERSION: &str = "quest.questionnaire.operator.v1";
 pub const PANEL_PROTOCOL_VERSION: &str = "quest.questionnaire.v1";
 pub const DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION: &str = "target.runtime.operator.v1";
-pub const DEFAULT_RUNTIME_KIND: &str = "target_quest_apk";
+pub const DEFAULT_RUNTIME_KIND: &str = "unity_quest_apk";
 pub const STUDY_ID: &str = "maia-spatial";
 pub const SCHEMA_ID: &str = "maia2-spatial-frame-questionnaire-v1";
 

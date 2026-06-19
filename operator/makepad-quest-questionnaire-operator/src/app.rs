@@ -271,7 +271,7 @@ script_mod! {
                                             flow: Down
                                             FieldLabel{text: "Runtime kind"}
                                             runtime_kind_input := Field{
-                                                text: "target_quest_apk"
+                                                text: "unity_quest_apk"
                                             }
                                         }
                                         View{
