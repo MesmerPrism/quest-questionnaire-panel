@@ -75,6 +75,7 @@ matches the GUI surface:
 | Pull target session | `pull-target-session --serial <serial> --package <package> --out <folder> [--remote-relative files/runtime_csv] [--verify-bundle] [--bundle-path <folder>] [--write-receipt] [--json]` |
 | Write session manifest | `write-session-manifest --out <manifest.json> [--artifact <label=path>] [--json]` |
 | Verify session manifest | `verify-session-manifest --path <manifest.json> [--base-dir <dir>] [--json]` |
+| Record runtime-state LSL | `record-runtime-state-lsl --out <runtime_state_lsl.csv> [--idle-timeout-ms <ms>] [--json]` |
 | Open Block 1 | `open-block --block 1 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 2 | `open-block --block 2 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
 | Open Block 3 | `open-block --block 3 --session-id <id> --participant-ref <ref> --language-code <en-or-de> --endpoint <url>` |
@@ -217,6 +218,20 @@ echo evidence, `session_schema.json` for the machine-readable data dictionary,
 plus `legacy_outputs_manifest.json` for metadata-only pointers to legacy Unity
 output files. Keep timestamp-sensitive samples in LSL/CSV, not in JSON HTTP
 command payloads.
+
+For the peripersonal Unity APKs, the Windows operator can also record the live
+runtime-state readout stream while the Quest writes its local bundle:
+
+```powershell
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- record-runtime-state-lsl --out artifacts\operator-lsl\runtime_state_lsl.csv --json
+```
+
+This listens for `peripersonal_runtime_state / peripersonal.runtime.state`,
+stores source LSL timestamps and Windows receive timing, and writes the same
+runtime-state columns as the Quest-local `runtime_state_samples.csv`. It needs
+`lsl.dll` on Windows via `VISCEREALITY_LSL_DLL`, beside the executable, or a
+standard `%USERPROFILE%\Tools\liblsl\<version>\bin` install. It does not send
+commands to Unity.
 
 When `--audit-dir` is supplied, runtime HTTP helpers append
 `command_audit.jsonl` with the command request, bridge response, timing, and

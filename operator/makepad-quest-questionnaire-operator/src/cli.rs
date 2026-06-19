@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::device;
+use crate::lsl_runtime::{self, RuntimeStateLslRecordingOptions};
 use crate::profile::{OperatorGuiProfile, OperatorGuiProfileFields};
 use crate::protocol::{
     block_by_number, endpoint_url, validate_runtime_status, BridgeStatusResponse,
@@ -529,6 +530,10 @@ pub enum CliCommand {
         artifacts: Vec<ManifestArtifactArg>,
         json: bool,
     },
+    RecordRuntimeStateLsl {
+        options: RuntimeStateLslRecordingOptions,
+        json: bool,
+    },
     OpenBlock {
         endpoint: String,
         block: u8,
@@ -712,6 +717,9 @@ pub fn run(args: Vec<String>) -> Result<String, String> {
             artifacts,
             json,
         } => write_session_manifest_command(&out, session, artifacts, json),
+        CliCommand::RecordRuntimeStateLsl { options, json } => {
+            record_runtime_state_lsl_command(&options, json)
+        }
         CliCommand::OpenBlock {
             endpoint,
             block,
@@ -1927,6 +1935,25 @@ pub fn write_session_manifest_command(
     }
 }
 
+pub fn record_runtime_state_lsl_command(
+    options: &RuntimeStateLslRecordingOptions,
+    json: bool,
+) -> Result<String, String> {
+    let report =
+        lsl_runtime::record_runtime_state_lsl_csv(options, RUNTIME_STATE_REQUIRED_COLUMNS)?;
+    if json {
+        serde_json::to_string_pretty(&report).map_err(|err| err.to_string())
+    } else {
+        Ok(format!(
+            "Recorded {} runtime-state LSL samples from {} / {} to {}.",
+            report.sample_count,
+            report.stream_name,
+            report.stream_type,
+            report.out.display()
+        ))
+    }
+}
+
 pub fn verify_session_manifest_command(
     path: &Path,
     base_dir: Option<&Path>,
@@ -2689,7 +2716,11 @@ fn validate_session_settings(path: &Path) -> Result<(), String> {
     let value = read_json_document(path)?;
     validate_json_protocol_value(&value, "viscereality.peripersonal.session_settings.v1")?;
     validate_json_string_equals(&value, "quest_storage_policy", "app_private_only")?;
-    validate_json_string_equals(&value, "windows_storage_policy", "explicit_pull_only")?;
+    validate_json_string_one_of(
+        &value,
+        "windows_storage_policy",
+        &["explicit_pull_only", "live_lsl_mirror_plus_explicit_pull"],
+    )?;
     validate_json_file_name_equals(&value, "schema_path", "session_schema.json")?;
     validate_json_file_name_equals(
         &value,
@@ -2838,6 +2869,22 @@ fn validate_json_string_equals(
         Ok(())
     } else {
         Err(format!("{field} must be {expected}, got {actual}"))
+    }
+}
+
+fn validate_json_string_one_of(
+    value: &serde_json::Value,
+    field: &str,
+    allowed: &[&str],
+) -> Result<(), String> {
+    let actual = required_json_string(value, field)?;
+    if allowed.iter().any(|expected| actual == *expected) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{field} must be one of {}, got {actual}",
+            allowed.join(", ")
+        ))
     }
 }
 
@@ -4375,6 +4422,61 @@ pub fn parse_args(args: Vec<String>) -> Result<CliCommand, String> {
                 json,
             })
         }
+        "record-runtime-state-lsl" | "record-lsl-runtime-state" => {
+            let mut options = RuntimeStateLslRecordingOptions::default();
+            let mut json = false;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--out" | "--csv" => {
+                        options.out = PathBuf::from(next_value(&mut iter, "--out")?)
+                    }
+                    "--stream-name" | "--name" => {
+                        options.stream_name = next_value(&mut iter, "--stream-name")?
+                    }
+                    "--stream-type" | "--type" => {
+                        options.stream_type = next_value(&mut iter, "--stream-type")?
+                    }
+                    "--source-id-prefix" | "--source-prefix" => {
+                        options.source_id_prefix =
+                            Some(next_value(&mut iter, "--source-id-prefix")?)
+                    }
+                    "--resolve-timeout-ms" => {
+                        options.resolve_timeout_ms = parse_u64(
+                            &next_value(&mut iter, "--resolve-timeout-ms")?,
+                            "--resolve-timeout-ms",
+                        )?
+                    }
+                    "--pull-timeout-ms" => {
+                        options.pull_timeout_ms = parse_u64(
+                            &next_value(&mut iter, "--pull-timeout-ms")?,
+                            "--pull-timeout-ms",
+                        )?
+                    }
+                    "--idle-timeout-ms" => {
+                        options.idle_timeout_ms = parse_u64(
+                            &next_value(&mut iter, "--idle-timeout-ms")?,
+                            "--idle-timeout-ms",
+                        )?
+                    }
+                    "--duration-ms" => {
+                        options.duration_ms = Some(parse_u64(
+                            &next_value(&mut iter, "--duration-ms")?,
+                            "--duration-ms",
+                        )?)
+                    }
+                    "--max-samples" => {
+                        options.max_samples = Some(parse_usize(
+                            &next_value(&mut iter, "--max-samples")?,
+                            "--max-samples",
+                        )?)
+                    }
+                    "--json" => json = true,
+                    "-h" | "--help" => return Ok(CliCommand::Help),
+                    _ => return Err(format!("Unknown record-runtime-state-lsl argument: {arg}")),
+                }
+            }
+            Ok(CliCommand::RecordRuntimeStateLsl { options, json })
+        }
         "open-block" => {
             let mut endpoint = DEFAULT_ENDPOINT.to_string();
             let mut block: Option<u8> = None;
@@ -4881,6 +4983,14 @@ fn parse_u64(value: &str, flag: &str) -> Result<u64, String> {
         .ok_or_else(|| format!("{flag} must be a positive integer"))
 }
 
+fn parse_usize(value: &str, flag: &str) -> Result<usize, String> {
+    value
+        .parse::<usize>()
+        .ok()
+        .filter(|number| *number > 0)
+        .ok_or_else(|| format!("{flag} must be a positive integer"))
+}
+
 fn parse_i32(value: &str, flag: &str) -> Result<i32, String> {
     value
         .parse::<i32>()
@@ -5074,6 +5184,7 @@ fn help_text() -> String {
         "  verify-session-bundle --path FOLDER [--expected-file NAME] [--clear-expected-files] [--write-receipt] [--receipt-file FILE] [--json]".to_string(),
         "  verify-session-manifest --path FILE [--base-dir DIR] [--json]".to_string(),
         "  write-session-manifest --out FILE [--session-id ID] [--participant-ref REF] [--study-id ID] [--dataset-id ID] [--runtime-package PACKAGE] [--runtime-build-tag TAG] [--source-scene-path PATH] [--artifact LABEL=PATH] [--json]".to_string(),
+        "  record-runtime-state-lsl --out operator-runtime-state-lsl.csv [--stream-name peripersonal_runtime_state] [--stream-type peripersonal.runtime.state] [--source-id-prefix PREFIX] [--resolve-timeout-ms MS] [--idle-timeout-ms MS] [--duration-ms MS] [--max-samples N] [--json]".to_string(),
         "  open-block --block 1|2|3 --session-id ID --participant-ref REF [--language-code en] [--endpoint URL] [--command-id ID] [--debug-auto-submit] [--debug-command-script SCRIPT] [--debug-command-interval-ms MS]".to_string(),
         "  dismiss --session-id ID [--endpoint URL] [--command-id ID]".to_string(),
         "  start-session --session-id ID --participant-ref REF [--endpoint URL] [--protocol-version VERSION] [--runtime-kind KIND] [--runtime-package PACKAGE] [--study-id ID] [--condition-id ID] [--language-code en] [--runtime-build-tag TAG] [--source-scene-path PATH] [--apk-sha256 SHA256] [--source-commit SHA] [--command-id ID] [--command-name NAME] [--audit-dir DIR]".to_string(),
@@ -5517,9 +5628,64 @@ mod tests {
     }
 
     #[test]
+    fn parses_record_runtime_state_lsl_command() {
+        let command = parse_args(vec![
+            "record-runtime-state-lsl".to_string(),
+            "--out".to_string(),
+            "study-data/operator-lsl/runtime-state.csv".to_string(),
+            "--source-id-prefix".to_string(),
+            "com.Viscereality.".to_string(),
+            "--resolve-timeout-ms".to_string(),
+            "5000".to_string(),
+            "--idle-timeout-ms".to_string(),
+            "2000".to_string(),
+            "--duration-ms".to_string(),
+            "10000".to_string(),
+            "--max-samples".to_string(),
+            "3".to_string(),
+            "--json".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            command,
+            CliCommand::RecordRuntimeStateLsl {
+                options: RuntimeStateLslRecordingOptions {
+                    out: PathBuf::from("study-data/operator-lsl/runtime-state.csv"),
+                    stream_name: lsl_runtime::DEFAULT_RUNTIME_STATE_STREAM_NAME.to_string(),
+                    stream_type: lsl_runtime::DEFAULT_RUNTIME_STATE_STREAM_TYPE.to_string(),
+                    source_id_prefix: Some("com.Viscereality.".to_string()),
+                    resolve_timeout_ms: 5000,
+                    pull_timeout_ms: 500,
+                    idle_timeout_ms: 2000,
+                    duration_ms: Some(10000),
+                    max_samples: Some(3),
+                },
+                json: true,
+            }
+        );
+    }
+
+    #[test]
     fn verifies_complete_session_bundle() {
         let bundle_dir = temp_test_dir("quest-operator-session-bundle-ok");
         write_complete_session_bundle(&bundle_dir);
+
+        let output = verify_session_bundle_command(&bundle_dir, &[], false, None, false).unwrap();
+
+        assert!(output.contains("Session bundle verification passed"));
+        fs::remove_dir_all(&bundle_dir).unwrap();
+    }
+
+    #[test]
+    fn verifies_session_bundle_with_live_lsl_windows_policy() {
+        let bundle_dir = temp_test_dir("quest-operator-session-bundle-live-lsl-policy");
+        write_complete_session_bundle(&bundle_dir);
+        let settings_path = bundle_dir.join("session_settings.json");
+        let settings = fs::read_to_string(&settings_path)
+            .unwrap()
+            .replace("explicit_pull_only", "live_lsl_mirror_plus_explicit_pull");
+        fs::write(&settings_path, settings).unwrap();
 
         let output = verify_session_bundle_command(&bundle_dir, &[], false, None, false).unwrap();
 

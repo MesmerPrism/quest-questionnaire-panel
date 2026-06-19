@@ -47,6 +47,7 @@ cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.to
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- launch-target-runtime --serial <quest-serial> --package io.github.example.target --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- pull-target-session --serial <quest-serial> --package io.github.example.target --remote-relative files/runtime_csv/participant-P001/session-001 --out artifacts\device-session-pull --verify-bundle --write-receipt --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- verify-session-bundle --path artifacts\device-session-pull\session-001 --json
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- record-runtime-state-lsl --out artifacts\operator-lsl\runtime_state_lsl.csv --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- preflight-runtime --protocol-version target.runtime.operator.v1 --runtime-kind unity_quest_apk --runtime-package io.github.example.target --source-scene-path Assets/Scenes/Space.unity --require-actions start_session,open_questionnaire,pull_session --require-explicit-pull --json
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 1 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
 cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- open-block --block 2 --session-id maia-spatial-session-001 --participant-ref P001 --language-code en --endpoint http://127.0.0.1:8787
@@ -186,6 +187,24 @@ The runtime-state header contract includes foreground package/activity/focus,
 brightness, volume, battery/device identity, memory/performance fields,
 breathing and sphere state, headset pose, and both controller positions,
 rotations, validity flags, and battery values.
+
+For live Windows-side mirroring of those same Unity runtime-state rows, run the
+operator LSL recorder while the Unity session is active:
+
+```powershell
+cargo run --manifest-path operator\makepad-quest-questionnaire-operator\Cargo.toml --bin quest-questionnaire-operator-cli -- record-runtime-state-lsl --out artifacts\operator-lsl\runtime_state_lsl.csv --json
+```
+
+It resolves `peripersonal_runtime_state / peripersonal.runtime.state`, requires
+the stream channel count to match the `runtime_state_samples.csv` contract, and
+writes a CSV with operator receive time, operator LSL local clock, source LSL
+sample timestamp, stream identity, and the exact Unity runtime-state columns.
+The command dynamically loads `lsl.dll`; set `VISCEREALITY_LSL_DLL` or place
+`lsl.dll` beside the executable if it is not in a standard
+`%USERPROFILE%\Tools\liblsl\<version>\bin` location. This is readout only. HTTP
+still carries low-rate start/stop/questionnaire commands, and ADB pull remains
+the authoritative Quest-local session bundle export.
+
 The verifier also compares `session_snapshot.json` counters against the pulled
 file contents, including events, signals, breathing rows, runtime-state rows,
 clock-alignment rows, timing markers, and questionnaire-result JSONL rows.

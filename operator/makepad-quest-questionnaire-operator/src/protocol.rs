@@ -285,6 +285,9 @@ pub struct RuntimeStatusContract {
     pub session_storage_policy: Option<String>,
     pub operator_transport: Option<String>,
     pub timing_transport: Option<String>,
+    pub runtime_state_transport: Option<String>,
+    pub runtime_state_lsl_stream_name: Option<String>,
+    pub runtime_state_lsl_stream_type: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -297,6 +300,7 @@ pub struct RuntimeCapabilities {
     pub questionnaire_panel_launch: Option<bool>,
     pub questionnaire_result_callback_ingest: Option<bool>,
     pub lsl_clock_alignment: Option<bool>,
+    pub lsl_runtime_state_readout: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -902,7 +906,10 @@ mod tests {
                 "storage_root": "runtime_csv",
                 "session_storage_policy": "app_private_only",
                 "operator_transport": "http_loopback_adb_forward",
-                "timing_transport": "lsl_sussex_clock_probe"
+                "timing_transport": "lsl_sussex_clock_probe",
+                "runtime_state_transport": "lsl_runtime_state_readout",
+                "runtime_state_lsl_stream_name": "peripersonal_runtime_state",
+                "runtime_state_lsl_stream_type": "peripersonal.runtime.state"
             },
             "capabilities": {
                 "command_actions": ["start_session", "stop_session", "open_questionnaire"],
@@ -911,7 +918,8 @@ mod tests {
                 "explicit_pull_required": true,
                 "questionnaire_panel_launch": true,
                 "questionnaire_result_callback_ingest": true,
-                "lsl_clock_alignment": true
+                "lsl_clock_alignment": true,
+                "lsl_runtime_state_readout": true
             },
             "bridge": {
                 "app": "peripersonal-unity-quest-apk",
@@ -951,10 +959,15 @@ mod tests {
             contract.operator_protocol.as_deref(),
             Some("viscereality.peripersonal.operator.v1")
         );
+        assert_eq!(
+            contract.runtime_state_lsl_stream_name.as_deref(),
+            Some("peripersonal_runtime_state")
+        );
         assert!(capabilities
             .command_actions
             .contains(&"open_questionnaire".to_string()));
         assert_eq!(capabilities.explicit_pull_required, Some(true));
+        assert_eq!(capabilities.lsl_runtime_state_readout, Some(true));
         assert_eq!(
             status.runtime_summary().as_deref(),
             Some(
