@@ -25,5 +25,13 @@
                 android:minHeight="540dp"
                 android:minWidth="720dp" />
         </activity>
+
+        <receiver
+            android:name=".PeripersonalPanelCommandReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="io.github.mesmerprism.questquestionnaire.panel.action.PERIPERSONAL_COMMAND" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
