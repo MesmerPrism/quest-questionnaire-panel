@@ -17,6 +17,10 @@ object QuestQuestionnaireIntentContract {
     const val ExtraReturnToCaller = "return_to_caller"
     const val ExtraDebugAutoSubmit =
         "io.github.mesmerprism.questquestionnaire.extra.DEBUG_AUTO_SUBMIT"
+    const val ExtraDebugCommandScript =
+        "io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_SCRIPT"
+    const val ExtraDebugCommandIntervalMs =
+        "io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_INTERVAL_MS"
 
     const val StartAction = QuestQuestionnaireProtocol.StartAction
     const val RequestMimeType = QuestQuestionnaireProtocol.RequestMimeType

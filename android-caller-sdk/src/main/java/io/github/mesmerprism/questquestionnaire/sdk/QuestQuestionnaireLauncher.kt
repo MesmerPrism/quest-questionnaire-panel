@@ -91,7 +91,9 @@ class QuestQuestionnaireLauncher(
     fun prepare(
         context: Context,
         request: QuestionnaireLaunchRequestSpec,
-        debugAutoSubmit: Boolean = false
+        debugAutoSubmit: Boolean = false,
+        debugCommandScript: String? = null,
+        debugCommandIntervalMs: Int? = null
     ): PreparedQuestionnaireLaunch {
         val requestId = UUID.randomUUID().toString()
         val nonce = UUID.randomUUID().toString()
@@ -121,6 +123,18 @@ class QuestQuestionnaireLauncher(
             putExtra(QuestQuestionnaireIntentContract.ExtraReturnToCaller, returnToCaller)
             if (debugAutoSubmit) {
                 putExtra(QuestQuestionnaireIntentContract.ExtraDebugAutoSubmit, true)
+            }
+            if (!debugCommandScript.isNullOrBlank()) {
+                putExtra(
+                    QuestQuestionnaireIntentContract.ExtraDebugCommandScript,
+                    debugCommandScript
+                )
+            }
+            debugCommandIntervalMs?.let {
+                putExtra(
+                    QuestQuestionnaireIntentContract.ExtraDebugCommandIntervalMs,
+                    it
+                )
             }
         }
 

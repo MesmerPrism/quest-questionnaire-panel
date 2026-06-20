@@ -29,7 +29,9 @@ namespace MesmerPrism.QuestQuestionnairePanel
             string resultAuthority,
             string callbackReceiverClassName,
             bool debugAutoSubmit = false,
-            string questionnaireStateJson = "")
+            string questionnaireStateJson = "",
+            string debugCommandScript = "",
+            int debugCommandIntervalMs = 0)
         {
             if (request == null)
             {
@@ -66,7 +68,9 @@ namespace MesmerPrism.QuestQuestionnairePanel
                     string.IsNullOrWhiteSpace(questionnaireStateJson)
                         ? request.QuestionnaireStateJson ?? ""
                         : questionnaireStateJson,
-                    debugAutoSubmit);
+                    debugAutoSubmit,
+                    debugCommandScript ?? "",
+                    debugCommandIntervalMs);
             }
 #else
             return "{\"status\":\"unsupported_platform\"}";

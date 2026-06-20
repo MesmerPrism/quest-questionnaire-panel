@@ -26,7 +26,9 @@ object UnityQuestionnaireBridge {
         callerPackageName: String?,
         callerAppVersion: String?,
         questionnaireStateJson: String?,
-        debugAutoSubmit: Boolean
+        debugAutoSubmit: Boolean,
+        debugCommandScript: String?,
+        debugCommandIntervalMs: Int
     ): String {
         return try {
             val callbackReceiverClass = Class.forName(callbackReceiverClassName)
@@ -63,7 +65,9 @@ object UnityQuestionnaireBridge {
                         engine = "unity"
                     )
                 ),
-                debugAutoSubmit = debugAutoSubmit
+                debugAutoSubmit = debugAutoSubmit,
+                debugCommandScript = debugCommandScript.nullIfBlank(),
+                debugCommandIntervalMs = debugCommandIntervalMs.takeIf { it > 0 }
             )
 
             launcher.launch(activity, prepared)
