@@ -4,8 +4,8 @@ use makepad_widgets::*;
 use serde::Serialize;
 
 use crate::cli::{
-    device_status as device_status_command, pull_target_session as pull_target_session_command,
-    verify_target_apk_command,
+    device_status as device_status_command, launch_target_runtime as launch_target_runtime_command,
+    pull_target_session as pull_target_session_command, verify_target_apk_command,
 };
 use crate::device;
 use crate::profile::{load_operator_gui_profile, OperatorGuiProfileFields};
@@ -226,7 +226,7 @@ script_mod! {
 
                                     FieldLabel{text: "Protocol"}
                                     runtime_protocol_input := Field{
-                                        text: "target.runtime.operator.v1"
+                                        text: "viscereality.peripersonal.operator.v1"
                                     }
 
                                     FieldLabel{text: "Target APK"}
@@ -789,14 +789,10 @@ impl App {
     fn launch_runtime(&self, cx: &mut Cx) {
         let serial = self.field_text(cx, ids!(device_serial_input));
         let package = self.field_text(cx, ids!(runtime_package_input));
-        match device::launch_package(&serial, &package, None) {
-            Ok(run) => {
+        match launch_target_runtime_command(&serial, &package, None, true) {
+            Ok(response) => {
                 self.set_status(cx, "Runtime launch", &package);
-                self.set_last_response(
-                    cx,
-                    &serde_json::to_string_pretty(&run)
-                        .unwrap_or_else(|_| "Target runtime launch requested.".to_string()),
-                );
+                self.set_last_response(cx, &response);
             }
             Err(err) => {
                 self.set_status(cx, "Launch error", &err);

@@ -18,10 +18,12 @@ use crate::protocol::{
     OperatorCommandRequest, RuntimeExportRequestSpec, RuntimeOperatorCommandRequest,
     RuntimePanelLaunchSpec, RuntimeProvenanceSpec, RuntimeQuestionnaireStateSpec,
     RuntimeSessionSpec, RuntimeStatusExpectation, RuntimeTargetSpec, DEFAULT_RUNTIME_KIND,
-    DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION,
+    DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION, PANEL_PROTOCOL_VERSION, SCHEMA_ID, STUDY_ID,
 };
 
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:8787";
+const PERIPERSONAL_CONDITION_PACKAGE_PREFIX: &str =
+    "com.Viscereality.ViscerealityPeriPersonal";
 const DEFAULT_RUNTIME_EXPORT_REMOTE_RELATIVE: &str = "files/runtime_csv";
 const DEFAULT_RUNTIME_EXPORT_SUBFOLDER: &str = "device-session-pull";
 const DEFAULT_SESSION_BUNDLE_RECEIPT_FILE: &str = "operator_verification_receipt.json";
@@ -1680,6 +1682,7 @@ pub fn launch_target_runtime(
     activity: Option<&str>,
     json: bool,
 ) -> Result<String, String> {
+    stop_previous_peripersonal_runtime_if_needed(serial, package_name)?;
     let run = device::launch_package(serial, package_name, activity)?;
     if json {
         serde_json::to_string_pretty(&run).map_err(|err| err.to_string())
@@ -1688,6 +1691,36 @@ pub fn launch_target_runtime(
             "Launch requested for target runtime {package_name}."
         ))
     }
+}
+
+fn stop_previous_peripersonal_runtime_if_needed(
+    serial: &str,
+    package_name: &str,
+) -> Result<(), String> {
+    let target_package = package_name.trim();
+    if !target_package.starts_with(PERIPERSONAL_CONDITION_PACKAGE_PREFIX) {
+        return Ok(());
+    }
+
+    let Ok(status) = get_status(DEFAULT_ENDPOINT).and_then(|raw| parse_status_json(&raw)) else {
+        return Ok(());
+    };
+    let Some(active_package) = status
+        .target
+        .as_ref()
+        .and_then(|target| target.runtime_package.as_deref())
+        .map(str::trim)
+        .filter(|value| value.starts_with(PERIPERSONAL_CONDITION_PACKAGE_PREFIX))
+    else {
+        return Ok(());
+    };
+    if active_package == target_package {
+        return Ok(());
+    }
+
+    device::force_stop_package(serial, active_package)?;
+    thread::sleep(Duration::from_millis(750));
+    Ok(())
 }
 
 pub fn pull_target_session(
@@ -3377,27 +3410,99 @@ pub fn open_block(
     debug_command_interval_ms: Option<u32>,
 ) -> Result<String, String> {
     let block = block_by_number(block).ok_or_else(|| "Block must be 1, 2, or 3".to_string())?;
+    if debug_auto_submit || debug_command_script.is_some() || debug_command_interval_ms.is_some() {
+        return Err(
+            "open-block debug options are not supported by the target runtime bridge".to_string(),
+        );
+    }
     let command_id = command_id
         .filter(|value| !value.trim().is_empty())
         .map(str::to_string)
         .unwrap_or_else(|| generated_command_id("operator-cli-open"));
-    let mut body = OperatorCommandRequest::open_block(
-        command_id,
-        block,
-        session_id.to_string(),
-        participant_ref.to_string(),
-        language_code.to_string(),
+    let status = get_status(endpoint).and_then(|raw| parse_status_json(&raw))?;
+    let target_status = status
+        .target
+        .as_ref()
+        .ok_or_else(|| "open-block could not read target runtime status".to_string())?;
+    let runtime_kind = target_status
+        .runtime_kind
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DEFAULT_RUNTIME_KIND)
+        .to_string();
+    let runtime_package = target_status
+        .runtime_package
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "open-block requires the active runtime to report a package".to_string())?
+        .to_string();
+    let bridge_endpoint = target_status
+        .bridge_endpoint
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(endpoint)
+        .to_string();
+    let quest_selector = target_status
+        .quest_selector
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("")
+        .to_string();
+    let operator_protocol = status
+        .runtime_contract
+        .as_ref()
+        .and_then(|contract| contract.operator_protocol.as_deref())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DEFAULT_RUNTIME_OPERATOR_PROTOCOL_VERSION)
+        .to_string();
+    let language_code = if language_code.trim().is_empty() {
+        "en".to_string()
+    } else {
+        language_code.trim().to_string()
+    };
+    let panel_request = RuntimePanelLaunchSpec {
+        protocol_version: PANEL_PROTOCOL_VERSION.to_string(),
+        session_id: session_id.to_string(),
+        study_id: STUDY_ID.to_string(),
+        schema_id: SCHEMA_ID.to_string(),
+        questionnaire_id: SCHEMA_ID.to_string(),
+        open_stage: block.open_stage.to_string(),
+        screen_sequence: block
+            .screen_sequence
+            .iter()
+            .map(|stage| (*stage).to_string())
+            .collect(),
+        condition_number: -1,
+        participant_ref: participant_ref.to_string(),
+        caller_package_name: runtime_package.clone(),
+        caller_app_version: String::new(),
+        questionnaire_state: Some(RuntimeQuestionnaireStateSpec {
+            language_code,
+            condition_id: block.command_name.to_string(),
+            condition_label: block.label.to_string(),
+            operator_stage: block.open_stage.to_string(),
+            condition_index: -1,
+        }),
+    };
+    let target = RuntimeTargetSpec::new(
+        runtime_kind,
+        runtime_package,
+        bridge_endpoint,
+        quest_selector,
     );
-    if debug_auto_submit {
-        body.debug_auto_submit = Some(true);
-    }
-    if let Some(script) = debug_command_script.filter(|value| !value.trim().is_empty()) {
-        body.debug_command_script = Some(script.to_string());
-    }
-    if let Some(interval) = debug_command_interval_ms {
-        body.debug_command_interval_ms = Some(interval);
-    }
-    post_command(endpoint, body)
+    let mut body = RuntimeOperatorCommandRequest::open_questionnaire(
+        command_id,
+        operator_protocol,
+        target,
+        panel_request,
+    );
+    body.command_name = block.command_name.to_string();
+    post_runtime_command(endpoint, body, None)
 }
 
 pub fn dismiss(

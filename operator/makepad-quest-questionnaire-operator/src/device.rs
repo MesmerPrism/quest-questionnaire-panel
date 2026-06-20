@@ -273,6 +273,29 @@ pub fn launch_package(
     }
 }
 
+pub fn force_stop_package(serial: &str, package_name: &str) -> Result<CommandRun, String> {
+    let serial = serial.trim();
+    if serial.is_empty() {
+        return Err("Device serial is required.".to_string());
+    }
+    let package_name = package_name.trim();
+    if package_name.is_empty() {
+        return Err("Package name is required.".to_string());
+    }
+
+    let adb = require_adb()?;
+    let run = run_adb(
+        &adb,
+        &["-s", serial, "shell", "am", "force-stop", package_name],
+        Duration::from_secs(10),
+    )?;
+    if run.succeeded() {
+        Ok(run)
+    } else {
+        Err(run.condensed_output())
+    }
+}
+
 pub fn pull_target_session(
     serial: &str,
     package_name: &str,
