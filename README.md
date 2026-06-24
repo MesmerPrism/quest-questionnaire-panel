@@ -30,6 +30,7 @@ docs/
   handoff-contract.md
   contract-versioning.md
   research-data-safety.md
+  browser-panel-preview-workflow.md
   demo-capture-workflow.md
   recording-comparison-matrix.md
   source-audit-intake-2026-06-14.md
@@ -136,6 +137,10 @@ The generated PNGs are written to `artifacts/panel-render-sequence/` and are
 ignored by git. The render fixture uses the Quest activity manifest's default
 2D panel frame, `1080dp x 720dp`, exported at the Quest 3S headset density
 observed in device validation, `1350px x 900px` at `200dpi`.
+
+For the local browser preview workflow used to iterate on panel organization
+before translating it into the native Quest panel, see
+[`docs/browser-panel-preview-workflow.md`](docs/browser-panel-preview-workflow.md).
 
 For the latest source-intake decision on Quest UI automation and capture
 references, see
