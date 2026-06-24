@@ -79,9 +79,11 @@ or Meta menu navigation should be part of the product path.
 
 ## Build Flavors
 
-The default public recommendation is the minimal questionnaire build. It has
-questionnaire IPC only and does not request internet or package-install
-permissions:
+The default public recommendation is the minimal questionnaire build. It keeps
+the questionnaire product path to explicit Android IPC plus caller-owned
+results. It requests `INTERNET` only for low-rate local Wi-Fi foreground status
+beacons consumed by the Windows operator shell, and it does not request
+package-install permissions:
 
 ```powershell
 .\gradlew.bat :app:assembleMinimalDebug

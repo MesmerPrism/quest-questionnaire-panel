@@ -34,6 +34,7 @@ class QuestionnaireActivity : ComponentActivity() {
     private val terminalResultWriter = TerminalResultWriter()
     private val rendererRegistry = DefaultQuestionnaireRendererRegistry.create()
     private val draftStore by lazy { QuestionnaireDraftStore.create(this) }
+    private val foregroundBeacon by lazy { ForegroundStatusBeacon(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +45,7 @@ class QuestionnaireActivity : ComponentActivity() {
         returnToCaller = launch.returnToCaller
         returnToCallerForeground = launch.returnToCallerForeground
         startedAt = Instant.now()
+        foregroundBeacon.updateLaunch(launch.request)
 
         try {
             showQuestionnaire(launch)
@@ -274,6 +276,7 @@ class QuestionnaireActivity : ComponentActivity() {
             TerminalResultWriteOutcome.CallbackSent -> {
                 draftStore.clear(currentRequest)
                 setResult(Activity.RESULT_OK)
+                foregroundBeacon.publish("submission_completed")
                 sendForegroundReturn(foregroundReturn)
                 finish()
             }
@@ -342,6 +345,36 @@ class QuestionnaireActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        foregroundBeacon.onActivityStarted()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        foregroundBeacon.onActivityResumed()
+    }
+
+    override fun onPause() {
+        foregroundBeacon.onActivityPaused()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        foregroundBeacon.onActivityStopped()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        foregroundBeacon.close()
+        super.onDestroy()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        foregroundBeacon.onWindowFocusChanged(hasFocus)
     }
 
     private data class LaunchContext(
