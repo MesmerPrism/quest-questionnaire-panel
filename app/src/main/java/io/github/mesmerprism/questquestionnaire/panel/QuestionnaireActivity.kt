@@ -29,6 +29,7 @@ class QuestionnaireActivity : ComponentActivity() {
     private var request: QuestionnaireRequest? = null
     private var resultUri: Uri? = null
     private var returnToCaller: PendingIntent? = null
+    private var returnToCallerForeground: PendingIntent? = null
     private var startedAt: Instant = Instant.now()
     private val terminalResultWriter = TerminalResultWriter()
     private val rendererRegistry = DefaultQuestionnaireRendererRegistry.create()
@@ -41,6 +42,7 @@ class QuestionnaireActivity : ComponentActivity() {
         request = launch.request
         resultUri = launch.resultUri
         returnToCaller = launch.returnToCaller
+        returnToCallerForeground = launch.returnToCallerForeground
         startedAt = Instant.now()
 
         try {
@@ -133,6 +135,9 @@ class QuestionnaireActivity : ComponentActivity() {
         val callback = intent.parcelableExtra<PendingIntent>(
             QuestionnaireContract.ExtraReturnToCaller
         )
+        val foregroundReturn = intent.parcelableExtra<PendingIntent>(
+            QuestionnaireContract.ExtraReturnToCallerForeground
+        )
 
         val validation = QuestionnaireLaunchValidator.validate(
             QuestionnaireLaunchSpec(
@@ -156,7 +161,8 @@ class QuestionnaireActivity : ComponentActivity() {
         return LaunchContext(
             request = (validation as QuestionnaireLaunchValidation.Valid).request,
             resultUri = requireNotNull(uri),
-            returnToCaller = requireNotNull(callback)
+            returnToCaller = requireNotNull(callback),
+            returnToCallerForeground = foregroundReturn
         )
     }
 
@@ -250,6 +256,7 @@ class QuestionnaireActivity : ComponentActivity() {
         val currentRequest = request
         val uri = resultUri
         val callback = returnToCaller
+        val foregroundReturn = returnToCallerForeground
 
         if (currentRequest == null || uri == null || callback == null) {
             showSubmissionError("missing_launch_state")
@@ -267,6 +274,7 @@ class QuestionnaireActivity : ComponentActivity() {
             TerminalResultWriteOutcome.CallbackSent -> {
                 draftStore.clear(currentRequest)
                 setResult(Activity.RESULT_OK)
+                sendForegroundReturn(foregroundReturn)
                 finish()
             }
             TerminalResultWriteOutcome.WriteFailed -> {
@@ -276,6 +284,18 @@ class QuestionnaireActivity : ComponentActivity() {
                 draftStore.clear(currentRequest)
                 showResultWrittenCallbackError()
             }
+        }
+    }
+
+    private fun sendForegroundReturn(foregroundReturn: PendingIntent?) {
+        if (foregroundReturn == null) {
+            return
+        }
+
+        try {
+            foregroundReturn.send()
+        } catch (_: PendingIntent.CanceledException) {
+            // Result delivery has already succeeded; foreground recovery is best effort.
         }
     }
 
@@ -327,7 +347,8 @@ class QuestionnaireActivity : ComponentActivity() {
     private data class LaunchContext(
         val request: QuestionnaireRequest,
         val resultUri: Uri,
-        val returnToCaller: PendingIntent
+        val returnToCaller: PendingIntent,
+        val returnToCallerForeground: PendingIntent?
     ) {
         val initialScreenIndex: Int =
             request.screenSequence.indexOf(request.openStage).coerceAtLeast(0)

@@ -33,6 +33,12 @@ Required extras:
 | `result_uri` | parcelable Uri | Caller-owned result URI. |
 | `return_to_caller` | parcelable PendingIntent | Completion callback. |
 
+Optional foreground-return extra:
+
+| Extra | Type | Meaning |
+| --- | --- | --- |
+| `io.github.mesmerprism.questquestionnaire.extra.RETURN_TO_CALLER_FOREGROUND` | parcelable PendingIntent | Caller-owned activity pending intent that reorders the caller's foreground activity after result delivery. |
+
 The `request_json` payload may include optional `questionnaire_state` for
 small questionnaire-owned state that a caller carries between split launches,
 such as the MAIA/spatial selected language code.
@@ -68,6 +74,12 @@ closes the output stream.
 
 The callback is only a signal. Result status and answers live in the result
 JSON, not in callback extras.
+
+If the optional foreground-return pending intent is supplied, the panel sends it
+after the final result JSON is written and the completion callback succeeds,
+then finishes the panel activity. This is only for restoring the caller's
+foreground task on headset builds; it is not a data transport, and failure to
+send it does not invalidate a successfully delivered result.
 
 If result writing fails, the panel keeps the failure local because the caller
 cannot rely on result-file recovery. If the result was written and closed but

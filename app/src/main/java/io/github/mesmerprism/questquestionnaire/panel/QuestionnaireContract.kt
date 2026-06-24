@@ -15,6 +15,8 @@ object QuestionnaireContract {
     const val ExtraRequestJson = "request_json"
     const val ExtraResultUri = "result_uri"
     const val ExtraReturnToCaller = "return_to_caller"
+    const val ExtraReturnToCallerForeground =
+        "io.github.mesmerprism.questquestionnaire.extra.RETURN_TO_CALLER_FOREGROUND"
     const val ExtraDebugAutoSubmit = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_AUTO_SUBMIT"
     const val ExtraDebugCommandScript = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_SCRIPT"
     const val ExtraDebugCommandIntervalMs = "io.github.mesmerprism.questquestionnaire.extra.DEBUG_COMMAND_INTERVAL_MS"

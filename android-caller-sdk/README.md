@@ -64,6 +64,7 @@ The SDK owns:
 - panel install/activity preflight;
 - explicit panel launch `Intent`;
 - immutable one-shot broadcast `PendingIntent`;
+- optional one-shot activity `PendingIntent` for foreground caller recovery;
 - pending request storage;
 - callback/resume/cold-start readback;
 - result envelope validation through `questionnaire-contract-core`.

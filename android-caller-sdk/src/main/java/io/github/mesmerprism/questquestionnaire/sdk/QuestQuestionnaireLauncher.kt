@@ -110,6 +110,7 @@ class QuestQuestionnaireLauncher(
         )
         val requestJson = request.toJson(requestId = requestId, nonce = nonce).toString()
         val returnToCaller = callbackFor(context, requestId)
+        val returnToCallerForeground = foregroundReturnFor(context, requestId)
         val intent = Intent(QuestQuestionnaireIntentContract.StartAction).apply {
             component = ComponentName(config.panelPackage, config.panelActivity)
             addCategory(Intent.CATEGORY_DEFAULT)
@@ -121,6 +122,9 @@ class QuestQuestionnaireLauncher(
             putExtra(QuestQuestionnaireIntentContract.ExtraRequestJson, requestJson)
             putExtra(QuestQuestionnaireIntentContract.ExtraResultUri, resultUri)
             putExtra(QuestQuestionnaireIntentContract.ExtraReturnToCaller, returnToCaller)
+            returnToCallerForeground?.let {
+                putExtra(QuestQuestionnaireIntentContract.ExtraReturnToCallerForeground, it)
+            }
             if (debugAutoSubmit) {
                 putExtra(QuestQuestionnaireIntentContract.ExtraDebugAutoSubmit, true)
             }
@@ -234,6 +238,25 @@ class QuestQuestionnaireLauncher(
             context,
             requestId.hashCode(),
             completionIntent,
+            PendingIntent.FLAG_CANCEL_CURRENT or
+                PendingIntent.FLAG_ONE_SHOT or
+                PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun foregroundReturnFor(context: Context, requestId: String): PendingIntent? {
+        val activity = context as? Activity ?: return null
+        val foregroundIntent = Intent(activity, activity.javaClass).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            data = Uri.parse("app://${context.packageName}/questionnaire-foreground/$requestId")
+            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+
+        return PendingIntent.getActivity(
+            context,
+            "foreground:$requestId".hashCode(),
+            foregroundIntent,
             PendingIntent.FLAG_CANCEL_CURRENT or
                 PendingIntent.FLAG_ONE_SHOT or
                 PendingIntent.FLAG_IMMUTABLE
